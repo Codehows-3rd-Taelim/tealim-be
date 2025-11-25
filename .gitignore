@@ -19,7 +19,7 @@ bin/
 
 ### IntelliJ IDEA ###
 application.properties
-PuduAPIClient
+PuduAPIClient.java
 .idea
 *.iws
 *.iml
