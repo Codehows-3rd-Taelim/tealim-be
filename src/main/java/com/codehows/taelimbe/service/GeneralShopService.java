@@ -19,7 +19,7 @@ public class GeneralShopService {
             System.out.println("Limit: " + limit);
             System.out.println("Offset: " + offset);
 
-            String url = PuduAPIClient.BASE_URL + "/data-open-platform-service/v1/api/shop?limit=" + limit + "&offset=" + offset;
+            String url = puduAPIClient.getBaseUrl() + "/data-open-platform-service/v1/api/shop?limit=" + limit + "&offset=" + offset;
             System.out.println("Target URL: " + url);
 
             return puduAPIClient.callPuduAPI(url, "GET");
@@ -39,7 +39,7 @@ public class GeneralShopService {
             System.out.println("Offset: " + offset);
 
             StringBuilder urlBuilder = new StringBuilder(
-                    PuduAPIClient.BASE_URL + "/data-open-platform-service/v1/api/robot?"
+                    puduAPIClient.getBaseUrl() + "/data-open-platform-service/v1/api/robot?"
             );
 
             urlBuilder.append("limit=").append(limit);

@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.client;
 
+import lombok.Getter;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -29,6 +30,13 @@ public class PuduAPIClient {
 
     @Value("${api.app.secret}")
     private String apiAppSecret;
+
+    @Value("${api.host}")
+    private String host;
+
+    @Getter
+    @Value("${api.base.url}")
+    private String baseUrl;
 
     public ResponseEntity<String> callPuduAPI(String url, String httpMethod) throws Exception {
         String acceptHeader = "application/json";
@@ -68,7 +76,7 @@ public class PuduAPIClient {
         CloseableHttpClient httpClient = HttpClients.createDefault();
         HttpGet httpGet = new HttpGet(url);
         httpGet.setHeader("Accept", acceptHeader);
-        httpGet.setHeader("Host", HOST);
+        httpGet.setHeader("Host", host);
         httpGet.setHeader("x-date", xDate);
         httpGet.setHeader("Authorization", authHeader);
 

@@ -21,7 +21,7 @@ public class ReportService {
             System.out.println("====== Cleaning Report 목록 조회 시작 ======");
 
             StringBuilder urlBuilder = new StringBuilder(
-                    PuduAPIClient.BASE_URL + "/data-board/v1/log/clean_task/query_list?"
+                    puduAPIClient.getBaseUrl() + "/data-board/v1/log/clean_task/query_list?"
             );
 
             urlBuilder.append("start_time=").append(start_time);
@@ -50,7 +50,7 @@ public class ReportService {
             System.out.println("====== Cleaning Report 상세 조회 시작 ======");
 
             StringBuilder urlBuilder = new StringBuilder(
-                    PuduAPIClient.BASE_URL + "/data-board/v1/log/clean_task/query?"
+                    puduAPIClient.getBaseUrl() + "/data-board/v1/log/clean_task/query?"
             );
 
             urlBuilder.append("sn=").append(sn);

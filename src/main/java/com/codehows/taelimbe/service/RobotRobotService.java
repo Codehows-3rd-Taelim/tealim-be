@@ -31,7 +31,7 @@ public class RobotRobotService {
             System.out.println("====== 로봇 상세 조회 시작 ======");
             System.out.println("SN: " + sn);
 
-            String url = PuduAPIClient.BASE_URL + "/cleanbot-service/v1/api/open/robot/detail?sn=" + URLEncoder.encode(sn, ENCODING);
+            String url = puduAPIClient.getBaseUrl() + "/cleanbot-service/v1/api/open/robot/detail?sn=" + URLEncoder.encode(sn, ENCODING);
             System.out.println("Target URL: " + url);
 
             return puduAPIClient.callPuduAPI(url, "GET");
@@ -59,7 +59,7 @@ public class RobotRobotService {
             long end_time = System.currentTimeMillis() / 1000;
 
             StringBuilder chargingUrlBuilder = new StringBuilder(
-                    PuduAPIClient.BASE_URL + "/data-board/v1/log/charge/query_list?"
+                    puduAPIClient.getBaseUrl() + "/data-board/v1/log/charge/query_list?"
             );
             chargingUrlBuilder.append("start_time=").append(start_time);
             chargingUrlBuilder.append("&end_time=").append(end_time);

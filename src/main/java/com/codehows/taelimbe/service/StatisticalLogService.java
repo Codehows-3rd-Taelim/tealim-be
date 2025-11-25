@@ -26,7 +26,7 @@ public class StatisticalLogService {
             System.out.println("Limit: " + limit);
 
             StringBuilder urlBuilder = new StringBuilder(
-                    PuduAPIClient.BASE_URL + "/data-board/v1/log/charge/query_list?"
+                    puduAPIClient.getBaseUrl() + "/data-board/v1/log/charge/query_list?"
             );
 
             urlBuilder.append("start_time=").append(start_time);
