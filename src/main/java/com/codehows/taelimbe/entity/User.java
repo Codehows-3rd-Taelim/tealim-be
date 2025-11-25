@@ -43,16 +43,16 @@ public class User {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    public static User createUser(UserDto dto, PasswordEncoder encoder) {
+    public static User createUser(UserDto dto, Store store, PasswordEncoder encoder) {
         return User.builder()
                 .id(dto.getId())
-                .pw(dto.getPw())
+                .pw(encoder.encode(dto.getPw()))  // 암호화
                 .name(dto.getName())
                 .address(dto.getAddress())
                 .email(dto.getEmail())
                 .role(dto.getRole())
-                .store(dto.getStoreId())
+                .store(store)  // Store 엔티티 주입
                 .build();
-
     }
+
 }
