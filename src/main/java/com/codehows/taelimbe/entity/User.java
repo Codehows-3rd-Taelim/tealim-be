@@ -4,7 +4,7 @@ import com.codehows.taelimbe.constant.Role;
 import com.codehows.taelimbe.dto.UserDto;
 import jakarta.persistence.*;
 import lombok.*;
-import org.springframework.security.crypto.password.PasswordEncoder;
+//import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Entity
 @Table(name = "user")
@@ -43,16 +43,16 @@ public class User {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    public static User createUser(UserDto dto, Store store, PasswordEncoder encoder) {
-        return User.builder()
-                .id(dto.getId())
-                .pw(encoder.encode(dto.getPw()))  // 암호화
-                .name(dto.getName())
-                .address(dto.getAddress())
-                .email(dto.getEmail())
-                .role(dto.getRole())
-                .store(store)  // Store 엔티티 주입
-                .build();
-    }
+//    public static User createUser(UserDto dto, Store store, PasswordEncoder encoder) {
+//        return User.builder()
+//                .id(dto.getId())
+//                .pw(encoder.encode(dto.getPw()))  // 암호화
+//                .name(dto.getName())
+//                .address(dto.getAddress())
+//                .email(dto.getEmail())
+//                .role(dto.getRole())
+//                .store(store)  // Store 엔티티 주입
+//                .build();
+//    }
 
 }
