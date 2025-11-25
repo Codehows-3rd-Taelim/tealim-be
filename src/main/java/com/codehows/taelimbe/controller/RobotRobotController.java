@@ -20,10 +20,22 @@ public class RobotRobotController {
         return robotRobotService.getRobotDetail(sn);
     }
 
-    @GetMapping("/full-info")
+    @GetMapping("/robot/full-info")
     public ResponseEntity<?> getRobotFullInfo(
             @RequestParam String sn,
-            @RequestParam long shop_id) {
-        return robotRobotService.getRobotFullInfo(sn, shop_id);
+            @RequestParam long shop_id,
+            @RequestParam(required = false) Long start_time,
+            @RequestParam(required = false) Long end_time,
+            @RequestParam(defaultValue = "0") int timezone_offset,
+            @RequestParam(defaultValue = "10") int limit) {
+
+        if (start_time == null || end_time == null) {
+            // 기본값 사용 (24시간 전)
+            return robotRobotService.getRobotFullInfo(sn, shop_id);
+        } else {
+            // 명시적 시간 범위 사용
+            return robotRobotService.getRobotFullInfo(sn, shop_id, start_time, end_time, timezone_offset, limit
+            );
+        }
     }
 }
