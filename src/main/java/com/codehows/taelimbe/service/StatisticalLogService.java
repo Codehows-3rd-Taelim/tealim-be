@@ -1,10 +1,10 @@
-// StatisticalLogService.java
 package com.codehows.taelimbe.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @Service
 public class StatisticalLogService {
@@ -25,23 +25,20 @@ public class StatisticalLogService {
             System.out.println("Offset: " + offset);
             System.out.println("Limit: " + limit);
 
-            StringBuilder urlBuilder = new StringBuilder(
-                    puduAPIClient.getBaseUrl() + "/data-board/v1/log/charge/query_list?"
-            );
-
-            urlBuilder.append("start_time=").append(start_time);
-            urlBuilder.append("&end_time=").append(end_time);
-            urlBuilder.append("&offset=").append(offset);
-            urlBuilder.append("&limit=").append(limit);
-            urlBuilder.append("&timezone_offset=").append(timezone_offset);
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-board/v1/log/charge/query_list")
+                    .queryParam("start_time", start_time)
+                    .queryParam("end_time", end_time)
+                    .queryParam("offset", offset)
+                    .queryParam("limit", limit)
+                    .queryParam("timezone_offset", timezone_offset);
 
             if (shop_id != null) {
-                urlBuilder.append("&shop_id=").append(shop_id);
+                builder.queryParam("shop_id", shop_id);
             }
 
-            String url = urlBuilder.toString();
+            String url = builder.toUriString();
             System.out.println("Target URL: " + url);
-
             return puduAPIClient.callPuduAPI(url, "GET");
 
         } catch (Exception e) {

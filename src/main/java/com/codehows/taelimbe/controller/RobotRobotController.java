@@ -20,7 +20,7 @@ public class RobotRobotController {
         return robotRobotService.getRobotDetail(sn);
     }
 
-    @GetMapping("/robot/full-info")
+    @GetMapping("/full-info")
     public ResponseEntity<?> getRobotFullInfo(
             @RequestParam String sn,
             @RequestParam long shop_id,
@@ -29,13 +29,8 @@ public class RobotRobotController {
             @RequestParam(defaultValue = "0") int timezone_offset,
             @RequestParam(defaultValue = "10") int limit) {
 
-        if (start_time == null || end_time == null) {
-            // 기본값 사용 (24시간 전)
-            return robotRobotService.getRobotFullInfo(sn, shop_id);
-        } else {
-            // 명시적 시간 범위 사용
-            return robotRobotService.getRobotFullInfo(sn, shop_id, start_time, end_time, timezone_offset, limit
-            );
-        }
+        // Service에 6개 파라미터 모두 전달
+        // null 값은 Service에서 처리 (기본값 설정)
+        return robotRobotService.getRobotFullInfo(sn, shop_id, start_time, end_time, timezone_offset, limit);
     }
 }

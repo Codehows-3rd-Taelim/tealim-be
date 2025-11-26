@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
 
 @RequiredArgsConstructor
 @Service
@@ -12,16 +13,19 @@ public class GeneralShopService {
 
     private final PuduAPIClient puduAPIClient;
 
-
     public ResponseEntity<String> getShopList(int limit, int offset) {
         try {
             System.out.println("====== 매장 목록 조회 시작 ======");
             System.out.println("Limit: " + limit);
             System.out.println("Offset: " + offset);
 
-            String url = puduAPIClient.getBaseUrl() + "/data-open-platform-service/v1/api/shop?limit=" + limit + "&offset=" + offset;
-            System.out.println("Target URL: " + url);
+            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-open-platform-service/v1/api/shop")
+                    .queryParam("limit", limit)
+                    .queryParam("offset", offset)
+                    .toUriString();
 
+            System.out.println("Target URL: " + url);
             return puduAPIClient.callPuduAPI(url, "GET");
 
         } catch (Exception e) {
@@ -38,26 +42,23 @@ public class GeneralShopService {
             System.out.println("Limit: " + limit);
             System.out.println("Offset: " + offset);
 
-            StringBuilder urlBuilder = new StringBuilder(
-                    puduAPIClient.getBaseUrl() + "/data-open-platform-service/v1/api/robot?"
-            );
-
-            urlBuilder.append("limit=").append(limit);
-            urlBuilder.append("&offset=").append(offset);
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-open-platform-service/v1/api/robot")
+                    .queryParam("limit", limit)
+                    .queryParam("offset", offset);
 
             if (shop_id != null) {
-                urlBuilder.append("&shop_id=").append(shop_id);
+                builder.queryParam("shop_id", shop_id);
             }
 
             if (product_code != null && product_code.length > 0) {
                 for (String code : product_code) {
-                    urlBuilder.append("&product_code=").append(code);
+                    builder.queryParam("product_code", code);
                 }
             }
 
-            String url = urlBuilder.toString();
+            String url = builder.toUriString();
             System.out.println("Target URL: " + url);
-
             return puduAPIClient.callPuduAPI(url, "GET");
 
         } catch (Exception e) {
