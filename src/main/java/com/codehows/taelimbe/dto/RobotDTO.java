@@ -5,7 +5,7 @@ import lombok.Setter;
 
 @Getter
 @Setter
-public class RobotInfoDTO {
+public class RobotDTO {
     private String sn;
     private String mac;
     private String nickname;
