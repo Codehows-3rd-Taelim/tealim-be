@@ -30,7 +30,7 @@ pipeline {
                 script {
                     echo 'Stopping old containers...'
                     sh """
-                        docker-compose down || true
+                        docker compose down || true
                     """
                 }
             }
@@ -41,7 +41,7 @@ pipeline {
                 script {
                     echo 'Building and deploying with docker-compose...'
                     sh """
-                        docker-compose up -d --build
+                        docker compose up -d --build
                     """
                 }
             }
@@ -64,7 +64,7 @@ pipeline {
                 script {
                     echo 'Verifying deployment...'
                     sh """
-                        docker-compose ps
+                        docker compose ps
                         docker logs spring-backend --tail=50
                     """
                 }
@@ -91,7 +91,7 @@ pipeline {
         failure {
             echo 'Spring Boot deployment failed!'
             sh """
-                docker-compose logs
+                docker compose logs || true
             """
         }
     }
