@@ -7,9 +7,9 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
-public class LoginResponseDto
+public class LoginResponseDTO
 {
     private String jwtToken;
 
-    private boolean isAdmin;
+    private Integer isAdmin;
 }

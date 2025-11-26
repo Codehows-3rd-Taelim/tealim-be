@@ -1,7 +1,8 @@
 package com.codehows.taelimbe.controller;
 
-import com.codehows.taelimbe.dto.LoginDto;
-import com.codehows.taelimbe.dto.LoginResponseDto;
+import com.codehows.taelimbe.constant.Role;
+import com.codehows.taelimbe.dto.LoginDTO;
+import com.codehows.taelimbe.dto.LoginResponseDTO;
 import com.codehows.taelimbe.service.JwtService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,22 +22,27 @@ public class LoginController {
     private final AuthenticationManager authenticationManager;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginDto loginDto) {
+    public ResponseEntity<?> login(@RequestBody LoginDTO loginDto) {
         UsernamePasswordAuthenticationToken token =
-                new UsernamePasswordAuthenticationToken(loginDto.getLoginId(), loginDto.getPassword());
+                new UsernamePasswordAuthenticationToken(loginDto.getId(), loginDto.getPw());
 
         Authentication authentication = authenticationManager.authenticate(token);
 
         // ✅ 1. 인증된 사용자의 권한을 확인합니다.
-        boolean isAdmin = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals("ROLE_ADMIN")); // DB에 저장된 관리자 역할 이름과 일치해야 함
+        // 권한 문자열 가져옴 (ex: "ROLE_ADMIN")
+        // ADMIN: 0, MANAGER: 1, USER: 2
+        String roleName = authentication.getAuthorities().stream()
+                .map(a -> a.getAuthority().replace("ROLE_", "")) // ADMIN, MANAGER, USER
+                .findFirst()
+                .orElse("USER"); // 기본값 USER
 
+        // enum으로 변환 → 숫자 level 꺼내기
+        int roleLevel = Role.valueOf(roleName).getLevel();
         // ✅ 2. JWT 토큰을 발급합니다.
         String jwtToken = jwtService.generateToken(authentication.getName());
 
         // ✅ 3. 응답에 포함할 DTO를 생성합니다.
-        LoginResponseDto response = new LoginResponseDto(jwtToken, isAdmin);
+        LoginResponseDTO response = new LoginResponseDTO(jwtToken, roleLevel);
 
         return ResponseEntity.ok()
                 .body(response);

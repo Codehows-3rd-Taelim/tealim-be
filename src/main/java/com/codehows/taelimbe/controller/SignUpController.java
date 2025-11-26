@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.controller;
 
-import com.codehows.taelimbe.dto.UserDto;
+import com.codehows.taelimbe.dto.UserDTO;
 import com.codehows.taelimbe.entity.Store;
 import com.codehows.taelimbe.entity.User;
 import com.codehows.taelimbe.repository.StoreRepository;
@@ -25,7 +25,7 @@ public class SignUpController {
     private final StoreRepository storeRepository;
 
     @PostMapping
-    public ResponseEntity<?> signup(@RequestBody @Valid UserDto userDto) {
+    public ResponseEntity<?> signup(@RequestBody @Valid UserDTO userDto) {
         try {
             Store store = storeRepository.findByStoreId(userDto.getStoreId())
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 매장입니다."));

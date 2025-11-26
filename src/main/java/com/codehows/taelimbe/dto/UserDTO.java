@@ -1,7 +1,6 @@
 package com.codehows.taelimbe.dto;
 
 import com.codehows.taelimbe.constant.Role;
-import com.codehows.taelimbe.entity.Store;
 import com.codehows.taelimbe.entity.User;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +14,7 @@ import java.util.Base64;
 
 @Getter
 @Setter
-public class UserDto {
+public class UserDTO {
 
     private Long userId;
     @NotBlank(message = "ID는 필수 입력 값입니다.")
@@ -28,9 +27,6 @@ public class UserDto {
     @NotBlank(message = "이름은 필수 입력 값입니다.")
     private String name;
 
-    @NotEmpty(message = "주소는 필수 입력 값입니다.")
-    private String address;
-
     @NotEmpty(message = "이메일은 필수 입력 값입니다.")
     @Email(message = "이메일 형식으로 입력해주세요.")
     private String email;
@@ -41,17 +37,14 @@ public class UserDto {
     @NotNull(message = "업체 선택은 필수 선택 값입니다.")
     private Long storeId;
 
-    public static UserDto from(User user) {
-        UserDto dto = new UserDto();
+    public static UserDTO from(User user) {
+        UserDTO dto = new UserDTO();
         dto.setUserId(user.getUserId());
         dto.setId(user.getId());
         dto.setName(user.getName());
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole());
         dto.setStoreId(user.getStore().getStoreId());
-
-        // Base64 복호화 적용
-        dto.setAddress(decode(user.getAddress()));
 
         // 비밀번호는 복호화 안 함(보안상 평문 반환 금지)
         dto.setPw(user.getPw());

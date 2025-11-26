@@ -1,8 +1,7 @@
 package com.codehows.taelimbe.entity;
 
 import com.codehows.taelimbe.constant.Role;
-import com.codehows.taelimbe.dto.UserDto;
-import com.codehows.taelimbe.repository.StoreRepository;
+import com.codehows.taelimbe.dto.UserDTO;
 import jakarta.persistence.*;
 import lombok.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,9 +29,6 @@ public class User {
     @Column(name = "name", length = 20, nullable = false)
     private String name;
 
-    @Column(name = "address", length = 20, nullable = false)
-    private String address;
-
     @Column(name = "email", length = 50, nullable = false)
     private String email;
 
@@ -44,13 +40,12 @@ public class User {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    public static User createUser(UserDto dto, PasswordEncoder encoder, Store store) {
+    public static User createUser(UserDTO dto, PasswordEncoder encoder, Store store) {
 
         return User.builder()
                 .id(dto.getId())
                 .pw(encoder.encode(dto.getPw()))
                 .name(dto.getName())
-                .address(dto.getAddress())
                 .email(dto.getEmail())
                 .role(dto.getRole())
                 .store(store)
