@@ -29,6 +29,9 @@ public class User {
     @Column(name = "name", length = 20, nullable = false)
     private String name;
 
+    @Column(name = "phone", length = 11, nullable = false)
+    private String phone;
+
     @Column(name = "email", length = 50, nullable = false)
     private String email;
 
@@ -46,10 +49,10 @@ public class User {
                 .id(dto.getId())
                 .pw(encoder.encode(dto.getPw()))
                 .name(dto.getName())
+                .phone(dto.getPhone())
                 .email(dto.getEmail())
                 .role(dto.getRole())
                 .store(store)
                 .build();
-
     }
 }

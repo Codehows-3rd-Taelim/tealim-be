@@ -27,6 +27,9 @@ public class UserDTO {
     @NotBlank(message = "이름은 필수 입력 값입니다.")
     private String name;
 
+    @NotNull(message = "전화 번호는 필수 입력 값입니다.")
+    private String phone;
+
     @NotEmpty(message = "이메일은 필수 입력 값입니다.")
     @Email(message = "이메일 형식으로 입력해주세요.")
     private String email;
@@ -41,14 +44,12 @@ public class UserDTO {
         UserDTO dto = new UserDTO();
         dto.setUserId(user.getUserId());
         dto.setId(user.getId());
+        dto.setPw(user.getPw());
         dto.setName(user.getName());
+        dto.setPhone(user.getPhone());
         dto.setEmail(user.getEmail());
         dto.setRole(user.getRole());
         dto.setStoreId(user.getStore().getStoreId());
-
-        // 비밀번호는 복호화 안 함(보안상 평문 반환 금지)
-        dto.setPw(user.getPw());
-
         return dto;
     }
 

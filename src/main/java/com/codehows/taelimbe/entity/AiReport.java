@@ -16,8 +16,8 @@ public class AiReport {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "report_history_id")
-    private Long reportHistoryId;
+    @Column(name = "ai_report_id")
+    private Long aiReportId;
 
     @Column(name = "conversation_id", length = 10)
     private String conversationId;

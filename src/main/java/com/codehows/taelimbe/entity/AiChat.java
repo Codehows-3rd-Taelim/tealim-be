@@ -16,8 +16,8 @@ public class AiChat {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "chat_history_id")
-    private Long chatHistoryId;
+    @Column(name = "ai_chat_id")
+    private Long aiChatId;
 
     @Column(name = "conversation_id", length = 10)
     private String conversationId;
