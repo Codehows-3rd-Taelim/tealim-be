@@ -1,5 +1,5 @@
 # 빌드 스테이지
-FROM gradle:8.5-jdk21 AS builder
+FROM gradle:8.5-jdk17 AS builder
 # Maven 사용 시: FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
@@ -8,6 +8,10 @@ WORKDIR /app
 COPY build.gradle settings.gradle ./
 COPY gradle gradle
 COPY gradlew ./
+
+# gradlew 실행 권한 부여
+RUN chmod +x ./gradlew
+
 RUN ./gradlew dependencies --no-daemon
 
 # Maven 사용 시 (위 4줄 대신 아래 2줄 사용)
@@ -18,11 +22,11 @@ RUN ./gradlew dependencies --no-daemon
 COPY src ./src
 
 # Gradle 빌드
-RUN ./gradlew bootJar --no-daemon
+RUN chmod +x ./gradlew && ./gradlew bootJar --no-daemon
 # Maven 빌드 시: RUN mvn clean package -DskipTests
 
 # 런타임 스테이지
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:17-jre-alpine
 
 WORKDIR /app
 
