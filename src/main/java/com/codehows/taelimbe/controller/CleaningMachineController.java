@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.controller;
 
-import com.codehows.taelimbe.service.RobotRobotService;
+import com.codehows.taelimbe.service.CleaningMachineService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,14 +10,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/robot")
-public class RobotRobotController {
+public class CleaningMachineController {
 
     @Autowired
-    private RobotRobotService robotRobotService;
+    private CleaningMachineService cleaningMachineService;
 
     @GetMapping("/detail")
     public ResponseEntity<String> getRobotDetail(@RequestParam String sn) {
-        return robotRobotService.getRobotDetail(sn);
+        return cleaningMachineService.getRobotDetail(sn);
     }
 
     @GetMapping("/full-info")
@@ -31,6 +31,6 @@ public class RobotRobotController {
 
         // Service에 6개 파라미터 모두 전달
         // null 값은 Service에서 처리 (기본값 설정)
-        return robotRobotService.getRobotFullInfo(sn, shop_id, start_time, end_time, timezone_offset, limit);
+        return cleaningMachineService.getRobotFullInfo(sn, shop_id, start_time, end_time, timezone_offset, limit);
     }
 }

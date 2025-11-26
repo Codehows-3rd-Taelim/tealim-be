@@ -9,7 +9,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @RequiredArgsConstructor
 @Service
-public class GeneralShopService {
+public class GeneralBasicService {
 
     private final PuduAPIClient puduAPIClient;
 

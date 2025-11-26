@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.controller;
 
-import com.codehows.taelimbe.service.StatisticalLogService;
+import com.codehows.taelimbe.service.GeneralLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,10 +10,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/robot")
-public class StatisticalLogController {
+public class GeneralLogController {
 
     @Autowired
-    private StatisticalLogService statisticalLogService;
+    private GeneralLogService generalLogService;
 
     @GetMapping("/charging/list")
     public ResponseEntity<String> getChargingRecordList(
@@ -23,7 +23,7 @@ public class StatisticalLogController {
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int timezone_offset,
             @RequestParam(required = false) Long shop_id) {
-        return statisticalLogService.getChargingRecordList(start_time, end_time, offset, limit, timezone_offset, shop_id);
+        return generalLogService.getChargingRecordList(start_time, end_time, offset, limit, timezone_offset, shop_id);
     }
 
     // =============================
@@ -43,7 +43,7 @@ public class StatisticalLogController {
             @RequestParam(required = false) Integer min_full_capacity,
             @RequestParam(required = false) Integer max_full_capacity
     ) {
-        return statisticalLogService.getBatteryHealthList(
+        return generalLogService.getBatteryHealthList(
                 start_time, end_time, offset, limit, timezone_offset,
                 shop_id, sn,
                 min_cycle, max_cycle,
@@ -65,7 +65,7 @@ public class StatisticalLogController {
             @RequestParam(required = false) String check_step,
             @RequestParam(required = false) Integer is_success) {
 
-        return statisticalLogService.getBootLogList(
+        return generalLogService.getBootLogList(
                 start_time, end_time, offset, limit, timezone_offset,
                 shop_id, check_step, is_success
         );

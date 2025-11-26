@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.controller;
 
-import com.codehows.taelimbe.service.RobotGeneralService;
+import com.codehows.taelimbe.service.VRobotGeneralService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 //이거 key가 권한 없다고 안된다고 함 v2인데
 @RestController
 @RequestMapping("/api/robot")
-public class RobotGeneralController {
+public class VRobotGeneralController {
 
     @Autowired
-    private RobotGeneralService robotGeneralService;
+    private VRobotGeneralService VRobotGeneralService;
 
     /**
      * 로봇 상태 조회 (V2)
@@ -26,6 +26,6 @@ public class RobotGeneralController {
             @RequestParam(required = false) String sn,
             @RequestParam(required = false) String mac) {
 
-        return robotGeneralService.getRobotStatusV2(sn, mac);
+        return VRobotGeneralService.getRobotStatusV2(sn, mac);
     }
 }

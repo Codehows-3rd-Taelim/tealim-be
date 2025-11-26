@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.controller;
 
-import com.codehows.taelimbe.service.ReportService;
+import com.codehows.taelimbe.service.CleaningLogService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -12,10 +12,10 @@ import org.springframework.web.bind.annotation.RestController;
 // 없어짐
 @RestController
 @RequestMapping("/api/robot")
-public class ReportController {
+public class CleaningLogController {
 
     @Autowired
-    private ReportService reportService;
+    private CleaningLogService cleaningLogService;
 
     @GetMapping("/test")
     public ResponseEntity<String> test() {
@@ -30,7 +30,7 @@ public class ReportController {
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int timezone_offset,
             @RequestParam Long shop_id) {
-        return reportService.getCleanReportList(start_time, end_time, offset, limit, timezone_offset, shop_id);
+        return cleaningLogService.getCleanReportList(start_time, end_time, offset, limit, timezone_offset, shop_id);
     }
 
     @GetMapping("/report/detail")
@@ -41,6 +41,6 @@ public class ReportController {
             @RequestParam long end_time,
             @RequestParam(defaultValue = "0") int timezone_offset,
             @RequestParam(required = false) Long shop_id) {
-        return reportService.getCleanReportDetail(sn, report_id, start_time, end_time, timezone_offset, shop_id);
+        return cleaningLogService.getCleanReportDetail(sn, report_id, start_time, end_time, timezone_offset, shop_id);
     }
 }

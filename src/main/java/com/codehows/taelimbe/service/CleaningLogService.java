@@ -6,14 +6,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.Optional;
-
 @Service
-public class ReportService {
+public class CleaningLogService {
 
     private final PuduAPIClient puduAPIClient;
 
-    public ReportService(PuduAPIClient puduAPIClient) {
+    public CleaningLogService(PuduAPIClient puduAPIClient) {
         this.puduAPIClient = puduAPIClient;
     }
 

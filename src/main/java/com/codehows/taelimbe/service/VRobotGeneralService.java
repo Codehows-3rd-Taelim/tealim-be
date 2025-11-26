@@ -2,9 +2,7 @@ package com.codehows.taelimbe.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -12,7 +10,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 //이거 key가 권한 없다고 안된다고 함 v2인데
 @RequiredArgsConstructor
 @Service
-public class RobotGeneralService {
+public class VRobotGeneralService {
 
     private final PuduAPIClient puduAPIClient;
 

@@ -9,16 +9,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.net.URLEncoder;
-
 @Service
-public class RobotRobotService {
+public class CleaningMachineService {
 
     private final PuduAPIClient puduAPIClient;
     private final ObjectMapper objectMapper;
     private static final String ENCODING = "UTF-8";
 
-    public RobotRobotService(PuduAPIClient puduAPIClient, ObjectMapper objectMapper) {
+    public CleaningMachineService(PuduAPIClient puduAPIClient, ObjectMapper objectMapper) {
         this.puduAPIClient = puduAPIClient;
         this.objectMapper = objectMapper;
     }
@@ -44,6 +42,7 @@ public class RobotRobotService {
         }
     }
 
+    //이거는 여러개 조합할 용도로 만든건데 위치를... 고민중 여기있어도 되려나
     public ResponseEntity<?> getRobotFullInfo(String sn, long shop_id, Long start_time, Long end_time,
                                               int timezone_offset, int limit) {
         try {

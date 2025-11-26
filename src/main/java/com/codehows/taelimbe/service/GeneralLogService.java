@@ -9,7 +9,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 @RequiredArgsConstructor
 @Service
-public class StatisticalLogService {
+public class GeneralLogService {
 
     private final PuduAPIClient puduAPIClient;
 
