@@ -13,6 +13,8 @@ public class StatisticalLogService {
 
     private final PuduAPIClient puduAPIClient;
 
+
+    //최신순으로 나온다.
     public ResponseEntity<String> getChargingRecordList(long start_time, long end_time,
                                                         int offset, int limit, int timezone_offset,
                                                         Long shop_id) {
@@ -47,6 +49,8 @@ public class StatisticalLogService {
         }
     }
 
+
+    //이거 조금 이상함? 쓰지마셈
     public ResponseEntity<String> getBatteryHealthList(long start_time, long end_time,
                                                        int offset, int limit, int timezone_offset,
                                                        Long shop_id, String sn,
@@ -78,6 +82,62 @@ public class StatisticalLogService {
             String url = builder.toUriString();
 
             System.out.println("Battery Health Target URL: " + url);
+
+            return puduAPIClient.callPuduAPI(url, "GET");
+
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("{\"error\": \"" + e.getMessage() + "\"}");
+        }
+    }
+
+    // ================================================
+    // 🟦 Power-on Self-test (부팅 자가진단 로그)
+    // ================================================
+    public ResponseEntity<String> getBootLogList(long start_time,
+                                                 long end_time,
+                                                 int offset,
+                                                 int limit,
+                                                 int timezone_offset,
+                                                 Long shop_id,
+                                                 String check_step,
+                                                 Integer is_success) {
+
+        try {
+            System.out.println("====== Boot Log 목록 조회 시작 ======");
+            System.out.println("Start Time: " + start_time);
+            System.out.println("End Time: " + end_time);
+            System.out.println("Offset: " + offset);
+            System.out.println("Limit: " + limit);
+
+            UriComponentsBuilder builder = UriComponentsBuilder
+                    .fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-board/v1/log/boot/query_list")
+                    .queryParam("start_time", start_time)
+                    .queryParam("end_time", end_time)
+                    .queryParam("offset", offset)
+                    .queryParam("limit", limit)
+                    .queryParam("timezone_offset", timezone_offset);
+
+            // ===== 옵션 파라미터 =====
+            if (shop_id != null) {
+                builder.queryParam("shop_id", shop_id);
+            }
+
+            if (check_step != null && !check_step.isEmpty()) {
+                builder.queryParam("check_step", check_step);
+            }
+
+            if (is_success != null) {
+                builder.queryParam("is_success", is_success);
+            }
+
+            // 최종 URL
+            String url = builder.toUriString();
+            System.out.println("Boot Log Target URL: " + url);
 
             return puduAPIClient.callPuduAPI(url, "GET");
 

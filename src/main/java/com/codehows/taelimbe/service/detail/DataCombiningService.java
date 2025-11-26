@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.service.detail;
 
-import com.codehows.taelimbe.dto.RobotFullInfoDTO;
+import com.codehows.taelimbe.dto.RobotInfoDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
@@ -14,21 +14,21 @@ public class DataCombiningService {
         this.objectMapper = objectMapper;
     }
 
-    public RobotFullInfoDTO combineRobotData(String robotJson, String chargingJson) throws Exception {
+    public RobotInfoDTO combineRobotData(String robotJson, String chargingJson) throws Exception {
         JsonNode robotNode = objectMapper.readTree(robotJson);
         JsonNode chargingNode = objectMapper.readTree(chargingJson);
 
-        RobotFullInfoDTO robotFullInfo = new RobotFullInfoDTO();
+        RobotInfoDTO robotInfo = new RobotInfoDTO();
 
         // robotJson에서 추출
         if (robotNode.has("data")) {
             JsonNode data = robotNode.get("data");
-            robotFullInfo.setSn(data.get("sn").asText());
-            robotFullInfo.setMac(data.get("mac").asText());
-            robotFullInfo.setNickname(data.get("nickname").asText());
-            robotFullInfo.setOnline(data.get("online").asInt());
-            robotFullInfo.setBattery(data.get("battery").asInt());
-            robotFullInfo.setRobotStatus(data.get("status").asInt());
+            robotInfo.setSn(data.get("sn").asText());
+            robotInfo.setMac(data.get("mac").asText());
+            robotInfo.setNickname(data.get("nickname").asText());
+            robotInfo.setOnline(data.get("online").asInt());
+            robotInfo.setBattery(data.get("battery").asInt());
+            robotInfo.setRobotStatus(data.get("status").asInt());
         }
 
         // chargingJson에서 추출
@@ -36,11 +36,11 @@ public class DataCombiningService {
             JsonNode data = chargingNode.get("data");
             if (data.isArray() && data.size() > 0) {
                 JsonNode firstRecord = data.get(0);
-                robotFullInfo.setModelName(firstRecord.get("model_name").asText());
-                robotFullInfo.setSoftwareVersion(firstRecord.get("software_version").asText());
+                robotInfo.setModelName(firstRecord.get("model_name").asText());
+                robotInfo.setSoftwareVersion(firstRecord.get("software_version").asText());
             }
         }
 
-        return robotFullInfo;
+        return robotInfo;
     }
 }

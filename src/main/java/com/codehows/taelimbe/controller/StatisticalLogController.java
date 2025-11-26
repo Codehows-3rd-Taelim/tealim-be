@@ -50,4 +50,25 @@ public class StatisticalLogController {
                 min_full_capacity, max_full_capacity
         );
     }
+
+    // =============================
+    // 🟦 Power-on Self-test (부팅 자가진단)
+    // =============================
+    @GetMapping("/boot/list")
+    public ResponseEntity<String> getBootLogList(
+            @RequestParam long start_time,
+            @RequestParam long end_time,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int timezone_offset,
+            @RequestParam(required = false) Long shop_id,
+            @RequestParam(required = false) String check_step,
+            @RequestParam(required = false) Integer is_success) {
+
+        return statisticalLogService.getBootLogList(
+                start_time, end_time, offset, limit, timezone_offset,
+                shop_id, check_step, is_success
+        );
+    }
+
 }
