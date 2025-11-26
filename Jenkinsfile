@@ -6,11 +6,6 @@ pipeline {
         DOCKER_NETWORK = 'app-network'
     }
     
-    // main 브랜치에서만 실행
-    when {
-        branch 'main'
-    }
-    
     stages {
         stage('Checkout') {
             steps {
