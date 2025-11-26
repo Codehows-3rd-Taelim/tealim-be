@@ -1,60 +1,47 @@
 package com.codehows.taelimbe.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
 
+//이거 key가 권한 없다고 안된다고 함 v2인데
+@RequiredArgsConstructor
 @Service
 public class RobotGeneralService {
 
-    @Autowired
-    private PuduAPIClient puduAPIClient;
+    private final PuduAPIClient puduAPIClient;
 
-    /**
-     * 로봇 상태 조회 (V2)
-     * 로봇의 SN 또는 MAC을 기반으로 상태 정보 조회
-     *
-     * @param sn 로봇 SN (선택)
-     * @param mac 로봇 MAC (선택)
-     * @return 로봇 상태 정보
-     */
+    @Value("${api.status.base.url}")
+    private String statusBaseUrl;
+
     public ResponseEntity<String> getRobotStatusV2(String sn, String mac) {
         try {
-            System.out.println("====== 로봇 상태 조회 (V2) 시작 ======");
-            System.out.println("SN: " + sn);
-            System.out.println("MAC: " + mac);
-
-            // sn과 mac 둘 다 없으면 에러
-            if ((sn == null || sn.isEmpty()) && (mac == null || mac.isEmpty())) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+            if ((sn == null || sn.isBlank()) && (mac == null || mac.isBlank())) {
+                return ResponseEntity.badRequest()
                         .body("{\"error\": \"sn 또는 mac 중 하나는 필수입니다\"}");
             }
 
-            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+            UriComponentsBuilder builder = UriComponentsBuilder
+                    .fromHttpUrl(statusBaseUrl) // ★ 중국 노드로 호출
                     .path("/openapi/open-platform-service/v2/status/get_by_sn");
 
-            // 선택 파라미터
-            if (sn != null && !sn.isEmpty()) {
-                builder.queryParam("sn", sn);
-            }
-            if (mac != null && !mac.isEmpty()) {
-                builder.queryParam("mac", mac);
-            }
+            if (sn != null && !sn.isBlank()) builder.queryParam("sn", sn);
+            if (mac != null && !mac.isBlank()) builder.queryParam("mac", mac);
 
             String url = builder.toUriString();
-            System.out.println("Target URL: " + url);
+            System.out.println("🔥 Final URL: " + url);
 
-            System.out.println("🔥 V2 API에 전달되는 URL: " + url); // <-- 이 줄 추가
-            return puduAPIClient.callPuduAPI(url, "GET");
+            return puduAPIClient.callPuduAPI(url, "GET"); // ★ HMAC 필요함
 
         } catch (Exception e) {
-            System.err.println("Error: " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("{\"error\": \"" + e.getMessage() + "\"}");
+            return ResponseEntity.status(500)
+                    .body("{\"error\":\"" + e.getMessage() + "\"}");
         }
     }
 }

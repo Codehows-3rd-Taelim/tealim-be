@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+
+//이거 key가 권한 없다고 안된다고 함 v2인데
 @RestController
 @RequestMapping("/api/robot")
 public class RobotGeneralController {
@@ -17,16 +19,13 @@ public class RobotGeneralController {
 
     /**
      * 로봇 상태 조회 (V2)
-     * 로봇의 SN 또는 MAC을 기반으로 상태 정보 조회
-     *
-     * @param sn 로봇 SN (선택)
-     * @param mac 로봇 MAC (선택) - sn과 mac 중 하나는 필수
-     * @return 로봇 상태 정보
+     * 로봇 SN 또는 MAC 기반 상태 조회
      */
     @GetMapping("/status/v2")
     public ResponseEntity<String> getRobotStatusV2(
             @RequestParam(required = false) String sn,
             @RequestParam(required = false) String mac) {
+
         return robotGeneralService.getRobotStatusV2(sn, mac);
     }
 }
