@@ -27,7 +27,7 @@ public class ReportController {
             @RequestParam long start_time,
             @RequestParam long end_time,
             @RequestParam(defaultValue = "0") int offset,
-            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int timezone_offset,
             @RequestParam Long shop_id) {
         return reportService.getCleanReportList(start_time, end_time, offset, limit, timezone_offset, shop_id);

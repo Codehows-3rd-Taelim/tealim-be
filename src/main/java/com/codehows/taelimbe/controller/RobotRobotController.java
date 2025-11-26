@@ -27,7 +27,7 @@ public class RobotRobotController {
             @RequestParam(required = false) Long start_time,
             @RequestParam(required = false) Long end_time,
             @RequestParam(defaultValue = "0") int timezone_offset,
-            @RequestParam(defaultValue = "10") int limit) {
+            @RequestParam(defaultValue = "20") int limit) {
 
         // Service에 6개 파라미터 모두 전달
         // null 값은 Service에서 처리 (기본값 설정)

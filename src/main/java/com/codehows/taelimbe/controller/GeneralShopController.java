@@ -17,14 +17,14 @@ public class GeneralShopController {
 
     @GetMapping("/list")
     public ResponseEntity<String> getShopList(
-            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
         return generalShopService.getShopList(limit, offset);
     }
 
     @GetMapping("/robot/list")
     public ResponseEntity<String> getRobotList(
-            @RequestParam(defaultValue = "10") int limit,
+            @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset,
             @RequestParam(required = false) Long shop_id,
             @RequestParam(required = false) String[] product_code) {
