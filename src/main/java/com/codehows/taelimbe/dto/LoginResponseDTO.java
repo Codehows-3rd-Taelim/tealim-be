@@ -12,4 +12,6 @@ public class LoginResponseDTO
     private String jwtToken;
 
     private Integer roleLevel;
+
+    private Long storeId;
 }

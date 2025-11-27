@@ -31,7 +31,7 @@ public class Robot {
     private String softVersion;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "work_status")
+    @Column(name = "status")
     private WorkStatus workStatus;
 
     @Column(name = "nickname", length = 255)
@@ -40,8 +40,8 @@ public class Robot {
     @Column(name = "battery")
     private Long battery;
 
-    @Column(name = "online_yn")
-    private Boolean onlineYn;
+    @Column(name = "online")
+    private Boolean online;
 
     @ManyToOne
     @JoinColumn(name = "store_id")
