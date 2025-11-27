@@ -14,33 +14,73 @@ java {
     }
 }
 
+repositories {
+    mavenCentral()
+}
+
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
     }
 }
 
-repositories {
-    mavenCentral()
-}
-
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-web'
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'
-    // LangChain4j
-    implementation 'dev.langchain4j:langchain4j-spring-boot-starter:0.31.0'
-    implementation 'com.google.genai:google-genai:1.28.0'
-    implementation 'dev.langchain4j:langchain4j-milvus:0.31.0'
+    // ==============================
+    // Spring Boot 스타터
+    // ==============================
+    implementation 'org.springframework.boot:spring-boot-starter-web'         // Web MVC
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'     // WebFlux
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'    // JPA
+    implementation 'org.springframework.boot:spring-boot-starter-jdbc'        // JDBC
+    implementation 'org.springframework.boot:spring-boot-starter-security'    // Spring Security
+    implementation 'org.springframework.boot:spring-boot-starter-validation'  // Bean Validation
 
+    // ==============================
+    // MySQL Connector
+    // ==============================
     runtimeOnly 'mysql:mysql-connector-java'
 
+    // ==============================
+    // QueryDSL
+    // ==============================
+    implementation 'com.querydsl:querydsl-jpa:5.1.0'
+    implementation 'com.querydsl:querydsl-apt:5.1.0'
+
+    // ==============================
+    // 모델 매핑
+    // ==============================
+    implementation 'org.modelmapper:modelmapper:3.1.0'
+
+    // ==============================
+    // JWT
+    // ==============================
+    implementation "io.jsonwebtoken:jjwt-api:0.11.5"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:0.11.5"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:0.11.5"
+
+    // ==============================
+    // LangChain4j 및 Milvus / Google GenAI
+    // ==============================
+    implementation 'dev.langchain4j:langchain4j-spring-boot-starter:0.31.0'
+    implementation 'dev.langchain4j:langchain4j-milvus:0.31.0'
+    implementation 'com.google.genai:google-genai:1.28.0'
+
+    // ==============================
+    // Gson
+    // ==============================
     implementation 'com.google.code.gson:gson'
 
+    // ==============================
+    // Lombok
+    // ==============================
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    // ==============================
+    // 테스트
+    // ==============================
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-    runtimeOnly 'com.mysql:mysql-connector-j'
+    testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
