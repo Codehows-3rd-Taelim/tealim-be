@@ -13,10 +13,10 @@ public class RobotDTO {
     private String nickname;
     private boolean online;
     private int battery;
-    private int Status;
+    private int status;
 
     private String productCode;
     private String softVersion;
 
-    private Long storeId;
+    private Long storeId;  // 내부 DB store_id
 }

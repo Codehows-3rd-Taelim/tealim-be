@@ -1,58 +1,56 @@
-//package com.codehows.taelimbe.entity;
-//
-//import jakarta.persistence.*;
-//import lombok.*;
-//
-//@Entity
-//@Table(name = "robot")
-//@Getter
-//@Setter
-//@NoArgsConstructor
-//@AllArgsConstructor
-//@Builder
-//public class Robot {
-//
-//    @Id
-//    @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    @Column(name = "robot_id")
-//    private Long robotId;
-//
-//    @Column(name = "sn", length = 20, nullable = false)
-//    private String sn;
-//
-//    @Column(name = "mac", length = 17, nullable = false)
-//    private String mac;
-//
-//    @Enumerated(EnumType.STRING)
-//    @Column(name = "product_code", nullable = false)
-//    private ProductCode productCode;
-//
-//    @Column(name = "soft_version", length = 255)
-//    private String softVersion;
-//
-//    @Enumerated(EnumType.STRING)
-//    @Column(name = "work_status")
-//    private WorkStatus workStatus;
-//
-//    @Column(name = "nickname", length = 255)
-//    private String nickname;
-//
-//    @Column(name = "battery")
-//    private Long battery;
-//
-//    @Column(name = "online_yn")
-//    private Boolean onlineYn;
-//
-//    @ManyToOne
-//    @JoinColumn(name = "store_id")
-//    private Store store;
-//
-//    public enum ProductCode {
-//        CC1, MT1
-//    }
-//
-//    public enum WorkStatus {
-//        WAIT, WORK, CHARGE, OFFLINE
-//    }
-//
-//}
+package com.codehows.taelimbe.entity;
+
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@NoArgsConstructor
+@Entity
+@Table(name = "robot")
+public class Robot {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true)
+    private String sn;
+
+    @Column(nullable = false, unique = true)
+    private String mac;
+
+    private String nickname;
+    private boolean online;
+    private int battery;
+    private int status;
+    private String productCode;
+    private String softVersion;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "store_id")
+    private Store store;
+
+    // ===== 생성자 (필수값만) =====
+    public Robot(String sn, String mac, Store store) {
+        this.sn = sn;
+        this.mac = mac;
+        this.store = store;
+    }
+
+    // ===== 로봇 상태 업데이트용 메서드 =====
+    public void updateRobotInfo(String nickname, boolean online, int battery,
+                                int status, String productCode, String softVersion) {
+        this.nickname = nickname;
+        this.online = online;
+        this.battery = battery;
+        this.status = status;
+        this.productCode = productCode;
+        this.softVersion = softVersion;
+    }
+
+    // ===== 매장 변경 (필요시) =====
+    public void changeStore(Store store) {
+        this.store = store;
+    }
+}
