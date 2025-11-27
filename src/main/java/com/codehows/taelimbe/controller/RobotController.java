@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/robot")
@@ -13,16 +15,30 @@ public class RobotController {
 
     private final RobotService robotService;
 
-    // ① SN 기준 로봇 데이터 전체 통합 조회
+    /**
+     * 단일 로봇 조회
+     */
     @GetMapping("/info")
     public ResponseEntity<RobotDTO> getRobotInfo(
             @RequestParam String sn,
-            @RequestParam Long shop_id
+            @RequestParam Long shopId
     ) {
-        return ResponseEntity.ok(robotService.combineRobotInfo(sn, shop_id));
+        return ResponseEntity.ok(robotService.getRobotInfo(sn, shopId));
     }
 
-    // ② 로봇 상태 V2 (옵션)
+    /**
+     * 매장 전체 로봇 조회
+     */
+    @GetMapping("/list")
+    public ResponseEntity<List<RobotDTO>> getRobotList(
+            @RequestParam Long shopId
+    ) {
+        return ResponseEntity.ok(robotService.getRobotListByShop(shopId));
+    }
+
+    /**
+     * V2 상태 조회
+     */
     @GetMapping("/status/v2")
     public ResponseEntity<String> getStatusV2(
             @RequestParam(required = false) String sn,
