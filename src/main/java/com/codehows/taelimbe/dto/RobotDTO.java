@@ -1,12 +1,15 @@
 package com.codehows.taelimbe.dto;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
 
 @Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @Setter
 public class RobotDTO {
 
+    private Long robotId;
     private String sn;
     private String mac;
 
@@ -18,5 +21,5 @@ public class RobotDTO {
     private String productCode;
     private String softVersion;
 
-    private Long storeId;  // 내부 DB store_id
+    private Long storeId;
 }

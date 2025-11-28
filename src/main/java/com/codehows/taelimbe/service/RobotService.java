@@ -16,6 +16,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -27,9 +28,9 @@ public class RobotService {
     private final ObjectMapper mapper = new ObjectMapper();
 
 
-    // ==================================================================
-    // 1) 매장(storeId) 기준 → 로봇 전체 DB 저장/업데이트
-    // ==================================================================
+    // ================================
+    // 1) API → DB 저장 (동기화)
+    // ================================
     @Transactional
     public int syncRobotsByStoreId(Long storeId) {
 
@@ -38,21 +39,63 @@ public class RobotService {
 
         Long shopId = store.getShopId();
 
+        // ⚠ API 전용 메서드 (그대로 유지)
         List<RobotDTO> robots = getRobotListByShop(shopId);
 
-        int savedCount = 0;
+        int cnt = 0;
         for (RobotDTO dto : robots) {
             saveRobot(dto, store);
-            savedCount++;
+            cnt++;
         }
 
-        return savedCount;
+        return cnt;
     }
 
 
-    // ==================================================================
-    // 2) 단일 로봇 저장/업데이트 위에 전체 매장 업데이트에서 사용중
-    // ==================================================================
+    // ================================
+    // 2) DB 조회 전용(list)
+    // ================================
+    public List<RobotDTO> getRobotListFromDB(Long storeId) {
+
+        return robotRepository.findAllByStore_StoreId(storeId)
+                .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+
+    // ================================
+    // 3) 단일 조회(DB + API 병합)
+    // ================================
+    public RobotDTO getRobotInfoByStoreId(String sn, Long storeId) {
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+
+        Long shopId = store.getShopId();
+
+        RobotDTO api = getRobotInfo(sn, shopId);
+        Robot robot = robotRepository.findBySn(sn).orElse(null);
+
+        // DB 없을 때 API만 반환
+        if (robot == null) return api;
+
+        RobotDTO dto = convertToDto(robot);
+
+        // API 최신값 덮어쓰기
+        dto.setBattery(api.getBattery());
+        dto.setOnline(api.isOnline());
+        dto.setStatus(api.getStatus());
+        dto.setProductCode(api.getProductCode());
+        dto.setSoftVersion(api.getSoftVersion());
+
+        return dto;
+    }
+
+
+    // ================================
+    // 4) Robot 저장(DB 업데이트)
+    // ================================
     @Transactional
     public Robot saveRobot(RobotDTO dto, Store store) {
 
@@ -68,81 +111,64 @@ public class RobotService {
                 dto.getSoftVersion()
         );
 
-        robot.changeStore(store); // store 매핑 필요 시
+        robot.changeStore(store);
 
         return robotRepository.save(robot);
     }
 
 
-    // ==================================================================
-    // 3) 단일 로봇 조회 (storeId 기반)
-    // ==================================================================
-    public RobotDTO getRobotInfoByStoreId(String sn, Long storeId) {
-
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
-
-        Long shopId = store.getShopId();
-
-        return getRobotInfo(sn, shopId);
-    }
-
-
-    // ==================================================================
-    // 4) 단일 로봇 정보 조회 & 조합 (외부 API)
-    // ==================================================================
+    // ================================
+    // 5) API 단일 상세 조회 정보 조립
+    // ================================
     public RobotDTO getRobotInfo(String sn, Long shopId) {
 
-        RobotDTO dto = new RobotDTO();
-        dto.setSn(sn);
+        String mac = null;
+        String nickname = null;
+        boolean online = false;
+        int battery = 0;
+        int status = 0;
+        String productCode = null;
+        String softVersion = null;
 
-        // (1) MAC 조회
-        JsonNode robot = fetchRobotBySn(sn, shopId);
-        if (robot != null) {
-            dto.setMac(robot.path("mac").asText(null));
-        }
+        JsonNode base = fetchRobotBySn(sn, shopId);
+        if (base != null) mac = base.path("mac").asText(null);
 
-        // (2) 상세 조회
         JsonNode detail = fetchRobotDetail(sn);
         if (detail != null) {
-            dto.setNickname(detail.path("nickname").asText(null));
-            dto.setBattery(detail.path("battery").asInt());
-            dto.setOnline(detail.path("online").asBoolean());
-            dto.setStatus(detail.path("cleanbot").path("clean").path("status").asInt());
+            nickname = detail.path("nickname").asText(null);
+            battery = detail.path("battery").asInt();
+            online = detail.path("online").asBoolean();
+            status = detail.path("cleanbot").path("clean").path("status").asInt();
         }
 
-        // (3) 충전 기록 조회
         JsonNode charge = fetchLatestChargeLog(sn, shopId);
         if (charge != null) {
-            dto.setProductCode(charge.path("product_code").asText(null));
-            dto.setSoftVersion(charge.path("soft_version").asText(null));
+            productCode = charge.path("product_code").asText(null);
+            softVersion = charge.path("soft_version").asText(null);
         }
 
-        return dto;
+        return RobotDTO.builder()
+                .sn(sn)
+                .mac(mac)
+                .nickname(nickname)
+                .online(online)
+                .battery(battery)
+                .status(status)
+                .productCode(productCode)
+                .softVersion(softVersion)
+                .build();
     }
 
 
-    // ==================================================================
-    // 5) 매장(storeId) 전체 로봇 조회
-    // ==================================================================
-    public List<RobotDTO> getRobotListByStoreId(Long storeId) {
-
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
-
-        return getRobotListByShop(store.getShopId());
-    }
-
-
-    // ==================================================================
-    // 6) 매장(shopId) 전체 로봇 조회
-    // ==================================================================
+    // ================================
+    // 6) Shop 기준 전체 조회(API 전용)
+    // ================================
     public List<RobotDTO> getRobotListByShop(Long shopId) {
 
-        List<JsonNode> robots = fetchRobotListAll(shopId);
+        List<JsonNode> list = fetchRobotListAll(shopId);
         List<RobotDTO> result = new ArrayList<>();
 
-        for (JsonNode node : robots) {
+        for (JsonNode node : list) {
             String sn = node.path("sn").asText();
             result.add(getRobotInfo(sn, shopId));
         }
@@ -151,9 +177,32 @@ public class RobotService {
     }
 
 
-    // ==================================================================
-    // 7) 외부 API 호출들
-    // ==================================================================
+    // ================================
+    // 7) API 호출들
+    // ================================
+    private List<JsonNode> fetchRobotListAll(Long shopId) {
+
+        List<JsonNode> list = new ArrayList<>();
+
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-open-platform-service/v1/api/robot")
+                    .queryParam("limit", 100)
+                    .queryParam("offset", 0)
+                    .queryParam("shop_id", shopId)
+                    .toUriString();
+
+            ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
+
+            JsonNode arr = mapper.readTree(res.getBody()).path("data").path("list");
+
+            if (arr.isArray()) arr.forEach(list::add);
+
+        } catch (Exception ignored) {}
+
+        return list;
+    }
+
     private JsonNode fetchRobotBySn(String sn, Long shopId) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
@@ -163,14 +212,12 @@ public class RobotService {
                     .queryParam("shop_id", shopId)
                     .toUriString();
 
-            ResponseEntity<String> response = puduAPIClient.callPuduAPI(url, "GET");
-            JsonNode list = mapper.readTree(response.getBody())
-                    .path("data").path("list");
+            ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
 
-            for (JsonNode node : list) {
-                if (sn.equals(node.path("sn").asText())) {
-                    return node;
-                }
+            JsonNode nodes = mapper.readTree(res.getBody()).path("data").path("list");
+
+            for (JsonNode n : nodes) {
+                if (sn.equals(n.path("sn").asText())) return n;
             }
 
         } catch (Exception ignored) {}
@@ -178,13 +225,26 @@ public class RobotService {
         return null;
     }
 
+    private JsonNode fetchRobotDetail(String sn) {
+        try {
+            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/cleanbot-service/v1/api/open/robot/detail")
+                    .queryParam("sn", sn)
+                    .toUriString();
 
+            ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
 
+            return mapper.readTree(res.getBody()).path("data");
+
+        } catch (Exception ignored) {}
+
+        return null;
+    }
 
     private JsonNode fetchLatestChargeLog(String sn, Long shopId) {
 
         long end = System.currentTimeMillis() / 1000;
-        long start = end - 60L * 60 * 24 * 90; // 90일
+        long start = end - 60L * 60 * 24 * 90;
 
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
@@ -196,79 +256,51 @@ public class RobotService {
                     .queryParam("shop_id", shopId)
                     .toUriString();
 
-            ResponseEntity<String> response = puduAPIClient.callPuduAPI(url, "GET");
+            ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
 
-            JsonNode list = mapper.readTree(response.getBody())
-                    .path("data").path("list");
+            JsonNode arr = mapper.readTree(res.getBody()).path("data").path("list");
 
-            if (list.isArray() && list.size() > 0) {
-                return list.get(0);
-            }
+            if (arr.isArray() && arr.size() > 0) return arr.get(0);
 
         } catch (Exception ignored) {}
 
         return null;
     }
 
-
-    private List<JsonNode> fetchRobotListAll(Long shopId) {
-        List<JsonNode> result = new ArrayList<>();
-
-        try {
-            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
-                    .path("/data-open-platform-service/v1/api/robot")
-                    .queryParam("limit", 100)
-                    .queryParam("offset", 0)
-                    .queryParam("shop_id", shopId)
-                    .toUriString();
-
-            ResponseEntity<String> response = puduAPIClient.callPuduAPI(url, "GET");
-            JsonNode list = mapper.readTree(response.getBody())
-                    .path("data").path("list");
-
-            if (list.isArray()) list.forEach(result::add);
-
-        } catch (Exception ignored) {}
-
-        return result;
-    }
-
-
-    private JsonNode fetchRobotDetail(String sn) {
-        try {
-            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
-                    .path("/cleanbot-service/v1/api/open/robot/detail")
-                    .queryParam("sn", sn)
-                    .toUriString();
-
-            ResponseEntity<String> response = puduAPIClient.callPuduAPI(url, "GET");
-            return mapper.readTree(response.getBody())
-                    .path("data");
-
-        } catch (Exception ignored) {}
-
-        return null;
-    }
-
-
-
-    // ==================================================================
-    // 8) V2 상태 조회
-    // ==================================================================
     public ResponseEntity<String> getRobotStatusV2(String sn, String mac) {
 
         try {
-            UriComponentsBuilder builder = UriComponentsBuilder
+            UriComponentsBuilder b = UriComponentsBuilder
                     .fromHttpUrl("https://open-platform.pudutech.com")
                     .path("/open-platform-service/v2/status/get_by_sn");
 
-            if (sn != null && !sn.isBlank()) builder.queryParam("sn", sn);
-            if (mac != null && !mac.isBlank()) builder.queryParam("mac", mac);
+            if (sn != null && !sn.isBlank()) b.queryParam("sn", sn);
+            if (mac != null && !mac.isBlank()) b.queryParam("mac", mac);
 
-            return puduAPIClient.callOpenPlatformAPI(builder.toUriString());
+            return puduAPIClient.callOpenPlatformAPI(b.toUriString());
 
         } catch (Exception e) {
             return ResponseEntity.internalServerError().body(e.getMessage());
         }
+    }
+
+
+    // ================================
+    // 8) Robot → DTO 변환 (DB)
+    // ================================
+    private RobotDTO convertToDto(Robot robot) {
+
+        return RobotDTO.builder()
+                .robotId(robot.getRobotId())
+                .sn(robot.getSn())
+                .mac(robot.getMac())
+                .nickname(robot.getNickname())
+                .online(robot.isOnline())
+                .battery(robot.getBattery())
+                .status(robot.getStatus())
+                .productCode(robot.getProductCode())
+                .softVersion(robot.getSoftVersion())
+                .storeId(robot.getStore().getStoreId())
+                .build();
     }
 }

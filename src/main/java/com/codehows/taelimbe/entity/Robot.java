@@ -1,18 +1,23 @@
 package com.codehows.taelimbe.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-@Getter
-@NoArgsConstructor
 @Entity
 @Table(name = "robot")
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Robot {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "robot_id")
+    private Long robotId;
 
     @Column(nullable = false, unique = true)
     private String sn;
@@ -31,14 +36,14 @@ public class Robot {
     @JoinColumn(name = "store_id")
     private Store store;
 
-    // ===== 생성자 (필수값만) =====
+    // ================= Constructor for Required Fields =================
     public Robot(String sn, String mac, Store store) {
         this.sn = sn;
         this.mac = mac;
         this.store = store;
     }
 
-    // ===== 로봇 상태 업데이트용 메서드 =====
+    // ================= Update Methods =================
     public void updateRobotInfo(String nickname, boolean online, int battery,
                                 int status, String productCode, String softVersion) {
         this.nickname = nickname;
@@ -49,7 +54,6 @@ public class Robot {
         this.softVersion = softVersion;
     }
 
-    // ===== 매장 변경 (필요시) =====
     public void changeStore(Store store) {
         this.store = store;
     }
