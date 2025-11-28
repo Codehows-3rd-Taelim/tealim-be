@@ -16,15 +16,16 @@ import org.springframework.web.bind.annotation.*;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/signup")
+@RequestMapping("/user")
 @RequiredArgsConstructor
-public class SignUpController {
+public class UserController {
+    
     private final UserService userService;
     private final PasswordEncoder passwordEncoder;
     private final UserRepository userRepository;
     private final StoreRepository storeRepository;
 
-    @PostMapping
+    @PostMapping("/signup")
     public ResponseEntity<?> signup(@RequestBody @Valid UserDTO userDto) {
         try {
             Store store = storeRepository.findByStoreId(userDto.getStoreId())
@@ -43,6 +44,28 @@ public class SignUpController {
     public ResponseEntity<?> checkLoginId(@RequestParam String id) {
         boolean exists = userRepository.existsById(id);
         return ResponseEntity.ok().body(Map.of("exists", exists));
+    }
+
+    // 직원 삭제
+    @DeleteMapping("/{userId}")
+    public ResponseEntity<String> deleteEmployee(@PathVariable Long userId) {
+        try {
+            // 서비스 계층에 삭제 로직 위임
+            userService.deleteUser(userId);
+
+            // 성공적으로 삭제되었음을 알리는 메시지 반환 (프론트엔드에서 alert에 사용 가능)
+            return ResponseEntity.ok("직원이 성공적으로 삭제되었습니다.");
+
+            // 또는 데이터 반환 없이 204 No Content 반환
+            // return ResponseEntity.noContent().build();
+
+        } catch (IllegalArgumentException e) {
+            // 직원을 찾을 수 없을 때 (예: userId가 유효하지 않은 경우)
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            // 그 외 서버 오류
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("직원 삭제 중 서버 오류가 발생했습니다.");
+        }
     }
 
 

@@ -27,4 +27,11 @@ public class UserService {
         }
     }
 
+    public void deleteUser(Long userId) {
+        userRepository.findById(userId)
+                .ifPresentOrElse(
+                        user -> userRepository.delete(user),
+                        () -> { throw new IllegalArgumentException("해당 ID의 직원을 찾을 수 없습니다: " + userId); }
+                );
+    }
 }

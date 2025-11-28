@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.controller;
 
+import com.codehows.taelimbe.dto.UserResponseDTO;
 import com.codehows.taelimbe.entity.Store;
 import com.codehows.taelimbe.entity.User;
 import com.codehows.taelimbe.service.CheckService;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Controller
 @RequiredArgsConstructor
@@ -40,10 +42,17 @@ public class CheckController {
 
     @GetMapping("/store/user")
     @ResponseBody
-    public ResponseEntity<List<User>> checkUser(
+    public ResponseEntity<List<UserResponseDTO>> checkUser(
             @RequestParam(value = "storeId", required = false) Long storeId) {
 
         List<User> users = checkService.findUsers(storeId);
-        return ResponseEntity.ok(users);
+
+        // 💡 User 엔티티 목록을 UserResponseDTO 목록으로 변환
+        List<UserResponseDTO> userDTOs = users.stream()
+                .map(UserResponseDTO::fromEntity) // DTO의 fromEntity 메서드 사용
+                .collect(Collectors.toList());
+
+        // HTTP 200 OK와 함께 DTO 목록을 JSON으로 반환
+        return ResponseEntity.ok(userDTOs);
     }
 }
