@@ -1,0 +1,47 @@
+package com.codehows.taelimbe.service;
+
+import com.codehows.taelimbe.entity.Store;
+import com.codehows.taelimbe.entity.User;
+import com.codehows.taelimbe.repository.StoreRepository;
+import com.codehows.taelimbe.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+import java.util.Optional;
+
+@Service // 이 클래스를 서비스 빈으로 등록합니다.
+@RequiredArgsConstructor
+public class CheckService {
+
+    // 리포지토리를 주입받습니다.
+    private final StoreRepository storeRepository;
+    private final UserRepository userRepository;
+
+    /**
+     * storeId 유무에 따라 매장 목록 전체 또는 특정 매장을 조회합니다.
+     *
+     * @param storeId 선택적 매장 ID
+     * @return 조회된 Store 엔티티 목록
+     */
+    public List<Store> findStores(Long storeId) {
+        if (storeId != null) {
+            // 1. storeId가 있는 경우: 해당 storeId만 조회
+            Optional<Store> storeOptional = storeRepository.findById(storeId);
+
+            // 조회 결과가 있으면 해당 매장만 리스트에 담아 반환하고, 없으면 빈 리스트 반환
+            return storeOptional.map(List::of).orElse(List.of());
+        } else {
+            // 2. storeId가 없는 경우: 모든 매장 조회
+            return storeRepository.findAll();
+        }
+    }
+
+    public List<User> findUsers(Long storeId) {
+        if (storeId != null) {
+            return userRepository.findByStore_StoreId(storeId);
+        } else {
+            return userRepository.findAll();
+        }
+    }
+}
