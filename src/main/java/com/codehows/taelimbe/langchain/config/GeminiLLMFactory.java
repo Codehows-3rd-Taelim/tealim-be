@@ -1,6 +1,5 @@
 package com.codehows.taelimbe.langchain.config;
 
-
 import com.codehows.taelimbe.langchain.models.GeminiEmbeddingModel;
 import com.codehows.taelimbe.langchain.models.GeminiStreamingChatModel;
 import com.google.genai.Client;

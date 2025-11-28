@@ -1,6 +1,5 @@
 package com.codehows.taelimbe.dto;
 
-
 import com.codehows.taelimbe.entity.CleaningData;
 import lombok.AllArgsConstructor;
 import lombok.Data;

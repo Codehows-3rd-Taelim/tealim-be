@@ -1,9 +1,9 @@
 package com.codehows.taelimbe.constant;
 
 public enum Role {
-    USER(2),
-    MANAGER(1),
-    ADMIN(0);
+    USER(1),
+    MANAGER(2),
+    ADMIN(3);
 
     private final int level;
 

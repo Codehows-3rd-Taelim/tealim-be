@@ -2,41 +2,40 @@ package com.codehows.taelimbe.dto;
 
 import com.codehows.taelimbe.entity.Report;
 import com.codehows.taelimbe.entity.Robot;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
-
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ReportDTO {
 
-    private Long reprotId;
+    private Long reportId;
 
     private Integer status;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
 
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime endTime;
 
     private Float cleanTime;
-
     private Float taskArea;
-
     private Float cleanArea;
 
     private Integer mode;
-
     private Long costBattery;
-
     private Long costWater;
 
     private String mapName;
-
     private String mapUrl;
 
-    private Robot robot;
+    private Long robotId;
+    private String robotSn;
+
 
     public static ReportDTO createReportDTO(Report report) {
         return ReportDTO.builder()

@@ -1,26 +1,24 @@
 package com.codehows.taelimbe.langchain.config;
 
 import com.codehows.taelimbe.langchain.converters.LocalDateTimeAdapter;
-
 import com.google.genai.Client;
-import com.google.gson.Gson; // Gson 임포트
-import com.google.gson.GsonBuilder; // GsonBuilder 임포트
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
-import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
-import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
+import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
-import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.milvus.MilvusEmbeddingStore;
+import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.time.LocalDateTime; // LocalDateTime 임포트
+import java.time.LocalDateTime;
 
 /**
  * LangChain4j와 관련된 모든 Bean 설정을 담당하는 클래스입니다.

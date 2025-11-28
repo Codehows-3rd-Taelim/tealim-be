@@ -8,7 +8,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.concurrent.CompletableFuture;
@@ -44,20 +47,15 @@ public class AgentController {
     public SseEmitter chat(
             @RequestBody ChatPromptRequest chatPromptRequest
     ) {
-        //TODO 추후 인증 필터 처리 후 Spring Security Context 에서 꺼내 써야 함
-        String username = "testUser";
-        // 채팅 요청 처리를 ConversationService로 위임합니다.
-        return agentService.startChat(chatPromptRequest, username);
+        return agentService.chat(chatPromptRequest);
     }
 
     @PostMapping(value = "/agent/report", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter report(
             @RequestBody ChatPromptRequest chatPromptRequest
     ) {
-        //TODO 추후 인증 필터 처리 후 Spring Security Context 에서 꺼내 써야 함
-        String username = "testUser";
         // 채팅 요청 처리를 ConversationService로 위임합니다.
-        return agentService.startReport(chatPromptRequest, username);
+        return agentService.report(chatPromptRequest);
     }
 
     /**

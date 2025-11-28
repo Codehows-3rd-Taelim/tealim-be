@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '4.0.0'
-    id 'io.spring.dependency-management' version '1.1.7'
+    id 'org.springframework.boot' version '3.2.5'
+    id 'io.spring.dependency-management' version '1.1.5'
 }
 
 group = 'com.codehows'
@@ -24,8 +24,6 @@ configurations {
     }
 }
 
-
-
 dependencies {
     // ==============================
     // Spring Boot 스타터
@@ -46,6 +44,7 @@ dependencies {
     // QueryDSL
     // ==============================
     implementation 'com.querydsl:querydsl-apt:5.1.0'
+    implementation 'com.querydsl:querydsl-jpa:5.1.0'
 
     // ==============================
     // 모델 매핑
@@ -55,16 +54,35 @@ dependencies {
     // ==============================
     // JWT
     // ==============================
-    implementation "io.jsonwebtoken:jjwt-api:0.11.5"
-    runtimeOnly "io.jsonwebtoken:jjwt-impl:0.11.5"
-    runtimeOnly "io.jsonwebtoken:jjwt-jackson:0.11.5"
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
     // ==============================
     // LangChain4j 및 Milvus / Google GenAI
     // ==============================
     implementation 'dev.langchain4j:langchain4j-spring-boot-starter:0.31.0'
     implementation 'dev.langchain4j:langchain4j-milvus:0.31.0'
+    implementation 'dev.langchain4j:langchain4j:0.31.0'
     implementation 'com.google.genai:google-genai:1.28.0'
+
+    // ==============================
+    // gRPC
+    // ==============================
+    implementation platform('io.grpc:grpc-bom:1.59.1')
+    implementation 'io.grpc:grpc-api'
+    implementation 'io.grpc:grpc-core'
+    implementation 'io.grpc:grpc-protobuf'
+    implementation 'io.grpc:grpc-stub'
+    implementation 'io.grpc:grpc-services'
+
+    configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'io.grpc') {
+                details.useVersion '1.59.1'
+            }
+        }
+    }
 
     // ==============================
     // Gson
@@ -81,6 +99,7 @@ dependencies {
     // 테스트
     // ==============================
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }

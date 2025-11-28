@@ -4,16 +4,20 @@ import com.codehows.taelimbe.constant.Role;
 import com.codehows.taelimbe.dto.UserDTO;
 import jakarta.persistence.*;
 import lombok.*;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import java.util.Collection;
+import java.util.List;
 
 @Entity
 @Table(name = "user")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class User {
+public class User implements UserDetails {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,7 +33,7 @@ public class User {
     @Column(name = "name", length = 20, nullable = false)
     private String name;
 
-    @Column(name = "phone", length = 11, nullable = false)
+    @Column(name = "phone", length = 20, nullable = false)
     private String phone;
 
     @Column(name = "email", length = 50, nullable = false)
@@ -39,12 +43,11 @@ public class User {
     @Column(name = "role", nullable = false)
     private Role role;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
 
     public static User createUser(UserDTO dto, PasswordEncoder encoder, Store store) {
-
         return User.builder()
                 .id(dto.getId())
                 .pw(encoder.encode(dto.getPw()))
@@ -55,4 +58,31 @@ public class User {
                 .store(store)
                 .build();
     }
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_" + this.role.toString()));
+    }
+
+    @Override
+    public String getPassword() {
+        return this.pw;
+    }
+
+    @Override
+    public String getUsername() {
+        return this.id;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() { return true; }
+
+    @Override
+    public boolean isAccountNonLocked() { return true; }
+
+    @Override
+    public boolean isCredentialsNonExpired() { return true; }
+
+    @Override
+    public boolean isEnabled() { return true; }
 }

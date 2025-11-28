@@ -2,27 +2,21 @@ package com.codehows.taelimbe.langchain.models;
 
 import com.codehows.taelimbe.langchain.converters.MessageConverter;
 import com.codehows.taelimbe.langchain.converters.ToolConverter;
-import com.google.common.collect.ImmutableList;
 import com.google.genai.Client;
 import com.google.genai.types.*;
 import com.google.gson.Gson;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.model.StreamingResponseHandler;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.output.Response;
-import dev.langchain4j.model.StreamingResponseHandler;
 import lombok.Builder;
 import lombok.RequiredArgsConstructor;
 
-
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -62,7 +56,7 @@ public class GeminiStreamingChatModel implements StreamingChatLanguageModel {
         AtomicReference<StringBuilder> contentBuilder = new AtomicReference<>(new StringBuilder());
         AtomicReference<ToolExecutionRequest> toolExecutionRequestRef = new AtomicReference<>(null);
 
-        System.out.println("=====Agent Call 시작=====");
+        System.out.println("=====[Agent Calling]=====");
         geminiClient.models.generateContentStream(modelName, googleAiMessages, config)
         .forEach(response -> {
             if (response.candidates().isPresent()) {
@@ -94,8 +88,6 @@ public class GeminiStreamingChatModel implements StreamingChatLanguageModel {
                 });
             }
         });
-        System.out.println("=====Agent Call 끝=====");
-
         // 스트리밍 완료 후 응답 처리
         if (toolExecutionRequestRef.get() != null) {
             handler.onComplete(Response.from(AiMessage.from(toolExecutionRequestRef.get())));

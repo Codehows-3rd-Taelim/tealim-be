@@ -2,7 +2,6 @@ package com.codehows.taelimbe.langchain.embaddings;
 
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.param.*;
-
 import io.milvus.param.collection.CreateCollectionParam;
 import io.milvus.param.collection.DropCollectionParam;
 import io.milvus.param.collection.FieldType;

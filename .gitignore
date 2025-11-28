@@ -18,6 +18,8 @@ bin/
 !**/src/test/**/bin/
 
 ### IntelliJ IDEA ###
+application.properties
+docker-compose.yml
 .idea
 *.iws
 *.iml
@@ -35,3 +37,5 @@ out/
 
 ### VS Code ###
 .vscode/
+
+src/main/resources/application.properties

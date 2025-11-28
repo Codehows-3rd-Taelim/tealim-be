@@ -1,12 +1,14 @@
 package com.codehows.taelimbe.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "robot")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -17,42 +19,42 @@ public class Robot {
     @Column(name = "robot_id")
     private Long robotId;
 
-    @Column(name = "sn", length = 20, nullable = false)
+    @Column(nullable = false, unique = true)
     private String sn;
 
-    @Column(name = "mac", length = 17, nullable = false)
+    @Column(nullable = false, unique = true)
     private String mac;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "product_code", nullable = false)
-    private ProductCode productCode;
-
-    @Column(name = "soft_version", length = 255)
+    private String nickname;
+    private boolean online;
+    private int battery;
+    private int status;
+    private String productCode;
     private String softVersion;
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "work_status")
-    private WorkStatus workStatus;
-
-    @Column(name = "nickname", length = 255)
-    private String nickname;
-
-    @Column(name = "battery")
-    private Long battery;
-
-    @Column(name = "online_yn")
-    private Boolean onlineYn;
-
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
 
-    public enum ProductCode {
-        CC1, MT1
+    // ================= Constructor for Required Fields =================
+    public Robot(String sn, String mac, Store store) {
+        this.sn = sn;
+        this.mac = mac;
+        this.store = store;
     }
 
-    public enum WorkStatus {
-        WAIT, WORK, CHARGE, OFFLINE
+    // ================= Update Methods =================
+    public void updateRobotInfo(String nickname, boolean online, int battery,
+                                int status, String productCode, String softVersion) {
+        this.nickname = nickname;
+        this.online = online;
+        this.battery = battery;
+        this.status = status;
+        this.productCode = productCode;
+        this.softVersion = softVersion;
     }
 
+    public void changeStore(Store store) {
+        this.store = store;
+    }
 }

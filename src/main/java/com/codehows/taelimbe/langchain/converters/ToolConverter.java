@@ -3,10 +3,8 @@ package com.codehows.taelimbe.langchain.converters;
 import com.google.genai.types.FunctionDeclaration;
 import com.google.genai.types.Schema;
 import com.google.genai.types.Tool;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.agent.tool.ToolParameters;
+import dev.langchain4j.agent.tool.ToolSpecification;
 
 import java.util.HashMap;
 import java.util.List;
