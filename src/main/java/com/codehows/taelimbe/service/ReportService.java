@@ -230,29 +230,56 @@ public class ReportService {
 
 
     // ================================================
-    // 변환 + DB 저장
-    // ================================================
+// 변환 + DB 저장 (floor_list JSON 문자열 대응 버전)
+// ================================================
     private ReportDTO convertAndSave(JsonNode n, String sn, int timezoneOffset) {
 
         Robot robot = robotRepository.findBySn(sn)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
 
-        // floor_list에서 map 정보 꺼내기
-        JsonNode floorList = n.path("floor_list");
+        // ----------------------------------------
+        // floor_list가 "문자열(String)" 형태로 내려오므로 파싱 필요
+        // ----------------------------------------
+        JsonNode floorListNode = n.path("floor_list");
         String mapName = null;
         String mapUrl = null;
 
-        if (floorList.isArray() && floorList.size() > 0) {
-            JsonNode first = floorList.get(0);
+        try {
+            // Case 1: floor_list가 문자열(JSON 텍스트)로 내려오는 경우
+            if (floorListNode.isTextual()) {
+                String floorListJson = floorListNode.asText();     // 문자열 추출
 
-            mapName = first.path("map_name").asText(null);
+                JsonNode floorList = mapper.readTree(floorListJson); // JSON으로 다시 파싱
 
-            // task_result_url 또는 task_local_url
-            mapUrl = first.path("task_result_url").asText(
-                    first.path("task_local_url").asText(null)
-            );
+                if (floorList.isArray() && floorList.size() > 0) {
+                    JsonNode first = floorList.get(0);
+
+                    mapName = first.path("map_name").asText(null);
+
+                    // task_result_url → 없으면 task_local_url
+                    mapUrl = first.path("task_result_url").asText(
+                            first.path("task_local_url").asText(null)
+                    );
+                }
+            }
+
+            // Case 2: 혹시 floor_list가 정상적인 배열로 내려올 때 (예비 대비)
+            else if (floorListNode.isArray() && floorListNode.size() > 0) {
+                JsonNode first = floorListNode.get(0);
+
+                mapName = first.path("map_name").asText(null);
+                mapUrl = first.path("task_result_url").asText(
+                        first.path("task_local_url").asText(null)
+                );
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
 
+        // ----------------------------------------
+        // Report 엔티티 생성
+        // ----------------------------------------
         Report report = Report.builder()
                 .status(n.path("status").asInt())
                 .startTime(toLocal(n.path("start_time").asLong(), timezoneOffset))
