@@ -2,155 +2,81 @@ pipeline {
     agent any
     
     environment {
+        // 프로젝트 설정
         COMPOSE_PROJECT = 'spring-backend'
-        DOCKER_NETWORK = 'app-network'
-        // 호스트의 설정 파일 경로 (Jenkins가 접근 가능한 경로)
+        // 호스트 설정 파일 경로
         HOST_CONFIG_PATH = '/var/jenkins_config/application.properties'
-        // 작업 디렉토리 내 설정 파일이 복사될 위치
+        // 컨테이너로 마운트될 경로
         WORKSPACE_CONFIG_DIR = 'config'
     }
     
     stages {
         stage('Checkout') {
             steps {
-                echo 'Checking out code from GitHub...'
                 checkout scm
             }
         }
         
-        stage('Copy Configuration') {
+        stage('Prepare Config') {
             steps {
                 script {
-                    echo "Copying application.properties from host..."
+                    // 설정 파일 복사 (간소화)
                     sh """
-                        # config 디렉토리 생성
                         mkdir -p ${WORKSPACE_CONFIG_DIR}
-                        
-                        # 호스트의 설정 파일을 작업 디렉토리로 복사
                         if [ -f ${HOST_CONFIG_PATH} ]; then
                             cp ${HOST_CONFIG_PATH} ${WORKSPACE_CONFIG_DIR}/application.properties
-                            echo "Configuration file copied successfully"
                         else
-                            echo "Warning: Configuration file not found at ${HOST_CONFIG_PATH}"
+                            echo "❌ Error: Config file not found!"
                             exit 1
                         fi
-                        
-                        # 복사된 파일 확인 (민감정보 제외하고 파일 존재 확인)
-                        ls -lh ${WORKSPACE_CONFIG_DIR}/application.properties
                     """
                 }
             }
         }
         
-        stage('Create Network') {
+        stage('Build & Update App') {
             steps {
                 script {
-                    echo 'Creating Docker network if not exists...'
+                    echo '🚀 Updating Spring Backend only...'
+                    // 중요: down을 하지 않고 up -d --build로 변경된 이미지만 교체합니다.
+                    // Milvus와 MySQL은 건드리지 않습니다.
                     sh """
-                        docker network create ${DOCKER_NETWORK} || true
+                        docker compose up -d --build spring-backend
                     """
                 }
             }
         }
         
-        stage('Stop Old Containers') {
+        stage('Health Check') {
             steps {
                 script {
-                    echo 'Stopping old containers...'
+                    echo '❤️ Checking Spring Boot Health...'
+                    // DB 체크는 생략하고(이미 떠있으므로), 스프링만 체크합니다.
                     sh """
-                        docker compose down || true
+                        timeout 60 sh -c 'until docker inspect --format="{{.State.Health.Status}}" spring-backend | grep -q healthy; do sleep 2; done'
                     """
                 }
             }
         }
         
-        stage('Build and Deploy') {
+        stage('Cleanup') {
             steps {
                 script {
-                    echo 'Building and deploying with docker-compose...'
-                    sh """
-                        docker compose up -d --build
-                    """
-                }
-            }
-        }
-        
-        stage('Wait for Health Check') {
-            steps {
-                script {
-                    echo 'Waiting for services to be healthy...'
-                    sh """
-                        # MySQL health check
-                        timeout 120 sh -c 'until docker inspect --format="{{.State.Health.Status}}" mysql-db | grep -q healthy; do sleep 2; done' || true
-                        
-                        # Milvus health check
-                        timeout 120 sh -c 'until docker inspect --format="{{.State.Health.Status}}" milvus-standalone | grep -q healthy; do sleep 2; done' || true
-                        
-                        # Spring Boot health check
-                        timeout 120 sh -c 'until docker inspect --format="{{.State.Health.Status}}" spring-backend | grep -q healthy; do sleep 2; done' || true
-                        
-                        echo "All services are healthy"
-                    """
-                }
-            }
-        }
-        
-        stage('Verify Deployment') {
-            steps {
-                script {
-                    echo 'Verifying deployment...'
-                    sh """
-                        echo "=== Container Status ==="
-                        docker compose ps
-                        
-                        echo "=== Spring Backend Logs (Last 50 lines) ==="
-                        docker logs spring-backend --tail=50
-                        
-                        echo "=== Testing Spring Boot Health Endpoint ==="
-                        curl -f http://localhost:8080/actuator/health || echo "Health check endpoint not available yet"
-                    """
-                }
-            }
-        }
-        
-        stage('Clean Up') {
-            steps {
-                script {
-                    echo 'Cleaning up unused Docker resources...'
-                    sh """
-                        docker image prune -f
-                        # volume은 데이터 유실 방지를 위해 주석 처리
-                        # docker volume prune -f
-                    """
+                    // 공간 확보를 위해 <none> 태그가 된 댕글링 이미지만 삭제
+                    sh "docker image prune -f"
                 }
             }
         }
     }
     
     post {
-        success {
-            echo '✅ Spring Boot deployment successful!'
-            sh """
-                echo "=== Deployment Summary ==="
-                docker compose ps
-            """
-        }
         failure {
-            echo '❌ Spring Boot deployment failed!'
-            sh """
-                echo "=== Docker Compose Logs ==="
-                docker compose logs --tail=100 || true
-                
-                echo "=== Container Status ==="
-                docker ps -a || true
-            """
+            echo '❌ Deployment failed!'
+            sh "docker compose logs spring-backend --tail=50"
         }
         always {
-            echo 'Cleaning up workspace configuration files...'
-            sh """
-                # 민감정보 보호를 위해 복사된 설정 파일 삭제
-                rm -f ${WORKSPACE_CONFIG_DIR}/application.properties || true
-            """
+            // 보안을 위해 작업 공간 내 설정 파일 삭제
+            sh "rm -f ${WORKSPACE_CONFIG_DIR}/application.properties"
         }
     }
 }
