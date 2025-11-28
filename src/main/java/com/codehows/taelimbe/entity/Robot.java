@@ -6,7 +6,6 @@ import lombok.*;
 @Entity
 @Table(name = "robot")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
