@@ -11,5 +11,7 @@ public class LoginResponseDTO
 {
     private String jwtToken;
 
-    private boolean isAdmin;
+    private Integer roleLevel;
+
+    private Long storeId;
 }
