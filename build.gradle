@@ -24,6 +24,8 @@ configurations {
     }
 }
 
+
+
 dependencies {
     // ==============================
     // Spring Boot 스타터
@@ -38,12 +40,11 @@ dependencies {
     // ==============================
     // MySQL Connector
     // ==============================
-    runtimeOnly 'mysql:mysql-connector-java'
+    runtimeOnly 'com.mysql:mysql-connector-j'
 
     // ==============================
     // QueryDSL
     // ==============================
-    implementation 'com.querydsl:querydsl-jpa:5.1.0'
     implementation 'com.querydsl:querydsl-apt:5.1.0'
 
     // ==============================

@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
+
 public class Report {
 
     @Id
@@ -19,12 +19,15 @@ public class Report {
     @Column(name = "report_id")
     private Long reportId;
 
+    @Column(name = "task_id")
+    private Long taskId;
+
     @Column(name = "status")
     private Integer status;
 
     @Column(name = "start_time")
     private LocalDateTime startTime;
-
+                                                                           
     @Column(name = "end_time")
     private LocalDateTime endTime;
 

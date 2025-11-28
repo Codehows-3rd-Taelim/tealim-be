@@ -3,8 +3,6 @@ package com.codehows.taelimbe.service;
 import com.codehows.taelimbe.dto.CleaningDataDTO;
 import com.codehows.taelimbe.repository.CleaningDataRepository;
 import lombok.RequiredArgsConstructor; // Lombok 어노테이션으로 생성자 자동 생성
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service; // Spring 서비스 컴포넌트임을 나타내는 어노테이션
 
 import java.time.LocalDate; // 날짜 정보만 다루는 LocalDate 클래스 임포트

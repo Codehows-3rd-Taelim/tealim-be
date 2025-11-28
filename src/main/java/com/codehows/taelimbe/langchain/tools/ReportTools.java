@@ -3,13 +3,10 @@ package com.codehows.taelimbe.langchain.tools;
 import com.codehows.taelimbe.config.UserContextHolder;
 import com.codehows.taelimbe.dto.CleaningDataDTO;
 import com.codehows.taelimbe.service.CleaningDataService;
+import com.codehows.taelimbe.service.ReportService;
 import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -23,6 +20,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class ReportTools {
 
+    private final ReportService reportService;
     // CleaningDataService를 주입받아 청소 보고서 관련 비즈니스 로직을 수행합니다.
     private final CleaningDataService cleaningDataService;
     // LangChainConfig에서 빈으로 등록된 Gson 인스턴스를 주입받습니다.
@@ -47,9 +45,11 @@ public class ReportTools {
 
         // CleaningDataService를 통해 지정된 기간의 페이징된 청소 데이터를 조회합니다.
         List<CleaningDataDTO> reportData = cleaningDataService.getCleaningReport(startDate, endDate);
-        
+
         // 조회된 청소 데이터 페이지를 JSON 문자열로 변환하여 반환합니다。
         // 이 JSON에는 데이터 목록뿐만 아니라 총 페이지 수, 전체 항목 수 등의 페이징 정보가 포함됩니다.
         return gson.toJson(reportData);
     }
+
+
 }
