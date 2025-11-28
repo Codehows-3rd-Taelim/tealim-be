@@ -130,24 +130,25 @@ public class ReportService {
                 .stream().map(this::toDto).toList();
     }
 
+    // ================================================
+    // 5) report id 조회
+    // ================================================
+
     public ReportDTO getReportById(Long id) {
         return toDto(reportRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found")));
     }
 
+
+    // ================================================
+    // 5) sn 조회
+    // ================================================
     public List<ReportDTO> getReportsByRobotSn(String sn) {
         return reportRepository.findByRobot_Sn(sn)
                 .stream().map(this::toDto).toList();
     }
 
 
-    // ================================================
-    // 5) 삭제
-    // ================================================
-    @Transactional
-    public void deleteReport(Long id) {
-        reportRepository.deleteById(id);
-    }
 
 
     // ================================================

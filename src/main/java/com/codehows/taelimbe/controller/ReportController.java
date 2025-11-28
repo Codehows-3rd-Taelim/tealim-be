@@ -71,10 +71,5 @@ public class ReportController {
         return ResponseEntity.ok(reportService.getReportsByRobotSn(sn));
     }
 
-    // ================= 6) 삭제 =================
-    @DeleteMapping("/{reportId}")
-    public ResponseEntity<String> deleteReport(@PathVariable Long reportId) {
-        reportService.deleteReport(reportId);
-        return ResponseEntity.ok("Report 삭제 완료");
-    }
+
 }
