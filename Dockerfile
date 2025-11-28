@@ -41,4 +41,4 @@ EXPOSE 8080
 ENV JAVA_OPTS="-Xms512m -Xmx1024m"
 
 # 애플리케이션 실행
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar", "--spring.config.location=classpath:/,file:/app/config/"]
