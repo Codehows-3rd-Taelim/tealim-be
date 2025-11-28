@@ -1,44 +1,39 @@
-# 빌드 스테이지
+# 멀티 스테이지 빌드
+# Stage 1: Build
 FROM gradle:8.5-jdk21 AS builder
-# Maven 사용 시: FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
-# Gradle 사용 시
+# Gradle 캐시를 활용하기 위해 의존성 파일만 먼저 복사
 COPY build.gradle settings.gradle ./
-COPY gradle gradle
-COPY gradlew ./
+COPY gradle ./gradle
 
-# gradlew 실행 권한 부여
-RUN chmod +x ./gradlew
+# 의존성 다운로드 (캐시 레이어)
+RUN gradle dependencies --no-daemon || true
 
-RUN ./gradlew dependencies --no-daemon
-
-# Maven 사용 시 (위 4줄 대신 아래 2줄 사용)
-# COPY pom.xml ./
-# RUN mvn dependency:go-offline
-
-# 소스 코드 복사 및 빌드
+# 소스 코드 복사
 COPY src ./src
 
-# Gradle 빌드
-RUN chmod +x ./gradlew && ./gradlew bootJar --no-daemon
-# Maven 빌드 시: RUN mvn clean package -DskipTests
+# 빌드 (테스트 제외)
+RUN gradle bootJar --no-daemon -x test
 
-# 런타임 스테이지
-FROM eclipse-temurin:21-jre-alpine
+# Stage 2: Runtime
+FROM eclipse-temurin:21-jre-jammy
 
 WORKDIR /app
 
 # 빌드된 JAR 파일 복사
 COPY --from=builder /app/build/libs/*.jar app.jar
-# Maven 빌드 시: COPY --from=builder /app/target/*.jar app.jar
+
+# 외부 설정 파일 디렉토리
+VOLUME /app/config
 
 # 포트 노출
 EXPOSE 8080
 
-# 환경변수 설정
-ENV JAVA_OPTS="-Xms512m -Xmx1024m"
+# 헬스체크
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8080/actuator/health || exit 1
 
 # 애플리케이션 실행
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar", "--spring.config.location=classpath:/,file:/app/config/"]
+ENTRYPOINT ["java", "-jar", "app.jar", "--spring.config.location=classpath:/,file:/app/config/"]
