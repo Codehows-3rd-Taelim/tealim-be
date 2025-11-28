@@ -267,22 +267,7 @@ public class RobotService {
         return null;
     }
 
-    public ResponseEntity<String> getRobotStatusV2(String sn, String mac) {
 
-        try {
-            UriComponentsBuilder b = UriComponentsBuilder
-                    .fromHttpUrl("https://open-platform.pudutech.com")
-                    .path("/open-platform-service/v2/status/get_by_sn");
-
-            if (sn != null && !sn.isBlank()) b.queryParam("sn", sn);
-            if (mac != null && !mac.isBlank()) b.queryParam("mac", mac);
-
-            return puduAPIClient.callOpenPlatformAPI(b.toUriString());
-
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(e.getMessage());
-        }
-    }
 
 
     // ================================

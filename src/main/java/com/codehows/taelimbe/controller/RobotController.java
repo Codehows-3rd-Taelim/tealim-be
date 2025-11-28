@@ -39,12 +39,5 @@ public class RobotController {
         return ResponseEntity.ok(robotService.getRobotListFromDB(storeId));
     }
 
-    // 4) Robot 상태 V2 조회(API 직접 호출)
-    @GetMapping("/status/v2")
-    public ResponseEntity<String> getStatusV2(
-            @RequestParam(required = false) String sn,
-            @RequestParam(required = false) String mac
-    ) {
-        return robotService.getRobotStatusV2(sn, mac);
-    }
+
 }
