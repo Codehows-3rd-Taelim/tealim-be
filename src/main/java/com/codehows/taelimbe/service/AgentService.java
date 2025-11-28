@@ -1,6 +1,5 @@
 package com.codehows.taelimbe.service;
 
-import com.codehows.taelimbe.config.UserContextHolder;
 import com.codehows.taelimbe.dto.ChatPromptRequest;
 import com.codehows.taelimbe.langchain.Agent;
 import dev.langchain4j.model.input.Prompt;
@@ -11,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -37,10 +37,6 @@ public class AgentService {
     @Qualifier("chatAgent")
     private final Agent chatAgent;
 
-    // 비동기 작업을 위한 스레드 풀을 주입받습니다.
-    @Qualifier("taskExecutor")
-    private final TaskExecutor taskExecutor;
-
     /**
      * 사용자의 메시지를 받아 AI와 대화하고, 응답을 스트리밍으로 클라이언트에게 전송합니다.
      * 이 메서드는 `SseEmitter`를 사용하여 Server-Sent Events (SSE) 방식으로 실시간 응답을 처리합니다.
@@ -48,10 +44,8 @@ public class AgentService {
      * @param req 사용자 메시지와 대화 ID를 포함하는 요청 DTO
      * @return `SseEmitter` 객체. 클라이언트에게 이벤트를 스트리밍하는 데 사용됩니다.
      */
-    public SseEmitter chat(ChatPromptRequest req, String username) {
+    public SseEmitter chat(ChatPromptRequest req) {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-        // 현재 스레드에 사용자 이름을 설정하여, 도구 호출 등에서 사용자 컨텍스트를 활용할 수 있도록 합니다.
-        UserContextHolder.setUserName(username);
         // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
         String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
                 ? UUID.randomUUID().toString()
@@ -60,10 +54,9 @@ public class AgentService {
         return emitter;
     }
 
-    public SseEmitter report(ChatPromptRequest req, String username) {
+    public SseEmitter report(ChatPromptRequest req) {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
         // 현재 스레드에 사용자 이름을 설정하여, 도구 호출 등에서 사용자 컨텍스트를 활용할 수 있도록 합니다.
-        UserContextHolder.setUserName(username);
         // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
         String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
                 ? UUID.randomUUID().toString()
@@ -129,7 +122,6 @@ public class AgentService {
             log.error("채팅 처리 중 오류 발생: {}", e.getMessage(), e);
         }finally {
             // 요청 처리 완료 후 스레드 로컬에 저장된 사용자 정보를 제거합니다.
-            UserContextHolder.clear();
             emitter.complete();
         }
     }

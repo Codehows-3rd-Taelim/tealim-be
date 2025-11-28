@@ -7,6 +7,7 @@ import org.springframework.core.task.TaskDecorator;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.concurrent.DelegatingSecurityContextExecutor;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -43,27 +44,26 @@ public class AsyncConfig {
         executor.initialize();
 
         // TaskDecorator를 설정하여 부모 스레드의 UserContextHolder 컨텍스트를 자식 스레드로 전파합니다.
-        executor.setTaskDecorator(new TaskDecorator() {
-            @NotNull
-            @Override
-            public Runnable decorate(@NotNull Runnable runnable) {
-                // 부모 스레드의 사용자 이름을 캡처합니다.
-                String userName = UserContextHolder.getUserName();
-                return () -> {
-                    try {
-                        // 자식 스레드에서 사용자 이름을 설정합니다.
-                        UserContextHolder.setUserName(userName);
-                        runnable.run();
-                    } finally {
-                        // 작업 완료 후 사용자 이름을 클리어합니다.
-                        UserContextHolder.clear();
-                    }
-                };
-            }
-        });
+//        executor.setTaskDecorator(new TaskDecorator() {
+//            @NotNull
+//            @Override
+//            public Runnable decorate(@NotNull Runnable runnable) {
+//                // 부모 스레드의 사용자 이름을 캡처합니다.
+//                String userName = UserContextHolder.getUserName();
+//                return () -> {
+//                    try {
+//                        // 자식 스레드에서 사용자 이름을 설정합니다.
+//                        UserContextHolder.setUserName(userName);
+//                        runnable.run();
+//                    } finally {
+//                        // 작업 완료 후 사용자 이름을 클리어합니다.
+//                        UserContextHolder.clear();
+//                    }
+//                };
+//            }
+//        });
 
         //TODO Spring Security 스펙 추가 후 아래 방식으로 Security Context 전파
-        // return new DelegatingSecurityContextExecutor(executor);
-        return executor;
+        return (TaskExecutor) new DelegatingSecurityContextExecutor(executor);
     }
 }

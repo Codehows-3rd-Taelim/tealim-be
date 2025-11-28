@@ -1,11 +1,11 @@
 package com.codehows.taelimbe.langchain.tools;
 
-import com.codehows.taelimbe.config.UserContextHolder;
 import com.codehows.taelimbe.dto.CleaningDataDTO;
 import com.codehows.taelimbe.service.CleaningDataService;
 import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -37,11 +37,8 @@ public class ReportTools {
      */
     @Tool("지정된 기간 동안의 청소 데이터를 페이징하여 가져옵니다.")
     public String getCleaningReport(String startDate, String endDate) {
-        // TODO: 추후 전파된 Security Context 에서 유저 정보 추출
-        //  실제 유저 아이디로 호출 가능한 범위 설정 로직 추가
-        // String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        String currentUser = UserContextHolder.getUserName(); // 현재 사용자 이름을 가져옵니다。
-        System.out.println("Current user: " + currentUser); // 사용자 이름을 콘솔에 출력 (디버깅용)
+        String username = SecurityContextHolder.getContext().getAuthentication().getName();
+        System.out.println("Current user: " + username); // 사용자 이름을 콘솔에 출력 (디버깅용)
 
         // CleaningDataService를 통해 지정된 기간의 페이징된 청소 데이터를 조회합니다.
         List<CleaningDataDTO> reportData = cleaningDataService.getCleaningReport(startDate, endDate);
