@@ -140,15 +140,6 @@ networks:
 
 volumes:
   milvus-etcd-data:
-<<<<<<< HEAD
-    driver: local
-  milvus-minio-data:
-    driver: local
-  milvus-standalone-data:
-    driver: local
-  mysql-data:
-=======
->>>>>>> 41494a11030d055e1c7054236dd47a83f956a458
     driver: local
   milvus-minio-data:
     driver: local
