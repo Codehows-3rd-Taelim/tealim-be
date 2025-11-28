@@ -237,6 +237,22 @@ public class ReportService {
         Robot robot = robotRepository.findBySn(sn)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
 
+        // floor_list에서 map 정보 꺼내기
+        JsonNode floorList = n.path("floor_list");
+        String mapName = null;
+        String mapUrl = null;
+
+        if (floorList.isArray() && floorList.size() > 0) {
+            JsonNode first = floorList.get(0);
+
+            mapName = first.path("map_name").asText(null);
+
+            // task_result_url 또는 task_local_url
+            mapUrl = first.path("task_result_url").asText(
+                    first.path("task_local_url").asText(null)
+            );
+        }
+
         Report report = Report.builder()
                 .status(n.path("status").asInt())
                 .startTime(toLocal(n.path("start_time").asLong(), timezoneOffset))
@@ -247,13 +263,14 @@ public class ReportService {
                 .mode(n.path("mode").asInt())
                 .costBattery(n.path("cost_battery").asLong())
                 .costWater(n.path("cost_water").asLong())
-                .mapName(n.path("map_name").asText(null))
-                .mapUrl(n.path("map_url").asText(null))
+                .mapName(mapName)
+                .mapUrl(mapUrl)
                 .robot(robot)
                 .build();
 
         return toDto(reportRepository.save(report));
     }
+
 
 
     // ================================================
