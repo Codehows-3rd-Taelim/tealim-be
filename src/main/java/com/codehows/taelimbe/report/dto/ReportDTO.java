@@ -32,7 +32,6 @@ public class ReportDTO {
     private String mapUrl;
 
     private Long robotId;
-    private String robotSn;
 
     public static ReportDTO createReportDTO(Report report) {
         return ReportDTO.builder()

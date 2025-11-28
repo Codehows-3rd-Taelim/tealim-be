@@ -1,6 +1,8 @@
 package com.codehows.taelimbe.report.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
+import com.codehows.taelimbe.report.dto.ReportSyncRequestDTO;
+import com.codehows.taelimbe.report.dto.ReportDetailRequestDTO;
 import com.codehows.taelimbe.report.dto.ReportDTO;
 import com.codehows.taelimbe.report.entity.Report;
 import com.codehows.taelimbe.robot.entity.Robot;
@@ -10,7 +12,6 @@ import com.codehows.taelimbe.robot.repository.RobotRepository;
 import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -50,31 +51,26 @@ public class ReportService {
                 .toList();
     }
 
-    // 1) 매장 단위 전체 동기화
+
     @Transactional
-    public int syncReportsByStoreId(
-            Long storeId,
-            long queryStartTime,
-            long queryEndTime,
-            int timezoneOffset
-    ) {
-        Store store = storeRepository.findById(storeId)
+    public int syncReports(ReportSyncRequestDTO req) {
+
+        Store store = storeRepository.findById(req.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
 
         Long shopId = store.getShopId();
 
-        // offset=0, limit=20 자동 적용 (고정)
         List<Map<String, String>> list =
-                fetchReportList(queryStartTime, queryEndTime, shopId, timezoneOffset);
+                fetchReportList(req.getStartTime(), req.getEndTime(), shopId, req.getTimezoneOffset());
 
         int count = 0;
         for (Map<String, String> item : list) {
             ReportDTO saved = saveReportDetail(
                     item.get("sn"),
                     item.get("report_id"),
-                    queryStartTime,
-                    queryEndTime,
-                    timezoneOffset,
+                    req.getStartTime(),
+                    req.getEndTime(),
+                    req.getTimezoneOffset(),
                     shopId
             );
             if (saved != null) count++;
@@ -82,98 +78,72 @@ public class ReportService {
         return count;
     }
 
-    // 2) 단일 저장 (Store 기준)
     @Transactional
-    public ReportDTO saveReportDetailByStoreId(
-            Long storeId,
-            String sn,
-            String reportId,
-            long queryStartTime,
-            long queryEndTime,
-            int timezoneOffset
-    ) {
+    public ReportDTO saveReportDetail(ReportDetailRequestDTO req) {
 
-        Store store = storeRepository.findById(storeId)
+        Store store = storeRepository.findById(req.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
 
         return saveReportDetail(
-                sn,
-                reportId,
-                queryStartTime,
-                queryEndTime,
-                timezoneOffset,
+                req.getSn(),
+                req.getReportId(),
+                req.getStartTime(),
+                req.getEndTime(),
+                req.getTimezoneOffset(),
                 store.getShopId()
         );
     }
 
-    // 3) 단일 저장 (내부)
     @Transactional
     public ReportDTO saveReportDetail(
             String sn,
             String reportId,
-            long queryStartTime,
-            long queryEndTime,
+            long start,
+            long end,
             int timezoneOffset,
             Long shopId
     ) {
-        JsonNode detail = fetchReportDetail(
-                sn,
-                reportId,
-                queryStartTime,
-                queryEndTime,
-                timezoneOffset,
-                shopId
-        );
+        JsonNode detail = fetchReportDetail(sn, reportId, start, end, timezoneOffset, shopId);
 
         if (detail == null) return null;
 
         return convertAndSave(detail, sn, timezoneOffset);
     }
 
-    // 4) 전체 조회
     public List<ReportDTO> getAllReports() {
-        return reportRepository.findAll()
-                .stream().map(this::toDto).toList();
+        return reportRepository.findAll().stream().map(this::toDto).toList();
     }
 
-    // 5) report id 조회
     public ReportDTO getReportById(Long id) {
         return toDto(reportRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found")));
     }
 
-    // 5) sn 조회
     public List<ReportDTO> getReportsByRobotSn(String sn) {
         return reportRepository.findByRobot_Sn(sn)
                 .stream().map(this::toDto).toList();
     }
 
-    // API 1) Cleaning Report - List 조회 (offset/limit 고정)
     private List<Map<String, String>> fetchReportList(
-            long queryStartTime,
-            long queryEndTime,
-            Long shopId,
-            int timezoneOffset
+            long start, long end, Long shopId, int timezoneOffset
     ) {
         List<Map<String, String>> result = new ArrayList<>();
 
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
                     .path("/data-board/v1/log/clean_task/query_list")
-                    .queryParam("start_time", queryStartTime)
-                    .queryParam("end_time", queryEndTime)
+                    .queryParam("start_time", start)
+                    .queryParam("end_time", end)
                     .queryParam("shop_id", shopId)
                     .queryParam("offset", 0)
                     .queryParam("limit", 20)
-
                     .queryParam("timezone_offset", timezoneOffset)
                     .toUriString();
 
             ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
 
             JsonNode list = mapper.readTree(res.getBody())
-                    .path("data")
-                    .path("list");
+                    .path("data").path("list");
 
             if (list.isArray()) {
                 for (JsonNode n : list) {
@@ -183,36 +153,26 @@ public class ReportService {
                     result.add(map);
                 }
             }
-
         } catch (Exception ignored) {}
 
         return result;
     }
 
-    // API 2) Cleaning Report - Detail 조회
     private JsonNode fetchReportDetail(
-            String sn,
-            String reportId,
-            long queryStartTime,
-            long queryEndTime,
-            int timezoneOffset,
-            Long shopId
+            String sn, String reportId, long start, long end, int timezoneOffset, Long shopId
     ) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
                     .path("/data-board/v1/log/clean_task/query")
                     .queryParam("sn", sn)
                     .queryParam("report_id", reportId)
-                    .queryParam("start_time", queryStartTime)
-                    .queryParam("end_time", queryEndTime)
+                    .queryParam("start_time", start)
+                    .queryParam("end_time", end)
                     .queryParam("timezone_offset", timezoneOffset)
                     .queryParam("shop_id", shopId)
                     .toUriString();
 
             ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
-
-            System.out.println("DETAIL URL = " + url);
-            System.out.println("DETAIL RESPONSE = " + res.getBody());
 
             return mapper.readTree(res.getBody()).path("data");
 
@@ -221,11 +181,37 @@ public class ReportService {
         return null;
     }
 
-    // 변환 + DB 저장
     private ReportDTO convertAndSave(JsonNode n, String sn, int timezoneOffset) {
 
         Robot robot = robotRepository.findBySn(sn)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
+
+        JsonNode floorListNode = n.path("floor_list");
+        String mapName = null;
+        String mapUrl = null;
+
+        try {
+            if (floorListNode.isTextual()) {
+                String floorListJson = floorListNode.asText();
+                JsonNode floorList = mapper.readTree(floorListJson);
+
+                if (floorList.isArray() && floorList.size() > 0) {
+                    JsonNode first = floorList.get(0);
+                    mapName = first.path("map_name").asText(null);
+                    mapUrl = first.path("task_result_url").asText(
+                            first.path("task_local_url").asText(null)
+                    );
+                }
+            } else if (floorListNode.isArray() && floorListNode.size() > 0) {
+                JsonNode first = floorListNode.get(0);
+                mapName = first.path("map_name").asText(null);
+                mapUrl = first.path("task_result_url").asText(
+                        first.path("task_local_url").asText(null)
+                );
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
 
         Report report = Report.builder()
                 .status(n.path("status").asInt())
@@ -237,18 +223,14 @@ public class ReportService {
                 .mode(n.path("mode").asInt())
                 .costBattery(n.path("cost_battery").asLong())
                 .costWater(n.path("cost_water").asLong())
-                .mapName(n.path("map_name").asText(null))
-                .mapUrl(n.path("map_url").asText(null))
+                .mapName(mapName)
+                .mapUrl(mapUrl)
                 .robot(robot)
                 .build();
 
         return toDto(reportRepository.save(report));
     }
 
-
-    // ================================================
-    // DTO 변환
-    // ================================================
     private ReportDTO toDto(Report r) {
         return ReportDTO.builder()
                 .reportId(r.getReportId())
@@ -264,14 +246,9 @@ public class ReportService {
                 .mapName(r.getMapName())
                 .mapUrl(r.getMapUrl())
                 .robotId(r.getRobot().getRobotId())
-                .robotSn(r.getRobot().getSn())
                 .build();
     }
 
-
-    // ================================================
-    // Timestamp 변환 함수
-    // ================================================
     private LocalDateTime toLocal(long epoch, int timezoneOffset) {
         long adjusted = epoch + (timezoneOffset * 60L);
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(adjusted), ZoneId.systemDefault());

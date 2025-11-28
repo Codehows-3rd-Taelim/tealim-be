@@ -1,11 +1,12 @@
 package com.codehows.taelimbe.robot.controller;
 
+import com.codehows.taelimbe.robot.dto.RobotSyncRequestDTO;
 import com.codehows.taelimbe.robot.dto.RobotDTO;
 import com.codehows.taelimbe.robot.service.RobotService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 import java.util.List;
 
 @RestController
@@ -15,29 +16,19 @@ public class RobotController {
 
     private final RobotService robotService;
 
-    // 1) 전체 Robot 동기화(API → DB)
     @PostMapping("/sync")
-    public ResponseEntity<String> syncRobots(@RequestParam Long storeId) {
-        int count = robotService.syncRobotsByStoreId(storeId);
-        return ResponseEntity.ok(count + "개 Robot 저장/업데이트 완료");
+    public ResponseEntity<String> syncRobots(@Valid @RequestBody RobotSyncRequestDTO req) {
+        int count = robotService.syncRobots(req);
+        return ResponseEntity.ok(count + "개 로봇 저장/업데이트 완료");
     }
 
-    // 2) 단일 조회(DB + API 최신값 병합)
-    @GetMapping("/info")
-    public ResponseEntity<RobotDTO> getRobotInfo(
-            @RequestParam Long storeId,
-            @RequestParam String sn
-    ) {
-        return ResponseEntity.ok(robotService.getRobotInfoByStoreId(sn, storeId));
+    @GetMapping("/{sn}")
+    public ResponseEntity<RobotDTO> getRobot(@PathVariable String sn) {
+        return ResponseEntity.ok(robotService.getRobotBySn(sn));
     }
 
-    // 3) 전체 Robot 조회(DB 전용)
     @GetMapping("/list")
-    public ResponseEntity<List<RobotDTO>> getRobotList(
-            @RequestParam Long storeId
-    ) {
+    public ResponseEntity<List<RobotDTO>> getAllRobots(@RequestParam Long storeId) {
         return ResponseEntity.ok(robotService.getRobotListFromDB(storeId));
     }
-
-
 }

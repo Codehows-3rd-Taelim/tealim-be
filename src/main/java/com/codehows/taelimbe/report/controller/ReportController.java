@@ -1,7 +1,10 @@
 package com.codehows.taelimbe.report.controller;
 
+import com.codehows.taelimbe.report.dto.ReportSyncRequestDTO;
+import com.codehows.taelimbe.report.dto.ReportDetailRequestDTO;
 import com.codehows.taelimbe.report.dto.ReportDTO;
 import com.codehows.taelimbe.report.service.ReportService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -14,62 +17,29 @@ public class ReportController {
 
     private final ReportService reportService;
 
-    // ================= 1) 전체 Report 동기화 =================
     @PostMapping("/sync")
-    public ResponseEntity<String> syncReports(
-            @RequestParam Long storeId,
-            @RequestParam(name = "start_time") long queryStartTime,
-            @RequestParam(name = "end_time") long queryEndTime,
-            @RequestParam(defaultValue = "0") int timezoneOffset
-    ) {
-        int count = reportService.syncReportsByStoreId(
-                storeId,
-                queryStartTime,
-                queryEndTime,
-                timezoneOffset
-        );
+    public ResponseEntity<String> syncReports(@Valid @RequestBody ReportSyncRequestDTO req) {
+        int count = reportService.syncReports(req);
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료");
     }
 
-    // ================= 2) 단일 Report 상세 저장 =================
     @PostMapping("/save-detail")
-    public ResponseEntity<ReportDTO> saveReportDetail(
-            @RequestParam Long storeId,
-            @RequestParam String sn,
-            @RequestParam String report_id,
-            @RequestParam(name = "start_time") long queryStartTime,
-            @RequestParam(name = "end_time") long queryEndTime,
-            @RequestParam(defaultValue = "0") int timezoneOffset
-    ) {
-        return ResponseEntity.ok(
-                reportService.saveReportDetailByStoreId(
-                        storeId,
-                        sn,
-                        report_id,
-                        queryStartTime,
-                        queryEndTime,
-                        timezoneOffset
-                )
-        );
+    public ResponseEntity<ReportDTO> saveDetail(@Valid @RequestBody ReportDetailRequestDTO req) {
+        return ResponseEntity.ok(reportService.saveReportDetail(req));
     }
 
-    // ================= 3) 전체 조회 =================
     @GetMapping("/list")
-    public ResponseEntity<List<ReportDTO>> getAllReports() {
+    public ResponseEntity<List<ReportDTO>> getAll() {
         return ResponseEntity.ok(reportService.getAllReports());
     }
 
-    // ================= 4) ID 조회 =================
-    @GetMapping("/{reportId}")
-    public ResponseEntity<ReportDTO> getReportById(@PathVariable Long reportId) {
-        return ResponseEntity.ok(reportService.getReportById(reportId));
+    @GetMapping("/{id}")
+    public ResponseEntity<ReportDTO> getById(@PathVariable Long id) {
+        return ResponseEntity.ok(reportService.getReportById(id));
     }
 
-    // ================= 5) 로봇 SN 기준 조회 =================
     @GetMapping("/robot/{sn}")
-    public ResponseEntity<List<ReportDTO>> getReportsByRobotSn(@PathVariable String sn) {
+    public ResponseEntity<List<ReportDTO>> bySn(@PathVariable String sn) {
         return ResponseEntity.ok(reportService.getReportsByRobotSn(sn));
     }
-
-
 }
