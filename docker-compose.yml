@@ -64,7 +64,7 @@ services:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
     volumes:
-      - milvus-standalone-data:/var/lib/milvus
+      - milvus-standalone-data:/milvus/data
     networks:
       - app-network
     healthcheck:
@@ -112,7 +112,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: 1234
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      # Milvus 설정 (필요시 추가)
+      # Milvus 설정
       MILVUS_HOST: milvus
       MILVUS_PORT: 19530
     ports:
