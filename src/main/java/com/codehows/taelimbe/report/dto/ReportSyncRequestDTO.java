@@ -25,6 +25,9 @@ public class ReportSyncRequestDTO {
     @Builder.Default
     private Integer timezoneOffset = 0;
 
+    @Builder.Default
+    private Integer offset = 0;  // 페이징을 위한 offset 추가
+
     @AssertTrue(message = "startTime이 endTime보다 작아야 합니다")
     public boolean isValidTimeRange() {
         return startTime < endTime;

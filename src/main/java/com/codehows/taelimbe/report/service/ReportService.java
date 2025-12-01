@@ -49,30 +49,157 @@ public class ReportService {
                 .toList();
     }
 
+
+1
     @Transactional
     public int syncReports(ReportSyncRequestDTO req) {
-
         Store store = storeRepository.findById(req.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
 
         Long shopId = store.getShopId();
+        int totalCount = 0;
 
-        List<Map<String, String>> list =
-                fetchReportList(req.getStartTime(), req.getEndTime(), shopId, req.getTimezoneOffset());
+        // offset을 0부터 시작해서 계속 증가시키며 모든 데이터 가져오기
+        int offset = req.getOffset();
+        boolean hasMore = true;
 
-        int count = 0;
-        for (Map<String, String> item : list) {
-            ReportDTO saved = saveReportDetailByParams(
-                    item.get("sn"),
-                    item.get("report_id"),
+        while (hasMore) {
+            List<Map<String, String>> list = fetchReportList(
                     req.getStartTime(),
                     req.getEndTime(),
+                    shopId,
                     req.getTimezoneOffset(),
-                    shopId
+                    offset
             );
-            if (saved != null) count++;
+
+            if (list.isEmpty()) {
+                hasMore = false;
+                break;
+            }
+
+            for (Map<String, String> item : list) {
+                ReportDTO saved = saveReportDetailByParams(
+                        item.get("sn"),
+                        item.get("report_id"),
+                        req.getStartTime(),
+                        req.getEndTime(),
+                        req.getTimezoneOffset(),
+                        shopId
+                );
+                if (saved != null) totalCount++;
+            }
+
+            offset += 20;  // 다음 페이지
         }
-        return count;
+
+        return totalCount;
+    }
+
+    // ReportService에 추가할 메서드
+
+    /**
+     * 모든 매장의 과거 185일 데이터를 동기화
+     */
+    @Transactional
+    public int syncAllStoresHistoricalReports() {
+
+        // DB에서 모든 Store 조회
+        List<Store> stores = storeRepository.findAll();
+
+        System.out.println("\n===== Sync All Stores Historical Data =====");
+        System.out.println("Total Stores: " + stores.size());
+
+        int totalCount = 0;
+
+        for (Store store : stores) {
+            System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
+
+            try {
+                int count = syncAllHistoricalReports(store.getStoreId());
+                totalCount += count;
+            } catch (Exception e) {
+                System.out.println("Error syncing store " + store.getStoreId() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println("\n===== All Stores Sync Complete =====");
+        System.out.println("Total Saved: " + totalCount);
+        System.out.println("=====================================\n");
+
+        return totalCount;
+    }
+
+    /**
+     * 단일 매장의 과거 185일 데이터를 동기화
+     */
+    @Transactional
+    public int syncAllHistoricalReports(Long storeId) {
+
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+
+        Long shopId = store.getShopId();
+
+        // 오늘 자정 기준
+        long endTime = LocalDate.now().atTime(LocalTime.MAX)
+                .atZone(ZoneId.systemDefault())
+                .toEpochSecond();
+
+        // 185일 전
+        long startTime = LocalDate.now().minusDays(185)
+                .atStartOfDay()
+                .atZone(ZoneId.systemDefault())
+                .toEpochSecond();
+
+        System.out.println("Store ID: " + storeId);
+        System.out.println("Start Date: " + LocalDate.now().minusDays(185));
+        System.out.println("End Date: " + LocalDate.now());
+
+        int totalCount = 0;
+        int offset = 0;
+        boolean hasMore = true;
+        int pageNum = 0;
+
+        while (hasMore) {
+            pageNum++;
+            System.out.println("  Page " + pageNum + " (offset: " + offset + ")");
+
+            List<Map<String, String>> list = fetchReportList(
+                    startTime,
+                    endTime,
+                    shopId,
+                    0,
+                    offset
+            );
+
+            if (list.isEmpty()) {
+                hasMore = false;
+                break;
+            }
+
+            int pageCount = 0;
+            for (Map<String, String> item : list) {
+                ReportDTO saved = saveReportDetailByParams(
+                        item.get("sn"),
+                        item.get("report_id"),
+                        startTime,
+                        endTime,
+                        0,
+                        shopId
+                );
+                if (saved != null) {
+                    totalCount++;
+                    pageCount++;
+                }
+            }
+
+            System.out.println("  Saved: " + pageCount);
+            offset += 20;
+        }
+
+        System.out.println("Store " + storeId + " Total Saved: " + totalCount);
+        return totalCount;
     }
 
     @Transactional
@@ -121,7 +248,7 @@ public class ReportService {
     }
 
     private List<Map<String, String>> fetchReportList(
-            long start, long end, Long shopId, int timezoneOffset
+            long start, long end, Long shopId, int timezoneOffset, int offset
     ) {
         List<Map<String, String>> result = new ArrayList<>();
 
@@ -131,15 +258,13 @@ public class ReportService {
                     .queryParam("start_time", start)
                     .queryParam("end_time", end)
                     .queryParam("shop_id", shopId)
-                    .queryParam("offset", 0)
+                    .queryParam("offset", offset)  // 동적 offset
                     .queryParam("limit", 20)
                     .queryParam("timezone_offset", timezoneOffset)
                     .toUriString();
 
             ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
-
-            JsonNode list = mapper.readTree(res.getBody())
-                    .path("data").path("list");
+            JsonNode list = mapper.readTree(res.getBody()).path("data").path("list");
 
             if (list.isArray()) {
                 for (JsonNode n : list) {
@@ -149,10 +274,15 @@ public class ReportService {
                     result.add(map);
                 }
             }
-        } catch (Exception ignored) {}
+
+        } catch (Exception e) {
+            System.out.println("Exception in fetchReportList: " + e.getMessage());
+            e.printStackTrace();
+        }
 
         return result;
     }
+
 
     private JsonNode fetchReportDetail(
             String sn, String reportId, long start, long end, int timezoneOffset, Long shopId
@@ -178,6 +308,15 @@ public class ReportService {
     }
 
     private ReportDTO convertAndSave(JsonNode n, String sn, String reportId, int timezoneOffset) {
+
+        // taskId 중복 체크
+        Long taskId = Long.parseLong(reportId);
+        Optional<Report> existing = reportRepository.findByTaskId(taskId);
+
+        if (existing.isPresent()) {
+            System.out.println("Report with taskId " + taskId + " already exists. Skipping.");
+            return null;  // 중복이면 null 반환 (저장 안 함)
+        }
 
         Robot robot = robotRepository.findBySn(sn)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
@@ -210,7 +349,7 @@ public class ReportService {
         }
 
         Report report = Report.builder()
-                .taskId(Long.parseLong(reportId))
+                .taskId(taskId)
                 .status(n.path("status").asInt())
                 .startTime(toLocal(n.path("start_time").asLong(), timezoneOffset))
                 .endTime(toLocal(n.path("end_time").asLong(), timezoneOffset))
@@ -227,7 +366,6 @@ public class ReportService {
 
         return toDto(reportRepository.save(report));
     }
-
     private ReportDTO toDto(Report r) {
         return ReportDTO.builder()
                 .reportId(r.getReportId())

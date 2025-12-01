@@ -16,10 +16,18 @@ public class RobotController {
 
     private final RobotService robotService;
 
+    //매장별 로봇 동기화
     @PostMapping("/sync")
     public ResponseEntity<String> syncRobots(@Valid @RequestBody RobotSyncRequestDTO req) {
         int count = robotService.syncRobots(req);
         return ResponseEntity.ok(count + "개 로봇 저장/업데이트 완료");
+    }
+
+    // 모든 매장 로봇 동기화
+    @PostMapping("/sync-all-stores")
+    public ResponseEntity<String> syncAllStoresRobots() {
+        int count = robotService.syncAllStoresRobots();
+        return ResponseEntity.ok(count + "개 로봇 저장/업데이트 완료 (모든 매장)");
     }
 
     @GetMapping("/{sn}")

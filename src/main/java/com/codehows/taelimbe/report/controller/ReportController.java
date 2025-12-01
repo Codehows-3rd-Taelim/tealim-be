@@ -23,6 +23,20 @@ public class ReportController {
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료");
     }
 
+    // 과거 6개월(최대치) ~ 오늘까지의 청소 데이터
+    @PostMapping("/sync-all-historical")
+    public ResponseEntity<String> syncAllHistoricalReports(@RequestParam Long storeId) {
+        int count = reportService.syncAllHistoricalReports(storeId);
+        return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료");
+    }
+
+    // 모든 매장의 과거 6개월(최대치) 오늘 까지의 청소 데이터
+    @PostMapping("/sync-all-stores-historical")
+    public ResponseEntity<String> syncAllStoresHistoricalReports() {
+        int count = reportService.syncAllStoresHistoricalReports();
+        return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (모든 매장)");
+    }
+
     @PostMapping("/save-detail")
     public ResponseEntity<ReportDTO> saveDetail(@Valid @RequestBody ReportDetailRequestDTO req) {
         return ResponseEntity.ok(reportService.saveDetail(req));

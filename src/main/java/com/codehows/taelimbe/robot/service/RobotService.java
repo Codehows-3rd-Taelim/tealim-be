@@ -47,6 +47,42 @@ public class RobotService {
         return cnt;
     }
 
+    /**
+     * 모든 매장의 로봇을 동기화
+     */
+    @Transactional
+    public int syncAllStoresRobots() {
+
+        // DB에서 모든 Store 조회
+        List<Store> stores = storeRepository.findAll();
+
+        System.out.println("\n===== Sync All Stores Robots =====");
+        System.out.println("Total Stores: " + stores.size());
+
+        int totalCount = 0;
+
+        for (Store store : stores) {
+            System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
+
+            try {
+                int count = syncRobots(RobotSyncRequestDTO.builder()
+                        .storeId(store.getStoreId())
+                        .build());
+                totalCount += count;
+                System.out.println("Store " + store.getStoreId() + " Synced: " + count + " robots");
+            } catch (Exception e) {
+                System.out.println("Error syncing store " + store.getStoreId() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println("\n===== All Stores Robot Sync Complete =====");
+        System.out.println("Total Synced: " + totalCount);
+        System.out.println("==========================================\n");
+
+        return totalCount;
+    }
+
     public List<RobotDTO> getRobotListFromDB(Long storeId) {
 
         return robotRepository.findAllByStore_StoreId(storeId)
