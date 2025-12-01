@@ -28,7 +28,7 @@ public class SecurityConfig {
                         ((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/config/comment-max-length"
-                                ,"/board/show/**","/image/**","/visit", "/main/**", "/comment/board/**"
+                                ,"/board/show/**","/image/**","/visit", "/main/**", "/comment/board/**", "/api/aiReport"
                         ).permitAll()
 //                        .requestMatchers("/admin/**").hasAuthority("ADMIN") //admin으로 시작하는 경로는 admin role일 경우에만 접근 가능하도록.
                         .anyRequest().authenticated())
