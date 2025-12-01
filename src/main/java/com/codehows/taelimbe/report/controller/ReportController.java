@@ -25,7 +25,7 @@ public class ReportController {
 
     @PostMapping("/save-detail")
     public ResponseEntity<ReportDTO> saveDetail(@Valid @RequestBody ReportDetailRequestDTO req) {
-        return ResponseEntity.ok(reportService.saveReportDetail(req));
+        return ResponseEntity.ok(reportService.saveDetail(req));
     }
 
     @GetMapping("/list")
