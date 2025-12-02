@@ -71,4 +71,22 @@ public class GeneralLogController {
         );
     }
 
+    /**
+     * 예외|이벤트 목록 조회
+     */
+    @GetMapping("/error-event/list")
+    public ResponseEntity<String> getErrorEventList(
+            @RequestParam long start_time,
+            @RequestParam long end_time,
+            @RequestParam(defaultValue = "0") int offset,
+            @RequestParam(defaultValue = "20") int limit,
+            @RequestParam(defaultValue = "0") int timezone_offset,
+            @RequestParam(required = false) Long shop_id,
+            @RequestParam(required = false) String error_levels,
+            @RequestParam(required = false) String error_types) {
+        return generalLogService.getErrorEventList(start_time, end_time, offset, limit, timezone_offset, shop_id, error_levels, error_types);
+    }
+
+
+
 }

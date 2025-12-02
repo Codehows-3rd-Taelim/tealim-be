@@ -150,4 +150,61 @@ public class GeneralLogService {
         }
     }
 
+    /**
+     * 예외|이벤트 목록 조회
+     *
+     * @param start_time 시작 시간 (Unix timestamp)
+     * @param end_time 종료 시간 (Unix timestamp)
+     * @param offset 오프셋
+     * @param limit 조회 개수 (1 ~ 20)
+     * @param timezone_offset 타임존 오프셋
+     * @param shop_id 매장 ID
+     * @param error_levels 오류 수준 (Fatal|Error|Warning|Event, 쉼표로 구분)
+     * @param error_types 오류 유형 (쉼표로 구분)
+     * @return 예외|이벤트 목록
+     */
+    public ResponseEntity<String> getErrorEventList(long start_time, long end_time,
+                                                    int offset, int limit, int timezone_offset,
+                                                    Long shop_id, String error_levels, String error_types) {
+        try {
+            System.out.println("====== Exception|Event 목록 조회 시작 ======");
+            System.out.println("Start Time: " + start_time);
+            System.out.println("End Time: " + end_time);
+            System.out.println("Offset: " + offset);
+            System.out.println("Limit: " + limit);
+
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-board/v1/log/error/query_list")
+                    .queryParam("start_time", start_time)
+                    .queryParam("end_time", end_time)
+                    .queryParam("offset", offset)
+                    .queryParam("limit", limit)
+                    .queryParam("timezone_offset", timezone_offset);
+
+            if (shop_id != null) {
+                builder.queryParam("shop_id", shop_id);
+            }
+
+            if (error_levels != null && !error_levels.isEmpty()) {
+                builder.queryParam("error_levels", error_levels);
+            }
+
+            if (error_types != null && !error_types.isEmpty()) {
+                builder.queryParam("error_types", error_types);
+            }
+
+            String url = builder.toUriString();
+            System.out.println("Error/Event Target URL: " + url);
+
+            return puduAPIClient.callPuduAPI(url, "GET");
+
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            e.printStackTrace();
+
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("{\"error\": \"" + e.getMessage() + "\"}");
+        }
+    }
+
 }
