@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.robot.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
+import com.codehows.taelimbe.robot.dto.RobotSyncRequestDTO;
 import com.codehows.taelimbe.robot.dto.RobotDTO;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.store.entity.Store;
@@ -27,14 +28,18 @@ public class RobotService {
     private final StoreRepository storeRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    // 1) API → DB 저장 (동기화)
+    /**
+     * 특정 매장의 로봇을 Pudu API에서 조회하여 DB에 저장/업데이트
+     * @param req 매장 ID 포함 요청 정보
+     * @return 저장된 로봇 개수
+     */
     @Transactional
-    public int syncRobotsByStoreId(Long storeId) {
-        Store store = storeRepository.findById(storeId)
+    public int syncRobots(RobotSyncRequestDTO req) {
+
+        Store store = storeRepository.findById(req.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
         Long shopId = store.getShopId();
 
-        // ⚠ API 전용 메서드 (그대로 유지)
         List<RobotDTO> robots = getRobotListByShop(shopId);
 
         int cnt = 0;
@@ -45,7 +50,48 @@ public class RobotService {
         return cnt;
     }
 
-    // 2) DB 조회 전용(list)
+    /**
+     * DB에 저장된 모든 매장의 로봇을 Pudu API에서 조회하여 동기화
+     * 관리자가 전체 매장의 로봇 정보를 한 번에 업데이트할 때 사용
+     * @return 저장된 전체 로봇 개수
+     */
+    @Transactional
+    public int syncAllStoresRobots() {
+
+        List<Store> stores = storeRepository.findAll();
+
+        System.out.println("\n===== Sync All Stores Robots =====");
+        System.out.println("Total Stores: " + stores.size());
+
+        int totalCount = 0;
+
+        for (Store store : stores) {
+            System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
+
+            try {
+                int count = syncRobots(RobotSyncRequestDTO.builder()
+                        .storeId(store.getStoreId())
+                        .build());
+                totalCount += count;
+                System.out.println("Store " + store.getStoreId() + " Synced: " + count + " robots");
+            } catch (Exception e) {
+                System.out.println("Error syncing store " + store.getStoreId() + ": " + e.getMessage());
+                e.printStackTrace();
+            }
+        }
+
+        System.out.println("\n===== All Stores Robot Sync Complete =====");
+        System.out.println("Total Synced: " + totalCount);
+        System.out.println("==========================================\n");
+
+        return totalCount;
+    }
+
+    /**
+     * DB에서 특정 매장의 로봇 목록을 조회
+     * @param storeId 매장 ID
+     * @return 해당 매장에 속한 로봇 목록
+     */
     public List<RobotDTO> getRobotListFromDB(Long storeId) {
         return robotRepository.findAllByStore_StoreId(storeId)
                 .stream()
@@ -53,7 +99,12 @@ public class RobotService {
                 .collect(Collectors.toList());
     }
 
-    // 3) 단일 조회(DB + API 병합)
+    /**
+     * DB의 로봇 정보와 API의 최신 상태 정보를 병합하여 조회
+     * @param sn 로봇 시리얼 번호
+     * @param storeId 매장 ID
+     * @return 병합된 로봇 정보
+     */
     public RobotDTO getRobotInfoByStoreId(String sn, Long storeId) {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
@@ -62,13 +113,11 @@ public class RobotService {
 
         RobotDTO api = getRobotInfo(sn, shopId);
         Robot robot = robotRepository.findBySn(sn).orElse(null);
-        // DB 없을 때 API만 반환
         if (robot == null) return api;
         RobotDTO dto = convertToDto(robot);
 
-        // API 최신값 덮어쓰기
         dto.setBattery(api.getBattery());
-        dto.setOnline(api.isOnline());
+        dto.setOnline(api.getOnline());
         dto.setStatus(api.getStatus());
         dto.setProductCode(api.getProductCode());
         dto.setSoftVersion(api.getSoftVersion());
@@ -76,7 +125,12 @@ public class RobotService {
         return dto;
     }
 
-    // 4) Robot 저장(DB 업데이트)
+    /**
+     * 로봇 정보를 DB에 저장 또는 업데이트
+     * @param dto 저장할 로봇 정보
+     * @param store 로봇이 속한 매장
+     * @return 저장된 로봇 엔티티
+     */
     @Transactional
     public Robot saveRobot(RobotDTO dto, Store store) {
         Robot robot = robotRepository.findBySn(dto.getSn())
@@ -84,7 +138,7 @@ public class RobotService {
 
         robot.updateRobotInfo(
                 dto.getNickname(),
-                dto.isOnline(),
+                dto.getOnline(),
                 dto.getBattery(),
                 dto.getStatus(),
                 dto.getProductCode(),
@@ -96,11 +150,16 @@ public class RobotService {
         return robotRepository.save(robot);
     }
 
-    // 5) API 단일 상세 조회 정보 조립
+    /**
+     * Pudu API에서 로봇의 모든 정보를 조회하여 DTO로 변환
+     * @param sn 로봇 시리얼 번호
+     * @param shopId 샵 ID
+     * @return 조회된 로봇 정보
+     */
     public RobotDTO getRobotInfo(String sn, Long shopId) {
         String mac = null;
         String nickname = null;
-        boolean online = false;
+        Boolean online = false;
         int battery = 0;
         int status = 0;
         String productCode = null;
@@ -135,7 +194,11 @@ public class RobotService {
                 .build();
     }
 
-    // 6) Shop 기준 전체 조회(API 전용)
+    /**
+     * 샵에 속한 모든 로봇 목록을 Pudu API에서 조회
+     * @param shopId 샵 ID
+     * @return 로봇 정보 리스트
+     */
     public List<RobotDTO> getRobotListByShop(Long shopId) {
         List<JsonNode> list = fetchRobotListAll(shopId);
         List<RobotDTO> result = new ArrayList<>();
@@ -148,7 +211,11 @@ public class RobotService {
         return result;
     }
 
-    // 7) API 호출들
+    /**
+     * Pudu API에서 샵의 모든 로봇 목록 조회 (기본 정보)
+     * @param shopId 샵 ID
+     * @return 로봇 JSON 노드 리스트
+     */
     private List<JsonNode> fetchRobotListAll(Long shopId) {
         List<JsonNode> list = new ArrayList<>();
 
@@ -171,7 +238,14 @@ public class RobotService {
         return list;
     }
 
+    /**
+     * Pudu API에서 시리얼 번호로 특정 로봇 조회
+     * @param sn 로봇 시리얼 번호
+     * @param shopId 샵 ID
+     * @return 로봇 JSON 노드
+     */
     private JsonNode fetchRobotBySn(String sn, Long shopId) {
+
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
                     .path("/data-open-platform-service/v1/api/robot")
@@ -193,7 +267,13 @@ public class RobotService {
         return null;
     }
 
+    /**
+     * Pudu API에서 로봇의 상세 정보 조회 (별칭, 배터리, 온라인 상태 등)
+     * @param sn 로봇 시리얼 번호
+     * @return 로봇 상세 정보 JSON 노드
+     */
     private JsonNode fetchRobotDetail(String sn) {
+
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
                     .path("/cleanbot-service/v1/api/open/robot/detail")
@@ -209,6 +289,12 @@ public class RobotService {
         return null;
     }
 
+    /**
+     * Pudu API에서 로봇의 최신 충전 로그 조회 (제품 코드, 소프트웨어 버전 등)
+     * @param sn 로봇 시리얼 번호
+     * @param shopId 샵 ID
+     * @return 최신 충전 로그 JSON 노드
+     */
     private JsonNode fetchLatestChargeLog(String sn, Long shopId) {
         long end = System.currentTimeMillis() / 1000;
         long start = end - 60L * 60 * 24 * 90;
@@ -234,7 +320,22 @@ public class RobotService {
         return null;
     }
 
-    // 8) Robot → DTO 변환 (DB)
+    /**
+     * DB에서 시리얼 번호로 로봇 조회
+     * @param sn 로봇 시리얼 번호
+     * @return 로봇 정보 DTO
+     */
+    public RobotDTO getRobotBySn(String sn) {
+        return robotRepository.findBySn(sn)
+                .map(this::convertToDto)
+                .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
+    }
+
+    /**
+     * 로봇 엔티티를 DTO로 변환
+     * @param robot 로봇 엔티티
+     * @return 변환된 로봇 DTO
+     */
     private RobotDTO convertToDto(Robot robot) {
         return RobotDTO.builder()
                 .robotId(robot.getRobotId())

@@ -85,4 +85,16 @@ public class StoreController {
     public void deleteStore(@PathVariable Long storeId) {
         storeService.deleteStore(storeId);
     }
+
+    /**
+     * Pudu API에서 Store 목록을 동기화
+     *
+     * @return 저장된 Store 개수
+     */
+    @PostMapping("api/store/sync")
+    public ResponseEntity<String> syncAllStores() {
+        int count = storeService.syncAllStores();
+        return ResponseEntity.ok(count + "개 Store 저장/업데이트 완료");
+    }
+
 }
