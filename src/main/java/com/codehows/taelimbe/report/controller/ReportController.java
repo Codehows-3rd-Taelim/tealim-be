@@ -91,23 +91,8 @@ public class ReportController {
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (모든 매장 - 전체 기간)");
     }
 
-    // ========== 3. Report 상세 저장 ==========
 
-    /**
-     * Report 상세 정보 저장
-     * 특정 Report의 상세 정보를 Pudu API에서 조회하여 DB에 저장
-     *
-     * @param req 매장 ID, 로봇 SN, Report ID, 시작/종료 시간 포함
-     * @return 저장된 Report 정보 DTO
-     */
-    @PostMapping("/detail/save")
-    public ResponseEntity<ReportDTO> saveReportDetail(
-            @Valid @RequestBody ReportDetailRequestDTO req
-    ) {
-        return ResponseEntity.ok(reportService.saveReportDetail(req));
-    }
-
-    // ========== 4. Report 조회 ==========
+    // ========== 3. Report 조회 ==========
 
     /**
      * 모든 Report 조회

@@ -36,7 +36,9 @@ public class ReportService {
      * 지정된 기간의 Report를 페이징하여 조회 및 저장
      * 한 번에 20개씩 조회하며, 데이터가 없을 때까지 자동으로 페이징 진행
      *
-     * @param req 매장 ID, 시작/종료 시간, 타임존 오프셋, offset 포함
+     * 사용 예시: 특정 매장의 어제 데이터만 재동기화
+     *
+     * @param req 매장 ID, 시작/종료 시간, 타임존 오프셋 포함
      * @return 저장된 Report 개수
      */
     @Transactional
@@ -68,7 +70,7 @@ public class ReportService {
             }
 
             for (Map<String, String> item : list) {
-                ReportDTO saved = saveReportDetailByParams(
+                ReportDTO saved = saveReportDetailWithConversion(
                         item.get("sn"),
                         item.get("report_id"),
                         req.getStartTime(),
@@ -92,6 +94,8 @@ public class ReportService {
      * 특정 매장의 전체 기간(과거 185일) Report 동기화
      * 오늘 기준으로 과거 185일까지의 모든 Report를 조회하여 동기화
      * API 제한: 최대 180일까지만 조회 가능
+     *
+     * 사용 예시: 새 매장 초기 세팅 시
      *
      * @param storeId 매장 ID
      * @return 저장된 Report 개수
@@ -147,7 +151,7 @@ public class ReportService {
 
             int pageCount = 0;
             for (Map<String, String> item : list) {
-                ReportDTO saved = saveReportDetailByParams(
+                ReportDTO saved = saveReportDetailWithConversion(
                         item.get("sn"),
                         item.get("report_id"),
                         startTime,
@@ -176,7 +180,7 @@ public class ReportService {
 
     /**
      * 전체 매장의 특정 기간 Report 동기화
-     * DB에 저장된 모든 매장을 순회하면서 각 매장의 지정된 기간 Report를 조회하여 동기화
+     * 모든 매장의 지정된 기간 Report를 Pudu API에서 조회하여 DB에 저장
      *
      * 사용 예시:
      * - 어제 하루치 데이터만 전체 매장 재동기화
@@ -204,7 +208,6 @@ public class ReportService {
             System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
 
             try {
-                // 기존 syncSingleStoreByTimeRange 메서드 재사용
                 StoreTimeRangeSyncRequestDTO syncReq = StoreTimeRangeSyncRequestDTO.builder()
                         .storeId(store.getStoreId())
                         .startTime(req.getStartTime())
@@ -237,6 +240,8 @@ public class ReportService {
      *
      * ⚠️ 주의: 매장이 많을 경우 오래 걸릴 수 있음 (초기 세팅 또는 전체 마이그레이션용)
      *
+     * 사용 예시: 시스템 초기 세팅 시 전체 데이터 동기화
+     *
      * @return 저장된 전체 Report 개수
      */
     @Transactional
@@ -268,32 +273,9 @@ public class ReportService {
         return totalCount;
     }
 
-    // ========== 3. Report 상세 저장 ==========
 
-    /**
-     * Report 상세 정보 저장
-     * 특정 Report의 상세 정보를 Pudu API에서 조회하여 DB에 저장
-     *
-     * @param req 매장 ID, 로봇 SN, Report ID, 시작/종료 시간 포함
-     * @return 저장된 Report 정보 DTO
-     */
-    @Transactional
-    public ReportDTO saveReportDetail(ReportDetailRequestDTO req) {
 
-        Store store = storeRepository.findById(req.getStoreId())
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
-
-        return saveReportDetailByParams(
-                req.getSn(),
-                req.getReportId(),
-                req.getStartTime(),
-                req.getEndTime(),
-                req.getTimezoneOffset(),
-                store.getShopId()
-        );
-    }
-
-    // ========== 4. Report 조회 ==========
+    // ========== 3. Report 조회 ==========
 
     /**
      * 특정 기간의 Report를 DB에서 조회
@@ -329,6 +311,7 @@ public class ReportService {
 
     /**
      * Report ID로 특정 Report 조회
+     *
      * @param id Report ID
      * @return Report 정보 DTO
      */
@@ -350,21 +333,73 @@ public class ReportService {
     // ========== Private Helper Methods ==========
 
     /**
-     * Report 상세 정보를 파라미터로 조회하여 저장
+     * Report 상세 정보를 Pudu API에서 조회하여 DB에 저장
+     * taskId 중복 체크하여 중복이면 저장하지 않음
+     *
      * @param sn 로봇 시리얼 번호
-     * @param reportId Report ID
+     * @param reportId Report ID (taskId로 사용)
      * @param start 시작 시간
      * @param end 종료 시간
      * @param timezoneOffset 타임존 오프셋
      * @param shopId 샵 ID
-     * @return 저장된 Report DTO
+     * @return 저장된 Report 정보 DTO
      */
-    private ReportDTO saveReportDetailByParams(
+    private ReportDTO saveReportDetailWithConversion(
             String sn, String reportId, long start, long end, int timezoneOffset, Long shopId
     ) {
         JsonNode detail = fetchReportDetail(sn, reportId, start, end, timezoneOffset, shopId);
-        if (detail == null) return null;
-        return convertAndSave(detail, sn, reportId, timezoneOffset);
+        if (detail == null) {
+            return null;
+        }
+
+        Long taskId = Long.parseLong(reportId);
+        Optional<Report> existing = reportRepository.findByTaskId(taskId);
+
+        if (existing.isPresent()) {
+            System.out.println("Report with taskId " + taskId + " already exists. Skipping.");
+            return null;
+        }
+
+        Robot robot = robotRepository.findBySn(sn)
+                .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
+
+        String mapName = null;
+        String mapUrl = null;
+
+        try {
+            JsonNode floorListNode = detail.path("floor_list");
+            JsonNode floorList = floorListNode.isTextual()
+                    ? mapper.readTree(floorListNode.asText())
+                    : floorListNode;
+
+            if (floorList.isArray() && floorList.size() > 0) {
+                JsonNode first = floorList.get(0);
+                mapName = first.path("map_name").asText(null);
+                mapUrl = first.path("task_result_url").asText(
+                        first.path("task_local_url").asText(null)
+                );
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        Report report = Report.builder()
+                .taskId(taskId)
+                .status(detail.path("status").asInt())
+                .startTime(toLocal(detail.path("start_time").asLong(), timezoneOffset))
+                .endTime(toLocal(detail.path("end_time").asLong(), timezoneOffset))
+                .cleanTime(detail.path("clean_time").floatValue())
+                .taskArea(detail.path("task_area").floatValue())
+                .cleanArea(detail.path("clean_area").floatValue())
+                .mode(detail.path("mode").asInt())
+                .costBattery(detail.path("cost_battery").asLong())
+                .costWater(detail.path("cost_water").asLong())
+                .mapName(mapName)
+                .mapUrl(mapUrl)
+                .robot(robot)
+                .build();
+
+        return toDto(reportRepository.save(report));
     }
 
     /**
@@ -446,74 +481,6 @@ public class ReportService {
     }
 
     /**
-     * API에서 조회한 Report를 DB에 저장
-     * taskId 중복 체크하여 중복이면 저장하지 않음
-     * @param n Report 데이터 JSON 노드
-     * @param sn 로봇 시리얼 번호
-     * @param reportId Report ID (taskId로 사용)
-     * @param timezoneOffset 타임존 오프셋
-     * @return 저장된 Report 정보 DTO
-     */
-    private ReportDTO convertAndSave(JsonNode n, String sn, String reportId, int timezoneOffset) {
-
-        Long taskId = Long.parseLong(reportId);
-        Optional<Report> existing = reportRepository.findByTaskId(taskId);
-
-        if (existing.isPresent()) {
-            System.out.println("Report with taskId " + taskId + " already exists. Skipping.");
-            return null;
-        }
-
-        Robot robot = robotRepository.findBySn(sn)
-                .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
-
-        JsonNode floorListNode = n.path("floor_list");
-        String mapName = null;
-        String mapUrl = null;
-
-        try {
-            if (floorListNode.isTextual()) {
-                String floorListJson = floorListNode.asText();
-                JsonNode floorList = mapper.readTree(floorListJson);
-
-                if (floorList.isArray() && floorList.size() > 0) {
-                    JsonNode first = floorList.get(0);
-                    mapName = first.path("map_name").asText(null);
-                    mapUrl = first.path("task_result_url").asText(
-                            first.path("task_local_url").asText(null)
-                    );
-                }
-            } else if (floorListNode.isArray() && floorListNode.size() > 0) {
-                JsonNode first = floorListNode.get(0);
-                mapName = first.path("map_name").asText(null);
-                mapUrl = first.path("task_result_url").asText(
-                        first.path("task_local_url").asText(null)
-                );
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
-        Report report = Report.builder()
-                .taskId(taskId)
-                .status(n.path("status").asInt())
-                .startTime(toLocal(n.path("start_time").asLong(), timezoneOffset))
-                .endTime(toLocal(n.path("end_time").asLong(), timezoneOffset))
-                .cleanTime(n.path("clean_time").floatValue())
-                .taskArea(n.path("task_area").floatValue())
-                .cleanArea(n.path("clean_area").floatValue())
-                .mode(n.path("mode").asInt())
-                .costBattery(n.path("cost_battery").asLong())
-                .costWater(n.path("cost_water").asLong())
-                .mapName(mapName)
-                .mapUrl(mapUrl)
-                .robot(robot)
-                .build();
-
-        return toDto(reportRepository.save(report));
-    }
-
-    /**
      * Report 엔티티를 DTO로 변환
      * @param r Report 엔티티
      * @return 변환된 Report DTO
@@ -521,7 +488,7 @@ public class ReportService {
     private ReportDTO toDto(Report r) {
         return ReportDTO.builder()
                 .reportId(r.getReportId())
-                .taskId(r.getTaskId())  // ← 추가!
+                .taskId(r.getTaskId())
                 .status(r.getStatus())
                 .startTime(r.getStartTime())
                 .endTime(r.getEndTime())
@@ -536,6 +503,7 @@ public class ReportService {
                 .robotId(r.getRobot().getRobotId())
                 .build();
     }
+
     /**
      * Unix timestamp를 LocalDateTime으로 변환
      */
