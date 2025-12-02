@@ -1,6 +1,5 @@
 package com.codehows.taelimbe.user.controller;
 
-import com.codehows.taelimbe.store.dto.StoreDTO;
 import com.codehows.taelimbe.user.dto.UserDTO;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.user.entity.User;

@@ -1,7 +1,5 @@
 package com.codehows.taelimbe.user.service;
 
-import com.codehows.taelimbe.store.dto.StoreDTO;
-import com.codehows.taelimbe.store.entity.Industry;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.codehows.taelimbe.user.dto.UserDTO;

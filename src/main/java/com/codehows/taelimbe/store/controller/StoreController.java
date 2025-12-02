@@ -43,6 +43,7 @@ public class StoreController {
         return ResponseEntity.ok(stores);
     }
 
+    // 매장 직원 불러오기
     @GetMapping("/user")
     @ResponseBody
     public ResponseEntity<List<UserResponseDTO>> getStoreUser(
@@ -59,6 +60,7 @@ public class StoreController {
         return ResponseEntity.ok(userDTOs);
     }
 
+    // 업종 불러오기
     @GetMapping("/industry")
     public ResponseEntity<List<Industry>> getIndustry() {
 

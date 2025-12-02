@@ -30,7 +30,6 @@ public class ReportService {
     private final StoreRepository storeRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
-
     public List<ReportDTO> getReport(String startDate, String endDate) {
 
         if (startDate == null || startDate.isEmpty()) {
@@ -51,9 +50,7 @@ public class ReportService {
                 .toList();
     }
 
-    // ================================================
     // 1) 매장 단위 전체 동기화
-    // ================================================
     @Transactional
     public int syncReportsByStoreId(
             Long storeId,
@@ -85,10 +82,7 @@ public class ReportService {
         return count;
     }
 
-
-    // ================================================
     // 2) 단일 저장 (Store 기준)
-    // ================================================
     @Transactional
     public ReportDTO saveReportDetailByStoreId(
             Long storeId,
@@ -112,10 +106,7 @@ public class ReportService {
         );
     }
 
-
-    // ================================================
     // 3) 단일 저장 (내부)
-    // ================================================
     @Transactional
     public ReportDTO saveReportDetail(
             String sn,
@@ -139,38 +130,31 @@ public class ReportService {
         return convertAndSave(detail, sn, timezoneOffset);
     }
 
-
-    // ================================================
     // 4) 전체 조회
-    // ================================================
     public List<ReportDTO> getAllReports() {
         return reportRepository.findAll()
                 .stream().map(this::toDto).toList();
     }
 
+    // 5) report id 조회
     public ReportDTO getReportById(Long id) {
         return toDto(reportRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found")));
     }
 
+    // 6) sn 조회
     public List<ReportDTO> getReportsByRobotSn(String sn) {
         return reportRepository.findByRobot_Sn(sn)
                 .stream().map(this::toDto).toList();
     }
 
-
-    // ================================================
-    // 5) 삭제
-    // ================================================
+    // 삭제
     @Transactional
     public void deleteReport(Long id) {
         reportRepository.deleteById(id);
     }
 
-
-    // ================================================
     // API 1) Cleaning Report - List 조회 (offset/limit 고정)
-    // ================================================
     private List<Map<String, String>> fetchReportList(
             long queryStartTime,
             long queryEndTime,
@@ -211,10 +195,7 @@ public class ReportService {
         return result;
     }
 
-
-    // ================================================
     // API 2) Cleaning Report - Detail 조회
-    // ================================================
     private JsonNode fetchReportDetail(
             String sn,
             String reportId,
@@ -246,18 +227,13 @@ public class ReportService {
         return null;
     }
 
-
-    // ================================================
-// 변환 + DB 저장 (floor_list JSON 문자열 대응 버전)
-// ================================================
+    // 변환 + DB 저장
     private ReportDTO convertAndSave(JsonNode n, String sn, int timezoneOffset) {
 
         Robot robot = robotRepository.findBySn(sn)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
 
-        // ----------------------------------------
         // floor_list가 "문자열(String)" 형태로 내려오므로 파싱 필요
-        // ----------------------------------------
         JsonNode floorListNode = n.path("floor_list");
         String mapName = null;
         String mapUrl = null;
@@ -295,9 +271,7 @@ public class ReportService {
             e.printStackTrace();
         }
 
-        // ----------------------------------------
         // Report 엔티티 생성
-        // ----------------------------------------
         Report report = Report.builder()
                 .status(n.path("status").asInt())
                 .startTime(toLocal(n.path("start_time").asLong(), timezoneOffset))
@@ -316,11 +290,7 @@ public class ReportService {
         return toDto(reportRepository.save(report));
     }
 
-
-
-    // ================================================
     // DTO 변환
-    // ================================================
     private ReportDTO toDto(Report r) {
         return ReportDTO.builder()
                 .reportId(r.getReportId())
@@ -339,10 +309,7 @@ public class ReportService {
                 .build();
     }
 
-
-    // ================================================
     // Timestamp 변환 함수
-    // ================================================
     private LocalDateTime toLocal(long epoch, int timezoneOffset) {
         long adjusted = epoch + (timezoneOffset * 60L);
         return LocalDateTime.ofInstant(Instant.ofEpochSecond(adjusted), ZoneId.systemDefault());
