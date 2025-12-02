@@ -35,6 +35,7 @@ public class ReportController {
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료");
     }
 
+
     /**
      * 특정 매장의 전체 기간(185일) Report 동기화
      * 오늘 기준으로 과거 185일까지의 모든 Report를 조회하여 동기화
@@ -42,14 +43,14 @@ public class ReportController {
      *
      * 사용 예시: 새 매장 초기 세팅 시
      *
-     * @param storeId 매장 ID
      * @return 저장된 Report 개수
      */
+
     @PostMapping("/sync/store/full-historical")
     public ResponseEntity<String> syncSingleStoreFullHistorical(
-            @RequestParam Long storeId
+            @Valid @RequestBody StoreFullHistoricalSyncRequestDTO req
     ) {
-        int count = reportService.syncSingleStoreFullHistorical(storeId);
+        int count = reportService.syncSingleStoreFullHistorical(req.getStoreId());
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (과거 185일)");
     }
 
@@ -58,7 +59,7 @@ public class ReportController {
     /**
      * 전체 매장의 특정 기간 Report 동기화
      * 모든 매장의 지정된 기간 Report를 Pudu API에서 조회하여 DB에 저장
-     *
+                                                                                                   *
      * 사용 예시:
      * - 어제 하루치 데이터만 전체 매장 재동기화
      * - 지난 주 데이터만 전체 매장 재동기화

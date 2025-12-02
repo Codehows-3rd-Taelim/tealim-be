@@ -63,7 +63,7 @@ public class StoreController {
      *
      * @return 저장된 Store 개수
      */
-    @PostMapping("store/sync")
+    @PostMapping("api/store/sync")
     public ResponseEntity<String> syncAllStores() {
         int count = storeService.syncAllStores();
         return ResponseEntity.ok(count + "개 Store 저장/업데이트 완료");
