@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
@@ -55,4 +56,17 @@ public class StoreController {
         // HTTP 200 OK와 함께 DTO 목록을 JSON으로 반환
         return ResponseEntity.ok(userDTOs);
     }
+
+
+    /**
+     * Pudu API에서 Store 목록을 동기화
+     *
+     * @return 저장된 Store 개수
+     */
+    @PostMapping("store/sync")
+    public ResponseEntity<String> syncAllStores() {
+        int count = storeService.syncAllStores();
+        return ResponseEntity.ok(count + "개 Store 저장/업데이트 완료");
+    }
+
 }
