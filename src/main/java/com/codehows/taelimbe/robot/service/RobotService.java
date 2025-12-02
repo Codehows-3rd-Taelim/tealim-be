@@ -123,7 +123,7 @@ public class RobotService {
         RobotDTO dto = convertToDto(robot);
 
         dto.setBattery(api.getBattery());
-        dto.setOnline(api.isOnline());
+        dto.setOnline(api.getOnline());
         dto.setStatus(api.getStatus());
         dto.setProductCode(api.getProductCode());
         dto.setSoftVersion(api.getSoftVersion());
@@ -145,7 +145,7 @@ public class RobotService {
 
         robot.updateRobotInfo(
                 dto.getNickname(),
-                dto.isOnline(),
+                dto.getOnline(),
                 dto.getBattery(),
                 dto.getStatus(),
                 dto.getProductCode(),
@@ -167,7 +167,7 @@ public class RobotService {
 
         String mac = null;
         String nickname = null;
-        boolean online = false;
+        Boolean online = false;
         int battery = 0;
         int status = 0;
         String productCode = null;
