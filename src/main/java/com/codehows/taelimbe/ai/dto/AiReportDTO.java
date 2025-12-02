@@ -5,9 +5,9 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
+@Builder
 @Getter
 @Setter
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class AiReportDTO {
@@ -19,9 +19,9 @@ public class AiReportDTO {
     private LocalDateTime createdAt;
     private String rawMessage;
     private String rawReport;
-    private Long userId;  // User 엔티티 대신 ID만 전달
+    private Long userId;
+    private String name; // 새로 추가
 
-    // Entity -> DTO 변환
     public static AiReportDTO from(AiReport aiReport) {
         return AiReportDTO.builder()
                 .aiReportId(aiReport.getAiReportId())
@@ -32,6 +32,7 @@ public class AiReportDTO {
                 .rawMessage(aiReport.getRawMessage())
                 .rawReport(aiReport.getRawReport())
                 .userId(aiReport.getUser() != null ? aiReport.getUser().getUserId() : null)
+                .name(aiReport.getUser() != null ? aiReport.getUser().getName() : null)
                 .build();
     }
 }
