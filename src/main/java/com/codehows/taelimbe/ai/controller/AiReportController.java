@@ -12,13 +12,13 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("")  // /api 제거
+@RequestMapping("")
 @RequiredArgsConstructor
 public class AiReportController {
 
     private final AiReportService aiReportService;
 
-    @GetMapping("/aiReport")  // 실제 경로: /aiReport
+    @GetMapping("/ai/Report")
     @ResponseBody
     public ResponseEntity<List<AiReportDTO>> getAllReports() {
         List<AiReportDTO> reports = aiReportService.getAllReports();

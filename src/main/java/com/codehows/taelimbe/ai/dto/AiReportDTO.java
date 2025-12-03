@@ -20,7 +20,7 @@ public class AiReportDTO {
     private String rawMessage;
     private String rawReport;
     private Long userId;
-    private String name; // 새로 추가
+    private String name;
 
     public static AiReportDTO from(AiReport aiReport) {
         return AiReportDTO.builder()
@@ -31,8 +31,8 @@ public class AiReportDTO {
                 .createdAt(aiReport.getCreatedAt())
                 .rawMessage(aiReport.getRawMessage())
                 .rawReport(aiReport.getRawReport())
-                .userId(aiReport.getUser() != null ? aiReport.getUser().getUserId() : null)
-                .name(aiReport.getUser() != null ? aiReport.getUser().getName() : null)
+                .userId(aiReport.getUser().getUserId())
+                .name(aiReport.getUser().getName())
                 .build();
     }
 }

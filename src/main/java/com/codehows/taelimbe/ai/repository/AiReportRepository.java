@@ -11,9 +11,6 @@ import java.util.List;
 @Repository
 public interface AiReportRepository extends JpaRepository<AiReport, Long> {
 
-    // 특정 User로 조회
-    List<AiReport> findByUser_UserId(Long userId);
-
     // 특정 Store의 모든 리포트 조회 (최신순)
     @Query("SELECT a FROM AiReport a WHERE a.user.store.storeId = :storeId ORDER BY a.createdAt DESC")
     List<AiReport> findByStoreIdOrderByCreatedAtDesc(@Param("storeId") Long storeId);
