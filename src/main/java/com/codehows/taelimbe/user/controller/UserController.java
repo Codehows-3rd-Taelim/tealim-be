@@ -46,6 +46,17 @@ public class UserController {
         return ResponseEntity.ok().body(Map.of("exists", exists));
     }
 
+    // 직원 수정
+    @PutMapping("/{userId}")
+    @ResponseBody // JSON 응답을 위해 추가
+    public ResponseEntity<UserDTO> updateStore( // 메서드 이름 수정 및 ResponseEntity<StoreDTO> 반환
+                                                 @PathVariable Long userId,
+                                                 @RequestBody UserDTO dto
+    ) {
+        UserDTO updatedDto = userService.updateUser(userId, dto);
+        return ResponseEntity.ok(updatedDto);
+    }
+
     // 직원 삭제
     @DeleteMapping("/{userId}")
     public ResponseEntity<String> deleteEmployee(@PathVariable Long userId) {
@@ -67,6 +78,4 @@ public class UserController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("직원 삭제 중 서버 오류가 발생했습니다.");
         }
     }
-
-
 }

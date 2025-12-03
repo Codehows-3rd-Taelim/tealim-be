@@ -26,6 +26,13 @@ public class JwtFilter extends OncePerRequestFilter
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+
+        // OPTIONS 요청(Preflight)은 JWT 검증 없이 바로 통과
+        if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // 필터 ==> 요청, 응답을 중간에서 가로챈 다음 ==> 필요한 동작을 수행
         // 1. 요청 헤더 (Authorization)에서 JWT 토큰을 꺼냄
         String jwtToken = request.getHeader(HttpHeaders.AUTHORIZATION);

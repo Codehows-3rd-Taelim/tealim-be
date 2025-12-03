@@ -14,7 +14,7 @@ public class RobotDTO {
     private String mac;
 
     private String nickname;
-    private boolean online;
+    private Boolean online;
     private Integer battery;
     private Integer status;
 

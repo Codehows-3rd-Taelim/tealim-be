@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.config;
 
+import com.codehows.taelimbe.store.constant.DeleteStatus;
 import com.codehows.taelimbe.store.constant.IndustryType;
 import com.codehows.taelimbe.user.constant.Role;
 import com.codehows.taelimbe.store.entity.Industry;
@@ -51,6 +52,10 @@ public class DataInitializer implements CommandLineRunner {
     private List<Industry> initializeIndustryData() {
         if (industryRepository.count() == 0) {
             System.out.println(">>> Initializing Industry Data...");
+            List<String> industryNames = Arrays.asList(
+                    "식음료", "소매", "접객", "산업 시설/창고/물류", "헬스케어",
+                    "운송 및 관련 서비스", "엔터테인먼트 및 스포츠", "주거 및 오피스 빌딩", "교육", "공공 서비스"
+            );
 
             // IndustryType Enum의 모든 값을 스트림으로 변환하여 업종 이름을 가져옵니다.
             List<Industry> industries = Arrays.stream(IndustryType.values())
@@ -70,23 +75,25 @@ public class DataInitializer implements CommandLineRunner {
         if (storeRepository.count() == 0) {
             System.out.println(">>> Initializing Store Data...");
 
-            Industry foodIndustry = industries.stream()
+            Industry industry = industries.stream()
                     .filter(i -> "산업 시설/창고/물류".equals(i.getIndustryName()))
                     .findFirst()
                     .orElse(null);
 
-            if (foodIndustry != null) {
+            if (industry != null) {
                 Store inuStore = Store.builder()
                         .shopId(518350000L) // 임의의 초기 shopId
                         .shopName("인어스트리")
-                        .industry(foodIndustry)
+                        .industry(industry)
+                        .delYn(DeleteStatus.N)
                         .build();
                 storeRepository.save(inuStore);
 
                 Store taelimStore = Store.builder()
                         .shopId(518250000L) // 임의의 초기 shopId
                         .shopName("태림")
-                        .industry(foodIndustry)
+                        .industry(industry)
+                        .delYn(DeleteStatus.N)
                         .build();
                 storeRepository.save(taelimStore);
 

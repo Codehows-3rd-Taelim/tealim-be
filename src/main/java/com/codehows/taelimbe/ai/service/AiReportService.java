@@ -34,12 +34,14 @@ public class AiReportService {
     public List<AiReportDTO> getAllReports() {
         User currentUser = getCurrentUser();
 
+        // ADMIN: 모든 리포트 조회
         if (currentUser.getRole() == Role.ADMIN) {
             return aiReportRepository.findAllByOrderByCreatedAtDesc()
                     .stream()
                     .map(AiReportDTO::from)
                     .collect(Collectors.toList());
         } else {
+            // MANAGER, EMPLOYEE: 자기 매장 리포트만 조회
             Long storeId = currentUser.getStore().getStoreId();
             return aiReportRepository.findByStoreIdOrderByCreatedAtDesc(storeId)
                     .stream()

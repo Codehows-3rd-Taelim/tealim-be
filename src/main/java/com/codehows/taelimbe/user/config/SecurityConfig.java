@@ -12,6 +12,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @RequiredArgsConstructor
@@ -23,18 +28,49 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement
                         ((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/config/comment-max-length"
-                                ,"/board/show/**","/image/**","/visit", "/main/**", "/comment/board/**"
-                        ).permitAll()
-//                        .requestMatchers("/admin/**").hasAuthority("ADMIN") //admin으로 시작하는 경로는 admin role일 경우에만 접근 가능하도록.
+                        .requestMatchers("/login").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling((ex) -> ex.authenticationEntryPoint(authEntryPoint));
         return http.build();
+    }
+
+    /**
+     * CORS 설정 Bean 추가
+     * PUT, DELETE 등의 요청에 대한 preflight(OPTIONS) 처리를 위해 필요
+     */
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // 허용할 Origin (프론트엔드 URL)
+        // 개발: http://localhost:5173
+        // 운영: 실제 도메인
+        configuration.setAllowedOriginPatterns(List.of("*")); // 또는 구체적인 URL 지정
+
+        // PUT, DELETE 포함 모든 HTTP 메소드 허용
+        configuration.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+        ));
+
+        // Authorization 헤더 포함 모든 헤더 허용
+        configuration.setAllowedHeaders(List.of("*"));
+
+        // 인증 정보(쿠키, Authorization 헤더) 포함 허용
+        configuration.setAllowCredentials(true);
+
+        // preflight 요청 결과를 1시간 동안 캐싱
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 
     @Bean

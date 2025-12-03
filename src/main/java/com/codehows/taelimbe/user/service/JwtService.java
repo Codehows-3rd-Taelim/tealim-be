@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
+import java.util.Date;
 
 @Service
 public class JwtService {
@@ -16,6 +17,7 @@ public class JwtService {
     // 서버와 클라이언트가 주고 받는 토큰 ==> HTTP Header 내 Authorization 헤더값에 저장
     // 예) Authorization Bearer <토큰값>
     static final String PREFIX = "Bearer ";
+    static final long EXPIRATION_TIME = 60 * 60 * 1000;  // 1000 = 1초
     static final Key SIGNING_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS256);
 
     // loginId(ID)를 받아서 JWT 생성
@@ -23,6 +25,7 @@ public class JwtService {
     {
         return Jwts.builder()
                 .setSubject(loginId)
+                .setExpiration(new Date(System.currentTimeMillis() + EXPIRATION_TIME))
                 .signWith(SIGNING_KEY)
                 .compact();
     }
