@@ -30,194 +30,6 @@ public class ReportService {
     private final StoreRepository storeRepository;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    @Transactional
-    public int syncSingleStoreByTimeRange(StoreTimeRangeSyncRequestDTO req) {
-        Store store = storeRepository.findById(req.getStoreId())
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
-
-        Long shopId = store.getShopId();
-        int totalCount = 0;
-        int offset = req.getOffset();
-        boolean hasMore = true;
-
-        System.out.println("\n===== Sync Single Store by Time Range =====");
-        System.out.println("Store ID: " + req.getStoreId());
-        System.out.println("Time Range: " + req.getStartTime() + " ~ " + req.getEndTime());
-
-        while (hasMore) {
-            List<Map<String, String>> list = fetchReportList(
-                    req.getStartTime(),
-                    req.getEndTime(),
-                    shopId,
-                    req.getTimezoneOffset(),
-                    offset
-            );
-
-            if (list.isEmpty()) {
-                hasMore = false;
-                break;
-            }
-
-            for (Map<String, String> item : list) {
-                ReportDTO saved = saveReportDetailWithConversion(
-                        item.get("sn"),
-                        item.get("report_id"),
-                        req.getStartTime(),
-                        req.getEndTime(),
-                        req.getTimezoneOffset(),
-                        shopId
-                );
-                if (saved != null) totalCount++;
-            }
-
-            offset += 20;
-        }
-
-        System.out.println("Total Saved: " + totalCount);
-        System.out.println("============================================\n");
-
-        return totalCount;
-    }
-
-    @Transactional
-    public int syncSingleStoreFullHistorical(Long storeId) {
-
-        Store store = storeRepository.findById(storeId)
-                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
-
-        Long shopId = store.getShopId();
-
-        LocalDateTime endDateTime = LocalDate.now().atTime(LocalTime.MAX);
-        LocalDateTime startDateTime = LocalDate.now().minusDays(185).atStartOfDay();
-
-        System.out.println("\n===== Sync Single Store Full Historical (Last 185 Days) =====");
-        System.out.println("Store ID: " + storeId);
-        System.out.println("Start Date: " + startDateTime);
-        System.out.println("End Date: " + endDateTime);
-
-        int totalCount = 0;
-        int offset = 0;
-        boolean hasMore = true;
-        int pageNum = 0;
-
-        while (hasMore) {
-            pageNum++;
-            System.out.println("\n--- Page " + pageNum + " (offset: " + offset + ") ---");
-
-            List<Map<String, String>> list = fetchReportList(
-                    startDateTime,
-                    endDateTime,
-                    shopId,
-                    0,
-                    offset
-            );
-
-            System.out.println("Fetched: " + list.size() + " items");
-
-            if (list.isEmpty()) {
-                System.out.println("No more data. Stopping.");
-                hasMore = false;
-                break;
-            }
-
-            int pageCount = 0;
-            for (Map<String, String> item : list) {
-                ReportDTO saved = saveReportDetailWithConversion(
-                        item.get("sn"),
-                        item.get("report_id"),
-                        startDateTime,
-                        endDateTime,
-                        0,
-                        shopId
-                );
-                if (saved != null) {
-                    totalCount++;
-                    pageCount++;
-                }
-            }
-
-            System.out.println("Saved in this page: " + pageCount);
-            offset += 20;
-        }
-
-        System.out.println("\n===== Sync Complete =====");
-        System.out.println("Total Saved: " + totalCount);
-        System.out.println("==========================\n");
-
-        return totalCount;
-    }
-
-    @Transactional
-    public int syncAllStoresByTimeRange(TimeRangeSyncRequestDTO req) {
-
-        List<Store> stores = storeRepository.findAll();
-
-        System.out.println("\n===== Sync All Stores by Time Range =====");
-        System.out.println("Total Stores: " + stores.size());
-        System.out.println("Start Time: " + req.getStartTime());
-        System.out.println("End Time: " + req.getEndTime());
-
-        int totalCount = 0;
-
-        for (Store store : stores) {
-            System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
-
-            try {
-                StoreTimeRangeSyncRequestDTO syncReq = StoreTimeRangeSyncRequestDTO.builder()
-                        .storeId(store.getStoreId())
-                        .startTime(req.getStartTime())
-                        .endTime(req.getEndTime())
-                        .timezoneOffset(req.getTimezoneOffset())
-                        .offset(0)
-                        .build();
-
-                int count = syncSingleStoreByTimeRange(syncReq);
-                totalCount += count;
-
-                System.out.println("Store " + store.getStoreId() + " Synced: " + count + " reports");
-
-            } catch (Exception e) {
-                System.out.println("Error syncing store " + store.getStoreId() + ": " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-
-        System.out.println("\n===== All Stores Time Range Sync Complete =====");
-        System.out.println("Total Synced: " + totalCount);
-        System.out.println("===============================================\n");
-
-        return totalCount;
-    }
-
-    @Transactional
-    public int syncAllStoresFullHistorical() {
-
-        List<Store> stores = storeRepository.findAll();
-
-        System.out.println("\n===== Sync All Stores Full Historical (Last 185 Days) =====");
-        System.out.println("Total Stores: " + stores.size());
-
-        int totalCount = 0;
-
-        for (Store store : stores) {
-            System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
-
-            try {
-                int count = syncSingleStoreFullHistorical(store.getStoreId());
-                totalCount += count;
-            } catch (Exception e) {
-                System.out.println("Error syncing store " + store.getStoreId() + ": " + e.getMessage());
-                e.printStackTrace();
-            }
-        }
-
-        System.out.println("\n===== All Stores Full Historical Sync Complete =====");
-        System.out.println("Total Saved: " + totalCount);
-        System.out.println("====================================================\n");
-
-        return totalCount;
-    }
-
     public List<ReportDTO> getReport(String startDate, String endDate) {
 
         if (startDate == null || startDate.isEmpty()) {
@@ -236,152 +48,222 @@ public class ReportService {
                 .toList();
     }
 
-    public List<ReportDTO> getAllReports() {
-        return reportRepository.findAll().stream().map(this::toDto).toList();
+
+    @Transactional
+    public int syncSingleStoreByTimeRange(StoreTimeRangeSyncRequestDTO req) {
+        Store store = storeRepository.findById(req.getStoreId())
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+
+        Long shopId = store.getShopId();
+        int totalCount=0, offset=req.getOffset();
+
+        while(true){
+            List<Map<String,Object>> list = fetchReportList(
+                    req.getStartTime(), req.getEndTime(), shopId,
+                    req.getTimezoneOffset(), offset
+            );
+            if(list.isEmpty()) break;
+
+            for(Map<String,Object> item : list){
+                if(saveReportDetailWithConversion(
+                        getString(item,"sn"),
+                        getString(item,"report_id"),
+                        req.getStartTime(), req.getEndTime(),
+                        req.getTimezoneOffset(), shopId
+                )!=null) totalCount++;
+            }
+            offset+=20;
+        }
+        return totalCount;
     }
 
-    public ReportDTO getReportById(Long id) {
-        return toDto(reportRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Report not found")));
+
+
+    @Transactional
+    public int syncSingleStoreFullHistorical(Long storeId){
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+
+        Long shopId=store.getShopId();
+        LocalDateTime end = LocalDate.now().atTime(LocalTime.MAX);
+        LocalDateTime start = LocalDate.now().minusDays(180).atStartOfDay();
+
+        int total=0,offset=0;
+
+        while(true){
+            List<Map<String,Object>> list = fetchReportList(start,end,shopId,0,offset);
+            if(list.isEmpty()) break;
+
+            for(Map<String,Object> item:list){
+                if(saveReportDetailWithConversion(
+                        getString(item,"sn"), getString(item,"report_id"),
+                        start,end,0,shopId)!=null) total++;
+            }
+            offset+=20;
+        }
+        return total;
     }
 
-    public List<ReportDTO> getReportsByRobotSn(String sn) {
-        return reportRepository.findByRobot_Sn(sn)
-                .stream().map(this::toDto).toList();
+
+
+    @Transactional
+    public int syncAllStoresByTimeRange(TimeRangeSyncRequestDTO req){
+        int total=0;
+        for(Store s : storeRepository.findAll()){
+            total+=syncSingleStoreByTimeRange(
+                    StoreTimeRangeSyncRequestDTO.builder()
+                            .storeId(s.getStoreId())
+                            .startTime(req.getStartTime())
+                            .endTime(req.getEndTime())
+                            .timezoneOffset(req.getTimezoneOffset())
+                            .offset(0).build()
+            );
+        }
+        return total;
     }
+
+
+
+    @Transactional
+    public int syncAllStoresFullHistorical(){
+        int total=0;
+        for(Store s : storeRepository.findAll())
+            total+=syncSingleStoreFullHistorical(s.getStoreId());
+        return total;
+    }
+
+
+
+    private List<Map<String,Object>> fetchReportList(
+            LocalDateTime start,LocalDateTime end,Long shopId,int timezoneOffset,int offset
+    ){
+        try{
+            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-board/v1/log/clean_task/query_list")
+                    .queryParam("start_time",start.atZone(ZoneId.systemDefault()).toEpochSecond())
+                    .queryParam("end_time",end.atZone(ZoneId.systemDefault()).toEpochSecond())
+                    .queryParam("shop_id",shopId)
+                    .queryParam("offset",offset)
+                    .queryParam("limit",20)
+                    .queryParam("timezone_offset",timezoneOffset)
+                    .toUriString();
+
+            JsonNode list = mapper.readTree(puduAPIClient.callPuduAPI(url,"GET").getBody())
+                    .path("data").path("list");
+
+            return mapper.convertValue(list,
+                    mapper.getTypeFactory().constructCollectionType(List.class,Map.class));
+
+        }catch(Exception e){ return new ArrayList<>();}
+    }
+
+
+    private Map<String,Object> fetchReportDetail(
+            String sn,String reportId,LocalDateTime start,LocalDateTime end,int timezoneOffset,Long shopId){
+        try{
+            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
+                    .path("/data-board/v1/log/clean_task/query")
+                    .queryParam("sn",sn)
+                    .queryParam("report_id",reportId)
+                    .queryParam("start_time",start.atZone(ZoneId.systemDefault()).toEpochSecond())
+                    .queryParam("end_time",end.atZone(ZoneId.systemDefault()).toEpochSecond())
+                    .queryParam("timezone_offset",timezoneOffset)
+                    .queryParam("shop_id",shopId)
+                    .toUriString();
+
+            JsonNode data = mapper.readTree(puduAPIClient.callPuduAPI(url,"GET").getBody())
+                    .path("data");
+
+            return mapper.convertValue(data,Map.class);
+
+        }catch(Exception e){ return null;}
+    }
+
+
+    private Map<String,String> extractFloorInfo(Map<String,Object> detail) {
+        Map<String,String> result = new HashMap<>();
+
+        try {
+            Object raw = detail.get("floor_list");
+
+            List<Map<String,Object>> list =
+                    mapper.convertValue(raw, mapper.getTypeFactory()
+                            .constructCollectionType(List.class, Map.class));   // ← 안전 & 경고 없음
+
+            if (!list.isEmpty()) {
+                Map<String,Object> first = list.getFirst();
+
+                result.put("mapName", getString(first,"map_name"));
+                result.put("mapUrl", Optional.ofNullable(getString(first,"task_result_url"))
+                        .orElse(getString(first,"task_local_url")));
+            }
+
+        } catch (Exception e) {
+            System.out.println("floor_list parsing failed: "+e.getMessage());
+        }
+        return result;
+    }
+
+
 
     private ReportDTO saveReportDetailWithConversion(
-            String sn, String reportIdStr, LocalDateTime start, LocalDateTime end, int timezoneOffset, Long shopId
-    ) {
-        JsonNode detail = fetchReportDetail(sn, reportIdStr, start, end, timezoneOffset, shopId);
-        if (detail == null) {
-            return null;
-        }
-
-        Long reportId = Long.parseLong(reportIdStr);
-        Optional<Report> existing = reportRepository.findByReportId(reportId);
-
-        if (existing.isPresent()) {
-            System.out.println("Report with reportId " + reportId + " already exists. Skipping.");
-            return null;
-        }
-
+            String sn,String reportIdStr,LocalDateTime start,LocalDateTime end,int timezoneOffset,Long shopId
+    ){
         Robot robot = robotRepository.findBySn(sn)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
 
-        String mapName = null;
-        String mapUrl = null;
+        Long reportId = Long.parseLong(reportIdStr);
+        if(reportRepository.findByReportId(reportId).isPresent()) return null;
 
-        try {
-            JsonNode floorListNode = detail.path("floor_list");
-            JsonNode floorList = floorListNode.isTextual()
-                    ? mapper.readTree(floorListNode.asText())
-                    : floorListNode;
+        Map<String,Object> detail = fetchReportDetail(sn, reportIdStr, start,end,timezoneOffset,shopId);
+        if(detail==null) return null;
 
-            if (floorList.isArray() && floorList.size() > 0) {
-                JsonNode first = floorList.get(0);
-                mapName = first.path("map_name").asText(null);
-                mapUrl = first.path("task_result_url").asText(
-                        first.path("task_local_url").asText(null)
-                );
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        Map<String,String> floor = extractFloorInfo(detail);
 
         Report report = Report.builder()
                 .reportId(reportId)
-                .status(detail.path("status").asInt())
-                .startTime(LocalDateTime.ofInstant(
-                        Instant.ofEpochSecond(detail.path("start_time").asLong()),
-                        ZoneId.systemDefault()
-                ))
-                .endTime(LocalDateTime.ofInstant(
-                        Instant.ofEpochSecond(detail.path("end_time").asLong()),
-                        ZoneId.systemDefault()
-                ))
-                .cleanTime(detail.path("clean_time").floatValue())
-                .taskArea(detail.path("task_area").floatValue())
-                .cleanArea(detail.path("clean_area").floatValue())
-                .mode(detail.path("mode").asInt())
-                .costBattery(detail.path("cost_battery").asLong())
-                .costWater(detail.path("cost_water").asLong())
-                .mapName(mapName)
-                .mapUrl(mapUrl)
+                .status(getInt(detail,"status"))
+                .startTime(toLocalDateTime(getLong(detail,"start_time")))
+                .endTime(toLocalDateTime(getLong(detail,"end_time")))
+                .cleanTime(getFloat(detail,"clean_time"))
+                .taskArea(getFloat(detail,"task_area"))
+                .cleanArea(getFloat(detail,"clean_area"))
+                .mode(getInt(detail,"mode"))
+                .costBattery(getLong(detail,"cost_battery"))
+                .costWater(getLong(detail,"cost_water"))
+                .mapName(floor.get("mapName"))
+                .mapUrl(floor.get("mapUrl"))
                 .robot(robot)
                 .build();
 
         return toDto(reportRepository.save(report));
     }
 
-    private List<Map<String, String>> fetchReportList(
-            LocalDateTime start, LocalDateTime end, Long shopId, int timezoneOffset, int offset
-    ) {
-        List<Map<String, String>> result = new ArrayList<>();
-
-        try {
-            // LocalDateTime을 Unix timestamp로 변환
-            long startTimestamp = start.atZone(ZoneId.systemDefault()).toEpochSecond();
-            long endTimestamp = end.atZone(ZoneId.systemDefault()).toEpochSecond();
-
-            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
-                    .path("/data-board/v1/log/clean_task/query_list")
-                    .queryParam("start_time", startTimestamp)
-                    .queryParam("end_time", endTimestamp)
-                    .queryParam("shop_id", shopId)
-                    .queryParam("offset", offset)
-                    .queryParam("limit", 20)
-                    .queryParam("timezone_offset", timezoneOffset)
-                    .toUriString();
-
-            ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
-            JsonNode list = mapper.readTree(res.getBody()).path("data").path("list");
-
-            if (list.isArray()) {
-                for (JsonNode n : list) {
-                    Map<String, String> map = new HashMap<>();
-                    map.put("sn", n.path("sn").asText());
-                    map.put("report_id", n.path("report_id").asText());
-                    result.add(map);
-                }
-            }
-
-        } catch (Exception e) {
-            System.out.println("Exception in fetchReportList: " + e.getMessage());
-            e.printStackTrace();
-        }
-
-        return result;
+    public List<ReportDTO> getAllReports() {
+        return reportRepository.findAll().stream().map(this::toDto).toList();
     }
 
-    private JsonNode fetchReportDetail(
-            String sn, String reportId, LocalDateTime start, LocalDateTime end, int timezoneOffset, Long shopId
-    ) {
-        try {
-            // LocalDateTime을 Unix timestamp로 변환
-            long startTimestamp = start.atZone(ZoneId.systemDefault()).toEpochSecond();
-            long endTimestamp = end.atZone(ZoneId.systemDefault()).toEpochSecond();
 
-            String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
-                    .path("/data-board/v1/log/clean_task/query")
-                    .queryParam("sn", sn)
-                    .queryParam("report_id", reportId)
-                    .queryParam("start_time", startTimestamp)
-                    .queryParam("end_time", endTimestamp)
-                    .queryParam("timezone_offset", timezoneOffset)
-                    .queryParam("shop_id", shopId)
-                    .toUriString();
-
-            ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
-
-            return mapper.readTree(res.getBody()).path("data");
-
-        } catch (Exception ignored) {}
-
-        return null;
+    public ReportDTO getReportById(Long id) {
+        return toDto(reportRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Report not found")));
     }
 
-    private ReportDTO toDto(Report r) {
+
+    public List<ReportDTO> getReportsByRobotSn(String sn) {
+        return reportRepository.findByRobot_Sn(sn)
+                .stream().map(this::toDto).toList();
+    }
+
+
+
+    // UTC 타임스탬프 -> 로컬 시간
+    private LocalDateTime toLocalDateTime(Long epoch){
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(epoch),ZoneId.systemDefault());
+    }
+
+
+    private ReportDTO toDto(Report r){
         return ReportDTO.builder()
                 .puduReportId(r.getPuduReportId())
                 .reportId(r.getReportId())
@@ -398,5 +280,19 @@ public class ReportService {
                 .mapUrl(r.getMapUrl())
                 .robotId(r.getRobot().getRobotId())
                 .build();
+    }
+
+    private String getString(Map<String,Object> map,String key){
+        Object v = map.get(key);
+        return v!=null ? v.toString() : null;
+    }
+    private Integer getInt(Map<String,Object> map,String key){
+        return map.get(key) instanceof Number ? ((Number)map.get(key)).intValue() : null;
+    }
+    private Long getLong(Map<String,Object> map,String key){
+        return map.get(key) instanceof Number ? ((Number)map.get(key)).longValue() : null;
+    }
+    private Float getFloat(Map<String,Object> map,String key){
+        return map.get(key) instanceof Number ? ((Number)map.get(key)).floatValue() : null;
     }
 }

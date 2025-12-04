@@ -50,7 +50,7 @@ public class ReportController {
         return ResponseEntity.ok(reportService.getAllReports());
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/detail/{id}")
     public ResponseEntity<ReportDTO> getReportById(@PathVariable Long id) {
         return ResponseEntity.ok(reportService.getReportById(id));
     }
