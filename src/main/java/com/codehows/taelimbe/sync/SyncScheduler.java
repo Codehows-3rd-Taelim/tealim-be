@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.config;
+package com.codehows.taelimbe.sync;
 
 import com.codehows.taelimbe.pudureport.dto.TimeRangeSyncRequestDTO;
 import com.codehows.taelimbe.pudureport.service.ReportService;
