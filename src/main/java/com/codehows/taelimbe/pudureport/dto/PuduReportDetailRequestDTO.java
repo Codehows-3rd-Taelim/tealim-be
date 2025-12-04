@@ -9,7 +9,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class ReportDetailRequestDTO {
+public class PuduReportDetailRequestDTO {
 
     @NotNull(message = "storeId는 필수입니다")
     @Positive(message = "storeId는 양수여야 합니다")

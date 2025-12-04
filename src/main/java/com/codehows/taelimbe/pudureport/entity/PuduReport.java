@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Report {
+public class PuduReport {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

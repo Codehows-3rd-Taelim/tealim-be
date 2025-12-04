@@ -2,10 +2,10 @@ package com.codehows.taelimbe.pudureport.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
 import com.codehows.taelimbe.pudureport.dto.*;
-import com.codehows.taelimbe.pudureport.entity.Report;
+import com.codehows.taelimbe.pudureport.entity.PuduReport;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.store.entity.Store;
-import com.codehows.taelimbe.pudureport.repository.ReportRepository;
+import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
 import com.codehows.taelimbe.robot.repository.RobotRepository;
 import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -220,7 +220,7 @@ public class ReportService {
 
         Map<String,String> floor = extractFloorInfo(detail);
 
-        Report report = Report.builder()
+        Report puduReport = Report.builder()
                 .reportId(reportId)
                 .status(getInt(detail,"status"))
                 .startTime(toLocalDateTime(getLong(detail,"start_time")))
@@ -236,7 +236,7 @@ public class ReportService {
                 .robot(robot)
                 .build();
 
-        return toDto(reportRepository.save(report));
+        return toDto(reportRepository.save(puduReport));
     }
 
     public List<ReportDTO> getAllReports() {

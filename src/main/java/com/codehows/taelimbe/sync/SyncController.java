@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.config;
 
 import com.codehows.taelimbe.pudureport.dto.TimeRangeSyncRequestDTO;
-import com.codehows.taelimbe.pudureport.service.ReportService;
+import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import com.codehows.taelimbe.robot.service.RobotService;
 import com.codehows.taelimbe.store.service.StoreService;
 import com.codehows.taelimbe.sync.SyncResultDTO;
@@ -20,7 +20,7 @@ public class SyncController {
 
     private final StoreService storeService;
     private final RobotService robotService;
-    private final ReportService reportService;
+    private final PuduReportService puduReportService;
 
     // 수동 동기화용
     @PostMapping("/now")
@@ -65,7 +65,7 @@ public class SyncController {
                         .timezoneOffset(0)
                         .build();
 
-                reportCount = reportService.syncAllStoresByTimeRange(req);
+                reportCount = puduReportService.syncAllStoresByTimeRange(req);
                 System.out.println("[MANUAL SYNC] Report Sync Completed: " + reportCount + " reports");
             } catch (Exception e) {
                 System.out.println("[MANUAL SYNC] Report Sync Failed: " + e.getMessage());

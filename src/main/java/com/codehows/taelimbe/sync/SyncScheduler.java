@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.sync;
 
 import com.codehows.taelimbe.pudureport.dto.TimeRangeSyncRequestDTO;
-import com.codehows.taelimbe.pudureport.service.ReportService;
+import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import com.codehows.taelimbe.robot.service.RobotService;
 import com.codehows.taelimbe.store.service.StoreService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +18,7 @@ public class SyncScheduler {
 
     private final StoreService storeService;
     private final RobotService robotService;
-    private final ReportService reportService;
+    private final PuduReportService puduReportService;
 
     /**
      * 매일 0:00, 3:00, 6:00, 9:00, 12:00, 15:00, 18:00, 21:00에 매장 정보 동기화
@@ -67,7 +67,7 @@ public class SyncScheduler {
                     .timezoneOffset(0)
                     .build();
 
-            int count = reportService.syncAllStoresByTimeRange(req);
+            int count = puduReportService.syncAllStoresByTimeRange(req);
             System.out.println("[SCHEDULER] Report Sync Completed: " + count + " reports");
         } catch (Exception e) {
             System.out.println("[SCHEDULER] Report Sync Failed: " + e.getMessage());
