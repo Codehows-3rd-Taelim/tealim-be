@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.langchain.tools;
 
-import com.codehows.taelimbe.dto.CleaningDataDTO;
-import com.codehows.taelimbe.service.CleaningDataService;
+import com.codehows.taelimbe.report.dto.ReportDTO;
+import com.codehows.taelimbe.report.service.ReportService;
 import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
@@ -17,10 +17,11 @@ import java.util.List;
  */
 @Component
 @RequiredArgsConstructor
+
 public class ReportTools {
 
     // CleaningDataService를 주입받아 청소 보고서 관련 비즈니스 로직을 수행합니다.
-    private final CleaningDataService cleaningDataService;
+    private final ReportService reportService;
     // LangChainConfig에서 빈으로 등록된 Gson 인스턴스를 주입받습니다.
     private final Gson gson;
 
@@ -35,13 +36,16 @@ public class ReportTools {
      * @param endDate   조회 종료 날짜 (YYYY-MM-DD 형식)
      * @return 페이징된 청소 데이터 요약 보고서 문자열 (JSON 형식)
      */
+
+
+    //@Tool 메서드는 직접 호출되지 않고, LangChain4j가 런타임에 리플렉션으로 동적 호출하기 때문에 사용위치가 지금 당장은 안뜬다.
     @Tool("지정된 기간 동안의 청소 데이터를 페이징하여 가져옵니다.")
-    public String getCleaningReport(String startDate, String endDate) {
+    public String getReport(String startDate, String endDate) {
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         System.out.println("Current user: " + username); // 사용자 이름을 콘솔에 출력 (디버깅용)
 
         // CleaningDataService를 통해 지정된 기간의 페이징된 청소 데이터를 조회합니다.
-        List<CleaningDataDTO> reportData = cleaningDataService.getCleaningReport(startDate, endDate);
+        List<ReportDTO> reportData = reportService.getReport(startDate, endDate);
         
         // 조회된 청소 데이터 페이지를 JSON 문자열로 변환하여 반환합니다。
         // 이 JSON에는 데이터 목록뿐만 아니라 총 페이지 수, 전체 항목 수 등의 페이징 정보가 포함됩니다.
