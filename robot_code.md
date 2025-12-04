@@ -94,8 +94,8 @@ public class RobotDTO {
 ```java
 package com.codehows.taelimbe.controller;
 
-import com.codehows.taelimbe.dto.RobotDTO;
-import com.codehows.taelimbe.service.RobotService;
+import com.codehows.taelimbe.robot.dto.RobotDTO;
+import com.codehows.taelimbe.robot.service.RobotService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -158,11 +158,11 @@ public class RobotController {
 package com.codehows.taelimbe.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
-import com.codehows.taelimbe.dto.RobotDTO;
-import com.codehows.taelimbe.entity.Robot;
-import com.codehows.taelimbe.entity.Store;
-import com.codehows.taelimbe.repository.RobotRepository;
-import com.codehows.taelimbe.repository.StoreRepository;
+import com.codehows.taelimbe.robot.dto.RobotDTO;
+import com.codehows.taelimbe.robot.entity.Robot;
+import com.codehows.taelimbe.store.entity.Store;
+import com.codehows.taelimbe.robot.repository.RobotRepository;
+import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -436,7 +436,7 @@ public class RobotService {
 ```java
 package com.codehows.taelimbe.repository;
 
-import com.codehows.taelimbe.entity.Robot;
+import com.codehows.taelimbe.robot.entity.Robot;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
