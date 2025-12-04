@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.report.entity;
+package com.codehows.taelimbe.pudureport.entity;
 
 import com.codehows.taelimbe.robot.entity.Robot;
 import jakarta.persistence.*;
@@ -16,11 +16,11 @@ public class Report {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "pudu_report_id")
+    private Long puduReportId;
+
     @Column(name = "report_id")
     private Long reportId;
-
-    @Column(name = "task_id")
-    private Long taskId;
 
     @Column(name = "status")
     private Integer status;

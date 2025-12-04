@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.langchain.tools;
 
-import com.codehows.taelimbe.report.dto.ReportDTO;
-import com.codehows.taelimbe.report.service.ReportService;
+import com.codehows.taelimbe.pudureport.dto.ReportDTO;
+import com.codehows.taelimbe.pudureport.service.ReportService;
 import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;

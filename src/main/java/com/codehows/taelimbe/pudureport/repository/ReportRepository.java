@@ -1,6 +1,6 @@
-package com.codehows.taelimbe.report.repository;
+package com.codehows.taelimbe.pudureport.repository;
 
-import com.codehows.taelimbe.report.entity.Report;
+import com.codehows.taelimbe.pudureport.entity.Report;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -12,5 +12,5 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
 
     List<Report> findByStartTimeBetween(LocalDateTime start, LocalDateTime end);
 
-    Optional<Report> findByTaskId(Long taskId);
+    Optional<Report> findByReportId(Long reportId);
 }

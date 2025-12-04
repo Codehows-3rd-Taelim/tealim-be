@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.config;
 
-import com.codehows.taelimbe.report.dto.TimeRangeSyncRequestDTO;
-import com.codehows.taelimbe.report.service.ReportService;
+import com.codehows.taelimbe.pudureport.dto.TimeRangeSyncRequestDTO;
+import com.codehows.taelimbe.pudureport.service.ReportService;
 import com.codehows.taelimbe.robot.service.RobotService;
 import com.codehows.taelimbe.store.service.StoreService;
 import lombok.RequiredArgsConstructor;
