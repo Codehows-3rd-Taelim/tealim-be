@@ -58,8 +58,8 @@ public class SyncScheduler {
         System.out.println("\n[SCHEDULER] Starting Report Sync at " + LocalDateTime.now());
         try {
             // 현재 시간 기준 지난 3시간
-            long endTime = System.currentTimeMillis() / 1000;
-            long startTime = endTime - (3 * 60 * 60);
+            LocalDateTime endTime = LocalDateTime.now();
+            LocalDateTime startTime = endTime.minusHours(3);
 
             TimeRangeSyncRequestDTO req = TimeRangeSyncRequestDTO.builder()
                     .startTime(startTime)

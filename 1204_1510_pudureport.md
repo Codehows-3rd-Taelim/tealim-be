@@ -1,3 +1,365 @@
+
+
+# pudureport package
+
+This markdown file contains the code from the `pudureport` package.
+
+## `src/main/java/com/codehows/taelimbe/pudureport/controller/ReportController.java`
+
+```java
+package com.codehows.taelimbe.pudureport.controller;
+
+import com.codehows.taelimbe.pudureport.dto.*;
+import com.codehows.taelimbe.pudureport.service.ReportService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import java.util.List;
+
+@RestController
+@RequiredArgsConstructor
+@RequestMapping("/api/report")
+public class ReportController {
+
+    private final ReportService reportService;
+
+    @PostMapping("/sync/store/time-range")
+    public ResponseEntity<String> syncSingleStoreByTimeRange(
+            @Valid @RequestBody StoreTimeRangeSyncRequestDTO req
+    ) {
+        int count = reportService.syncSingleStoreByTimeRange(req);
+        return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료");
+    }
+
+    @PostMapping("/sync/store/full-historical")
+    public ResponseEntity<String> syncSingleStoreFullHistorical(
+            @Valid @RequestBody StoreFullHistoricalSyncRequestDTO req
+    ) {
+        int count = reportService.syncSingleStoreFullHistorical(req.getStoreId());
+        return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (과거 185일)");
+    }
+
+    @PostMapping("/sync/all-stores/time-range")
+    public ResponseEntity<String> syncAllStoresByTimeRange(
+            @Valid @RequestBody TimeRangeSyncRequestDTO req
+    ) {
+        int count = reportService.syncAllStoresByTimeRange(req);
+        return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (모든 매장 - 특정 기간)");
+    }
+
+    @PostMapping("/sync/all-stores/full-historical")
+    public ResponseEntity<String> syncAllStoresFullHistorical() {
+        int count = reportService.syncAllStoresFullHistorical();
+        return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (모든 매장 - 전체 기간)");
+    }
+
+    @GetMapping("/list/all")
+    public ResponseEntity<List<ReportDTO>> getAllReports() {
+        return ResponseEntity.ok(reportService.getAllReports());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ReportDTO> getReportById(@PathVariable Long id) {
+        return ResponseEntity.ok(reportService.getReportById(id));
+    }
+
+    @GetMapping("/list/robot/{sn}")
+    public ResponseEntity<List<ReportDTO>> getReportsByRobotSn(@PathVariable String sn) {
+        return ResponseEntity.ok(reportService.getReportsByRobotSn(sn));
+    }
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/dto/ReportDetailRequestDTO.java`
+
+```java
+package com.codehows.taelimbe.pudureport.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ReportDetailRequestDTO {
+
+    @NotNull(message = "storeId는 필수입니다")
+    @Positive(message = "storeId는 양수여야 합니다")
+    private Long storeId;
+
+    @NotBlank(message = "sn은 필수입니다")
+    private String sn;
+
+    @NotBlank(message = "reportId는 필수입니다")
+    private String reportId;
+
+    @NotNull(message = "startTime은 필수입니다")
+    @Positive(message = "startTime은 양수여야 합니다")
+    private Long startTime;
+
+    @NotNull(message = "endTime은 필수입니다")
+    @Positive(message = "endTime은 양수여야 합니다")
+    private Long endTime;
+
+    @Builder.Default
+    private Integer timezoneOffset = 0;
+
+    @AssertTrue(message = "startTime이 endTime보다 작아야 합니다")
+    public boolean isValidTimeRange() {
+        return startTime < endTime;
+    }
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/dto/ReportDTO.java`
+
+```java
+package com.codehows.taelimbe.pudureport.dto;
+
+import com.codehows.taelimbe.pudureport.entity.Report;
+import com.fasterxml.jackson.annotation.JsonFormat;
+import lombok.*;
+import java.time.LocalDateTime;
+
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class ReportDTO {
+
+    private Long puduReportId;
+    private Long reportId;
+    private Integer status;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime startTime;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime endTime;
+
+    private Float cleanTime;
+    private Float taskArea;
+    private Float cleanArea;
+
+    private Integer mode;
+    private Long costBattery;
+    private Long costWater;
+
+    private String mapName;
+    private String mapUrl;
+
+    private Long robotId;
+
+    public static ReportDTO createReportDTO(Report report) {
+        return ReportDTO.builder()
+                .puduReportId(report.getPuduReportId())
+                .reportId(report.getReportId())
+                .status(report.getStatus())
+                .startTime(report.getStartTime())
+                .endTime(report.getEndTime())
+                .cleanTime(report.getCleanTime())
+                .taskArea(report.getTaskArea())
+                .cleanArea(report.getCleanArea())
+                .mode(report.getMode())
+                .costBattery(report.getCostBattery())
+                .costWater(report.getCostWater())
+                .mapName(report.getMapName())
+                .mapUrl(report.getMapUrl())
+                .robotId(report.getRobot().getRobotId())
+                .build();
+    }
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/dto/StoreFullHistoricalSyncRequestDTO.java`
+
+```java
+package com.codehows.taelimbe.pudureport.dto;
+
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class StoreFullHistoricalSyncRequestDTO {
+
+    @NotNull(message = "storeId는 필수입니다")
+    @Positive(message = "storeId는 양수여야 합니다")
+    private Long storeId;
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/dto/StoreTimeRangeSyncRequestDTO.java`
+
+```java
+package com.codehows.taelimbe.pudureport.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class StoreTimeRangeSyncRequestDTO {
+
+    @NotNull(message = "storeId는 필수입니다")
+    @Positive(message = "storeId는 양수여야 합니다")
+    private Long storeId;
+
+    @NotNull(message = "startTime은 필수입니다")
+    @Positive(message = "startTime은 양수여야 합니다")
+    private Long startTime;
+
+    @NotNull(message = "endTime은 필수입니다")
+    @Positive(message = "endTime은 양수여야 합니다")
+    private Long endTime;
+
+    @Builder.Default
+    private Integer timezoneOffset = 0;
+
+    @Builder.Default
+    private Integer offset = 0;
+
+    @AssertTrue(message = "startTime이 endTime보다 작아야 합니다")
+    public boolean isValidTimeRange() {
+        return startTime < endTime;
+    }
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/dto/TimeRangeSyncRequestDTO.java`
+
+```java
+package com.codehows.taelimbe.pudureport.dto;
+
+import jakarta.validation.constraints.*;
+import lombok.*;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class TimeRangeSyncRequestDTO {
+
+    @NotNull(message = "startTime은 필수입니다")
+    @Positive(message = "startTime은 양수여야 합니다")
+    private Long startTime;
+
+    @NotNull(message = "endTime은 필수입니다")
+    @Positive(message = "endTime은 양수여야 합니다")
+    private Long endTime;
+
+    @Builder.Default
+    private Integer timezoneOffset = 0;
+
+    @AssertTrue(message = "startTime이 endTime보다 작아야 합니다")
+    public boolean isValidTimeRange() {
+        return startTime < endTime;
+    }
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/entity/Report.java`
+
+```java
+package com.codehows.taelimbe.pudureport.entity;
+
+import com.codehows.taelimbe.robot.entity.Robot;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "report")
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Report {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "pudu_report_id")
+    private Long puduReportId;
+
+    @Column(name = "report_id")
+    private Long reportId;
+
+    @Column(name = "status")
+    private Integer status;
+
+    @Column(name = "start_time")
+    private LocalDateTime startTime;
+
+    @Column(name = "end_time")
+    private LocalDateTime endTime;
+
+    @Column(name = "clean_time")
+    private Float cleanTime;
+
+    @Column(name = "task_area")
+    private Float taskArea;
+
+    @Column(name = "clean_area")
+    private Float cleanArea;
+
+    @Column(name = "mode")
+    private Integer mode;
+
+    @Column(name = "cost_battery")
+    private Long costBattery;
+
+    @Column(name = "cost_water")
+    private Long costWater;
+
+    @Column(name = "map_name", length = 255)
+    private String mapName;
+
+    @Column(name = "map_url", length = 255)
+    private String mapUrl;
+
+    @ManyToOne
+    @JoinColumn(name = "robot_id")
+    private Robot robot;
+
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/repository/ReportRepository.java`
+
+```java
+package com.codehows.taelimbe.pudureport.repository;
+
+import com.codehows.taelimbe.pudureport.entity.Report;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+public interface ReportRepository extends JpaRepository<Report, Long> {
+    List<Report> findByRobot_Sn(String sn);
+
+    List<Report> findByStartTimeBetween(LocalDateTime start, LocalDateTime end);
+
+    Optional<Report> findByReportId(Long reportId);
+}
+```
+
+## `src/main/java/com/codehows/taelimbe/pudureport/service/ReportService.java`
+
+```java
 package com.codehows.taelimbe.pudureport.service;
 
 import com.codehows.taelimbe.client.PuduAPIClient;
@@ -87,13 +449,21 @@ public class ReportService {
 
         Long shopId = store.getShopId();
 
-        LocalDateTime endDateTime = LocalDate.now().atTime(LocalTime.MAX);
-        LocalDateTime startDateTime = LocalDate.now().minusDays(185).atStartOfDay();
+        long endTime = LocalDate.now().atTime(LocalTime.MAX)
+                .atZone(ZoneId.systemDefault())
+                .toEpochSecond();
+
+        long startTime = LocalDate.now().minusDays(185)
+                .atStartOfDay()
+                .atZone(ZoneId.systemDefault())
+                .toEpochSecond();
 
         System.out.println("\n===== Sync Single Store Full Historical (Last 185 Days) =====");
         System.out.println("Store ID: " + storeId);
-        System.out.println("Start Date: " + startDateTime);
-        System.out.println("End Date: " + endDateTime);
+        System.out.println("Start Date: " + LocalDate.now().minusDays(185));
+        System.out.println("End Date: " + LocalDate.now());
+        System.out.println("Start Timestamp: " + startTime);
+        System.out.println("End Timestamp: " + endTime);
 
         int totalCount = 0;
         int offset = 0;
@@ -105,8 +475,8 @@ public class ReportService {
             System.out.println("\n--- Page " + pageNum + " (offset: " + offset + ") ---");
 
             List<Map<String, String>> list = fetchReportList(
-                    startDateTime,
-                    endDateTime,
+                    startTime,
+                    endTime,
                     shopId,
                     0,
                     offset
@@ -125,8 +495,8 @@ public class ReportService {
                 ReportDTO saved = saveReportDetailWithConversion(
                         item.get("sn"),
                         item.get("report_id"),
-                        startDateTime,
-                        endDateTime,
+                        startTime,
+                        endTime,
                         0,
                         shopId
                 );
@@ -154,8 +524,10 @@ public class ReportService {
 
         System.out.println("\n===== Sync All Stores by Time Range =====");
         System.out.println("Total Stores: " + stores.size());
-        System.out.println("Start Time: " + req.getStartTime());
-        System.out.println("End Time: " + req.getEndTime());
+        System.out.println("Start Time: " + req.getStartTime() + " (" +
+                toLocal(req.getStartTime(), req.getTimezoneOffset()) + ")");
+        System.out.println("End Time: " + req.getEndTime() + " (" +
+                toLocal(req.getEndTime(), req.getTimezoneOffset()) + ")");
 
         int totalCount = 0;
 
@@ -251,7 +623,7 @@ public class ReportService {
     }
 
     private ReportDTO saveReportDetailWithConversion(
-            String sn, String reportIdStr, LocalDateTime start, LocalDateTime end, int timezoneOffset, Long shopId
+            String sn, String reportIdStr, long start, long end, int timezoneOffset, Long shopId
     ) {
         JsonNode detail = fetchReportDetail(sn, reportIdStr, start, end, timezoneOffset, shopId);
         if (detail == null) {
@@ -274,8 +646,8 @@ public class ReportService {
 
         try {
             JsonNode floorListNode = detail.path("floor_list");
-            JsonNode floorList = floorListNode.isTextual()
-                    ? mapper.readTree(floorListNode.asText())
+            JsonNode floorList = floorListNode.isTextual() 
+                    ? mapper.readTree(floorListNode.asText()) 
                     : floorListNode;
 
             if (floorList.isArray() && floorList.size() > 0) {
@@ -292,14 +664,8 @@ public class ReportService {
         Report report = Report.builder()
                 .reportId(reportId)
                 .status(detail.path("status").asInt())
-                .startTime(LocalDateTime.ofInstant(
-                        Instant.ofEpochSecond(detail.path("start_time").asLong()),
-                        ZoneId.systemDefault()
-                ))
-                .endTime(LocalDateTime.ofInstant(
-                        Instant.ofEpochSecond(detail.path("end_time").asLong()),
-                        ZoneId.systemDefault()
-                ))
+                .startTime(toLocal(detail.path("start_time").asLong(), timezoneOffset))
+                .endTime(toLocal(detail.path("end_time").asLong(), timezoneOffset))
                 .cleanTime(detail.path("clean_time").floatValue())
                 .taskArea(detail.path("task_area").floatValue())
                 .cleanArea(detail.path("clean_area").floatValue())
@@ -315,19 +681,15 @@ public class ReportService {
     }
 
     private List<Map<String, String>> fetchReportList(
-            LocalDateTime start, LocalDateTime end, Long shopId, int timezoneOffset, int offset
+            long start, long end, Long shopId, int timezoneOffset, int offset
     ) {
         List<Map<String, String>> result = new ArrayList<>();
 
         try {
-            // LocalDateTime을 Unix timestamp로 변환
-            long startTimestamp = start.atZone(ZoneId.systemDefault()).toEpochSecond();
-            long endTimestamp = end.atZone(ZoneId.systemDefault()).toEpochSecond();
-
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
                     .path("/data-board/v1/log/clean_task/query_list")
-                    .queryParam("start_time", startTimestamp)
-                    .queryParam("end_time", endTimestamp)
+                    .queryParam("start_time", start)
+                    .queryParam("end_time", end)
                     .queryParam("shop_id", shopId)
                     .queryParam("offset", offset)
                     .queryParam("limit", 20)
@@ -355,19 +717,15 @@ public class ReportService {
     }
 
     private JsonNode fetchReportDetail(
-            String sn, String reportId, LocalDateTime start, LocalDateTime end, int timezoneOffset, Long shopId
+            String sn, String reportId, long start, long end, int timezoneOffset, Long shopId
     ) {
         try {
-            // LocalDateTime을 Unix timestamp로 변환
-            long startTimestamp = start.atZone(ZoneId.systemDefault()).toEpochSecond();
-            long endTimestamp = end.atZone(ZoneId.systemDefault()).toEpochSecond();
-
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
                     .path("/data-board/v1/log/clean_task/query")
                     .queryParam("sn", sn)
                     .queryParam("report_id", reportId)
-                    .queryParam("start_time", startTimestamp)
-                    .queryParam("end_time", endTimestamp)
+                    .queryParam("start_time", start)
+                    .queryParam("end_time", end)
                     .queryParam("timezone_offset", timezoneOffset)
                     .queryParam("shop_id", shopId)
                     .toUriString();
@@ -399,4 +757,10 @@ public class ReportService {
                 .robotId(r.getRobot().getRobotId())
                 .build();
     }
+
+    private LocalDateTime toLocal(long epoch, int timezoneOffset) {
+        long adjusted = epoch + (timezoneOffset * 60L);
+        return LocalDateTime.ofInstant(Instant.ofEpochSecond(adjusted), ZoneId.systemDefault());
+    }
 }
+```
