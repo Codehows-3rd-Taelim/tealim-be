@@ -115,6 +115,7 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: create
       MILVUS_HOST: milvus
       MILVUS_PORT: 19530
+      SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/app/config/
     volumes:
       - ./config:/app/config:ro
     ports:
