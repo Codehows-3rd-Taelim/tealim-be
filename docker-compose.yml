@@ -17,6 +17,8 @@ services:
       - milvus-etcd-data:/etcd
     ports:
       - "2379:2379"
+    networks:
+      - app-network  # 추가!
     healthcheck:
       test: ["CMD", "etcdctl", "endpoint", "health"]
       interval: 30s
@@ -34,12 +36,10 @@ services:
       - "9000:9000"
     volumes:
       - milvus-minio-data:/minio_data
+    networks:
+      - app-network  # 추가!
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "curl -f http://localhost:9000/minio/health/live || exit 1",
-        ]
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -59,18 +59,25 @@ services:
     environment:
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
+      ETCD_USE_EMBED: "false"
+      COMMON_STORAGETYPE: minio
     volumes:
-      - milvus-standalone-data:/milvus/data
+      - milvus-standalone-data:/var/lib/milvus
     networks:
       - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 90s
+      retries: 10  # 증가
+      start_period: 120s  # 증가
 
-  # MySQL Database
   mysql:
     image: mysql:8.0
     container_name: mysql-db
@@ -94,7 +101,6 @@ services:
       retries: 5
       start_period: 40s
 
-  # Spring Boot Backend Application
   spring-backend:
     build:
       context: .
@@ -102,19 +108,16 @@ services:
     container_name: spring-backend
     restart: unless-stopped
     environment:
-      # MySQL 설정
       SPRING_DATASOURCE_URL: jdbc:mysql://mysql-db:3306/base_db?useSSL=false&serverTimezone=Asia/Seoul&allowPublicKeyRetrieval=true&createDatabaseIfNotExist=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 1234
       SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
       SPRING_JPA_HIBERNATE_DDL_AUTO: create
-      # Milvus 설정
       MILVUS_HOST: milvus
       MILVUS_PORT: 19530
     ports:
       - "8080:8080"
     volumes:
-      # 호스트의 application.properties를 컨테이너로 마운트
       - ./config/application.properties:/app/config/application.properties:ro
     depends_on:
       mysql:
@@ -138,6 +141,4 @@ volumes:
   milvus-etcd-data:
   milvus-minio-data:
   milvus-standalone-data:
-    driver: local
   mysql-data:
-    driver: local
