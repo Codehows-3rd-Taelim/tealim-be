@@ -57,7 +57,9 @@ public class PuduReportService {
             CompletableFuture.allOf(future.toArray(new CompletableFuture[0])).join();
 
             future.forEach(f->{
-                PuduReport r=f.join();if(r!=null)buffer.add(r);});
+                PuduReport r=f.join();
+                System.out.println(">>> REPORT: " + r); // ★ 로그 추가
+                if(r!=null)buffer.add(r);});
 
             if(buffer.size()>=50){
                 puduReportRepository.saveAll(buffer);

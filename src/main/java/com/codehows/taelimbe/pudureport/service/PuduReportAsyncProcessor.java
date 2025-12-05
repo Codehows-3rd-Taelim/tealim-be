@@ -69,7 +69,28 @@ public class PuduReportAsyncProcessor {
             Map<String,Object> data = fetchDetail(sn,reportIdStr,start,end,tz,shopId);
             if(data==null) return done();
 
-            Map<String,String> fl = floor(data);
+
+            Map<String,String> floor = new HashMap<>();
+
+            try {
+                String floorStr = (String) data.get("floor_list"); // JSON string
+                if(floorStr != null) {
+                    List<Map<String,Object>> list = mapper.readValue(
+                            floorStr,
+                            mapper.getTypeFactory().constructCollectionType(List.class, Map.class)
+                    );
+
+                    if(!list.isEmpty()) {
+                        Map<String,Object> f = list.get(0);
+                        floor.put("mapName", (String) f.get("map_name"));
+                        floor.put("mapUrl", (String) Optional.ofNullable(f.get("task_result_url"))
+                                .orElse(f.get("task_local_url")));
+                    }
+                }
+            }catch(Exception e){
+                e.printStackTrace();
+            }
+
 
             return CompletableFuture.completedFuture(
                     PuduReport.builder()
@@ -79,17 +100,21 @@ public class PuduReportAsyncProcessor {
                             .endTime(ld(l(data,"end_time")))
                             .cleanTime(f(data,"clean_time"))
                             .taskArea(f(data,"task_area"))
-                            .cleanArea(f(data,"clean_area"))
+                            .cleanArea(f(data,"clean_area"))     // ← 이 라인 그대로!
                             .mode(i(data,"mode"))
                             .costBattery(l(data,"cost_battery"))
                             .costWater(l(data,"cost_water"))
-                            .mapName(fl.get("mapName"))
-                            .mapUrl(fl.get("mapUrl"))
+                            .mapName(floor.get("mapName"))
+                            .mapUrl(floor.get("mapUrl"))
                             .robot(robot)
                             .build()
             );
 
-        } catch(Exception e){ return done(); }
+
+        } catch(Exception e){
+            e.printStackTrace();
+            return done();
+        }
     }
 
 
