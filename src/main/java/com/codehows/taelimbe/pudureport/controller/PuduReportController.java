@@ -22,13 +22,6 @@ public class PuduReportController {
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료");
     }
 
-    @PostMapping("/sync/store/full-historical")
-    public ResponseEntity<String> syncSingleStoreFullHistorical(
-            @Valid @RequestBody StoreFullHistoricalSyncRequestDTO req
-    ) {
-        int count = puduReportService.syncSingleStoreFullHistorical(req.getStoreId());
-        return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (과거 180일)");
-    }
 
     @PostMapping("/sync/all-stores/time-range")
     public ResponseEntity<String> syncAllStoresByTimeRange(

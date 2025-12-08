@@ -77,18 +77,6 @@ public class PuduReportService {
         return saved;
     }
 
-    /* 전체 180일 */
-    @Transactional
-    public int syncSingleStoreFullHistorical(Long storeId){
-        return syncSingleStoreByTimeRange(
-                StoreTimeRangeSyncRequestDTO.builder()
-                        .storeId(storeId)
-                        .startTime(LocalDate.now().minusDays(180).atStartOfDay())
-                        .endTime(LocalDate.now().atTime(LocalTime.MAX))
-                        .timezoneOffset(0)
-                        .offset(0).build()
-        );
-    }
 
     @Transactional
     public int syncAllStoresByTimeRange(TimeRangeSyncRequestDTO req){
@@ -104,14 +92,22 @@ public class PuduReportService {
                 )).sum();
     }
 
-
     @Transactional
     public int syncAllStoresFullHistorical(){
+        LocalDateTime start = LocalDate.now().minusDays(180).atStartOfDay();
+        LocalDateTime end   = LocalDate.now().atTime(LocalTime.MAX);
+
         return storeRepository.findAll().stream()
-                .mapToInt(s -> syncSingleStoreFullHistorical(s.getStoreId()))
+                .mapToInt(s -> syncSingleStoreByTimeRange(
+                        StoreTimeRangeSyncRequestDTO.builder()
+                                .storeId(s.getStoreId())
+                                .startTime(start)
+                                .endTime(end)
+                                .timezoneOffset(0)
+                                .offset(0)
+                                .build()))
                 .sum();
     }
-
 
 
 

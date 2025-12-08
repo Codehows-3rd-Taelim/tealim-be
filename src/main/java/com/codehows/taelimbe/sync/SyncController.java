@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.sync;
 
 import com.codehows.taelimbe.pudureport.dto.StoreTimeRangeSyncRequestDTO;
+import com.codehows.taelimbe.pudureport.dto.TimeRangeSyncRequestDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import com.codehows.taelimbe.robot.dto.RobotSyncRequestDTO;
 import com.codehows.taelimbe.robot.service.RobotService;
@@ -30,7 +31,7 @@ public class SyncController {
     private final JwtService jwtService;
     private final UserRepository userRepository;
 
-    @PostMapping("/run")
+    @PostMapping("/now")
     public ResponseEntity<String> sync(HttpServletRequest request,
                                        @RequestBody(required = false) StoreTimeRangeSyncRequestDTO req) {
 
@@ -56,12 +57,18 @@ public class SyncController {
 
             int store = storeService.syncAllStores();
             int robot = robotService.syncAllStoresRobots();
-            int report = puduReportService.syncAllStoresByTimeRange(req);
+
+            TimeRangeSyncRequestDTO timeReq = TimeRangeSyncRequestDTO.builder()
+                    .startTime(req.getStartTime())
+                    .endTime(req.getEndTime())
+                    .timezoneOffset(req.getTimezoneOffset())
+                    .build();
+
+            int report = puduReportService.syncAllStoresByTimeRange(timeReq);
 
             return ResponseEntity.ok("[ADMIN] 전체동기화 완료 → " +
                     "Store:"+store+" / Robot:"+robot+" / Report:"+report);
         }
-
 
         // manager, employee
         Long storeId = user.getStore().getStoreId();
