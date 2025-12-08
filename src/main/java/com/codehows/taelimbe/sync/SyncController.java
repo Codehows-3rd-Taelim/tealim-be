@@ -1,13 +1,19 @@
-package com.codehows.taelimbe.config;
+package com.codehows.taelimbe.sync;
 
-import com.codehows.taelimbe.pudureport.dto.TimeRangeSyncRequestDTO;
+import com.codehows.taelimbe.pudureport.dto.StoreTimeRangeSyncRequestDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
+import com.codehows.taelimbe.robot.dto.RobotSyncRequestDTO;
 import com.codehows.taelimbe.robot.service.RobotService;
 import com.codehows.taelimbe.store.service.StoreService;
-import com.codehows.taelimbe.sync.SyncResultDTO;
+import com.codehows.taelimbe.user.constant.Role;
+import com.codehows.taelimbe.user.entity.User;
+import com.codehows.taelimbe.user.repository.UserRepository;
+import com.codehows.taelimbe.user.service.JwtService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,87 +27,50 @@ public class SyncController {
     private final StoreService storeService;
     private final RobotService robotService;
     private final PuduReportService puduReportService;
+    private final JwtService jwtService;
+    private final UserRepository userRepository;
 
-    // 수동 동기화용
-    @PostMapping("/now")
-    public ResponseEntity<SyncResultDTO> syncNow() {
-        System.out.println("\n[MANUAL SYNC] Starting Full Sync at " + LocalDateTime.now());
+    @PostMapping("/run")
+    public ResponseEntity<String> sync(HttpServletRequest request,
+                                       @RequestBody(required = false) StoreTimeRangeSyncRequestDTO req) {
 
-        int storeCount = 0;
-        int robotCount = 0;
-        int reportCount = 0;
-        StringBuilder errorMessage = new StringBuilder();
+        // 1) 토큰에서 유저 정보 추출
+        String loginId = jwtService.parseToken(request);
+        User user = userRepository.findById(loginId)
+                .orElseThrow(() -> new RuntimeException("User Not Found"));
 
-        try {
-            // 1. Store 동기화
-            System.out.println("[MANUAL SYNC] Starting Store Sync...");
-            try {
-                storeCount = storeService.syncAllStores();
-                System.out.println("[MANUAL SYNC] Store Sync Completed: " + storeCount + " stores");
-            } catch (Exception e) {
-                System.out.println("[MANUAL SYNC] Store Sync Failed: " + e.getMessage());
-                errorMessage.append("Store sync failed: ").append(e.getMessage()).append("\n");
-            }
+        Role role = user.getRole(); // USER / MANAGER / ADMIN
 
-            // 2. Robot 동기화
-            System.out.println("[MANUAL SYNC] Starting Robot Sync...");
-            try {
-                robotCount = robotService.syncAllStoresRobots();
-                System.out.println("[MANUAL SYNC] Robot Sync Completed: " + robotCount + " robots");
-            } catch (Exception e) {
-                System.out.println("[MANUAL SYNC] Robot Sync Failed: " + e.getMessage());
-                errorMessage.append("Robot sync failed: ").append(e.getMessage()).append("\n");
-            }
+        // DEFAULT 요청 Body 없으면 초기화
+        if(req == null) req = new StoreTimeRangeSyncRequestDTO();
+        req.setTimezoneOffset(0);
 
-            // 3. Report 동기화 (지난 3시간)
-            System.out.println("[MANUAL SYNC] Starting Report Sync...");
-            try {
-                LocalDateTime endTime = LocalDateTime.now();
-                LocalDateTime startTime = endTime.minusHours(3);
+        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = end.minusHours(3);
+        req.setStartTime(start);
+        req.setEndTime(end);
 
-                TimeRangeSyncRequestDTO req = TimeRangeSyncRequestDTO.builder()
-                        .startTime(startTime)
-                        .endTime(endTime)
-                        .timezoneOffset(0)
-                        .build();
 
-                reportCount = puduReportService.syncAllStoresByTimeRange(req);
-                System.out.println("[MANUAL SYNC] Report Sync Completed: " + reportCount + " reports");
-            } catch (Exception e) {
-                System.out.println("[MANUAL SYNC] Report Sync Failed: " + e.getMessage());
-                errorMessage.append("Report sync failed: ").append(e.getMessage()).append("\n");
-            }
+        // admin
+        if(role.getLevel() >= Role.ADMIN.getLevel()) {
 
-            System.out.println("\n[MANUAL SYNC] Full Sync Completed");
-            System.out.println("[MANUAL SYNC] Stores: " + storeCount + ", Robots: " + robotCount + ", Reports: " + reportCount);
+            int store = storeService.syncAllStores();
+            int robot = robotService.syncAllStoresRobots();
+            int report = puduReportService.syncAllStoresByTimeRange(req);
 
-            SyncResultDTO result = SyncResultDTO.builder()
-                    .storeCount(storeCount)
-                    .robotCount(robotCount)
-                    .reportCount(reportCount)
-                    .totalCount(storeCount + robotCount + reportCount)
-                    .success(errorMessage.length() == 0)
-                    .errorMessage(errorMessage.toString())
-                    .syncTime(LocalDateTime.now())
-                    .build();
-
-            return ResponseEntity.ok(result);
-
-        } catch (Exception e) {
-            System.out.println("[MANUAL SYNC] Unexpected Error: " + e.getMessage());
-            e.printStackTrace();
-
-            SyncResultDTO result = SyncResultDTO.builder()
-                    .storeCount(storeCount)
-                    .robotCount(robotCount)
-                    .reportCount(reportCount)
-                    .totalCount(storeCount + robotCount + reportCount)
-                    .success(false)
-                    .errorMessage("Unexpected error: " + e.getMessage())
-                    .syncTime(LocalDateTime.now())
-                    .build();
-
-            return ResponseEntity.internalServerError().body(result);
+            return ResponseEntity.ok("[ADMIN] 전체동기화 완료 → " +
+                    "Store:"+store+" / Robot:"+robot+" / Report:"+report);
         }
+
+
+        // manager, employee
+        Long storeId = user.getStore().getStoreId();
+        req.setStoreId(storeId);
+
+        int robot = robotService.syncRobots(new RobotSyncRequestDTO(storeId));
+        int report = puduReportService.syncSingleStoreByTimeRange(req);
+
+        return ResponseEntity.ok("[USER/MANAGER] 매장:" + storeId + " Sync 완료 → " +
+                "Robot:"+robot+" / Report:"+report);
     }
 }

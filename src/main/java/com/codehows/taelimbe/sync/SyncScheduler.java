@@ -20,57 +20,49 @@ public class SyncScheduler {
     private final RobotService robotService;
     private final PuduReportService puduReportService;
 
-    /**
-     * 매일 0:00, 3:00, 6:00, 9:00, 12:00, 15:00, 18:00, 21:00에 매장 정보 동기화
-     */
+    // 매장 동기화 + 로봇 동기화
+    // 시간 : 00:00 / 03:00 / 06:00 / 09:00 / 12:00 / 15:00 / 18:00 / 21:00
     @Scheduled(cron = "0 0 0/3 * * *", zone = "Asia/Seoul")
-    public void syncStoresScheduled() {
-        System.out.println("\n[SCHEDULER] Starting Store Sync at " + LocalDateTime.now());
+    public void syncStoresAndRobotsScheduled() {
+        System.out.println("\n[SCHEDULER] === Store + Robot Sync Start === " + LocalDateTime.now());
+
         try {
-            int count = storeService.syncAllStores();
-            System.out.println("[SCHEDULER] Store Sync Completed: " + count + " stores");
+            int storeCount = storeService.syncAllStores();
+            System.out.println("[SCHEDULER] Store Sync Completed → " + storeCount + " stores");
+
+            int robotCount = robotService.syncAllStoresRobots();
+            System.out.println("[SCHEDULER] Robot Sync Completed → " + robotCount + " robots");
+
+            System.out.println("[SCHEDULER] === Store + Robot Sync FINISHED ===\n");
         } catch (Exception e) {
-            System.out.println("[SCHEDULER] Store Sync Failed: " + e.getMessage());
+            System.out.println("[SCHEDULER]  Store+Robot Sync FAILED : " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-    /**
-     * 매일 0:30, 3:30, 6:30, 9:30, 12:30, 15:30, 18:30, 21:30에 로봇 정보 동기화
-     */
-    @Scheduled(cron = "0 30 0/3 * * *", zone = "Asia/Seoul")
-    public void syncRobotsScheduled() {
-        System.out.println("\n[SCHEDULER] Starting Robot Sync at " + LocalDateTime.now());
-        try {
-            int count = robotService.syncAllStoresRobots();
-            System.out.println("[SCHEDULER] Robot Sync Completed: " + count + " robots");
-        } catch (Exception e) {
-            System.out.println("[SCHEDULER] Robot Sync Failed: " + e.getMessage());
-            e.printStackTrace();
-        }
-    }
 
-    /**
-     * 매일 1:00, 4:00, 7:00, 10:00, 13:00, 16:00, 19:00, 22:00에 Report 동기화 (지난 3시간)
-     */
+     // 시간 : 01:00 / 04:00 / 07:00 / 10:00 / 13:00 / 16:00 / 19:00 / 22:00
     @Scheduled(cron = "0 0 1/3 * * *", zone = "Asia/Seoul")
     public void syncReportsScheduled() {
-        System.out.println("\n[SCHEDULER] Starting Report Sync at " + LocalDateTime.now());
+        System.out.println("\n[SCHEDULER] === Report Sync Start === " + LocalDateTime.now());
+
         try {
-            // 현재 시간 기준 지난 3시간
-            LocalDateTime endTime = LocalDateTime.now();
-            LocalDateTime startTime = endTime.minusHours(3);
+            LocalDateTime end = LocalDateTime.now();
+            LocalDateTime start = end.minusHours(3);
 
-            TimeRangeSyncRequestDTO req = TimeRangeSyncRequestDTO.builder()
-                    .startTime(startTime)
-                    .endTime(endTime)
-                    .timezoneOffset(0)
-                    .build();
+            int count = puduReportService.syncAllStoresByTimeRange(
+                    TimeRangeSyncRequestDTO.builder()
+                            .startTime(start)
+                            .endTime(end)
+                            .timezoneOffset(0)
+                            .build()
+            );
 
-            int count = puduReportService.syncAllStoresByTimeRange(req);
-            System.out.println("[SCHEDULER] Report Sync Completed: " + count + " reports");
+            System.out.println("[SCHEDULER] Report Sync Completed → " + count + " reports");
+            System.out.println("[SCHEDULER] === Report Sync FINISHED ===\n");
+
         } catch (Exception e) {
-            System.out.println("[SCHEDULER] Report Sync Failed: " + e.getMessage());
+            System.out.println("[SCHEDULER]  Report Sync FAILED : " + e.getMessage());
             e.printStackTrace();
         }
     }
