@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/robot")
+@RequestMapping("/robot")
 public class RobotController {
 
     private final RobotService robotService;
@@ -58,7 +58,7 @@ public class RobotController {
      * @return 해당 매장의 로봇 목록
      */
     @GetMapping("/list")
-    public ResponseEntity<List<RobotDTO>> getAllRobots(@RequestParam Long storeId) {
+    public ResponseEntity<List<RobotDTO>> getAllRobots(@RequestParam(value = "storeId", required = false) Long storeId) {
         return ResponseEntity.ok(robotService.getRobotListFromDB(storeId));
     }
 }

@@ -10,7 +10,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/report")
+@RequestMapping("/report")
 public class ReportController {
 
     private final ReportService reportService;
@@ -104,6 +104,17 @@ public class ReportController {
     @GetMapping("/list/all")
     public ResponseEntity<List<ReportDTO>> getAllReports() {
         return ResponseEntity.ok(reportService.getAllReports());
+    }
+
+    // 해당 store의 report 조회
+    @GetMapping("/list")
+    public ResponseEntity<List<ReportResponseDTO>> getReports(
+            @RequestParam(value = "storeId", required = false) Long storeId,
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate) {
+
+        List<ReportResponseDTO> reports = reportService.getReports(storeId, startDate, endDate);
+        return ResponseEntity.ok(reports);
     }
 
     /**

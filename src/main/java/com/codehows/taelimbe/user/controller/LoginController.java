@@ -37,12 +37,15 @@ public class LoginController {
         // enum으로 변환 → 숫자 level 꺼내기
         int roleLevel = Role.valueOf(roleName).getLevel();
 
-        // 2. 인증된 사용자 객체에서 storeId를 추출합니다.
-        Long storeId = null;
+        // 2. 인증된 사용자 객체에서 storeId, userId를 추출합니다.
+        Long storeId = null, userId = null;
         Object principal = authentication.getPrincipal();
 
         if (principal instanceof User) {
             User authenticatedUser = (User) principal;
+
+            userId = authenticatedUser.getUserId();
+            System.out.println("userId :  " + userId);
 
             // User 엔티티는 Store 엔티티를 가지고 있으므로, Store에서 storeId를 가져옵니다.
             if (authenticatedUser.getStore() != null) {
@@ -56,7 +59,7 @@ public class LoginController {
         String jwtToken = jwtService.generateToken(authentication.getName());
 
         // 4. 응답에 포함할 DTO를 생성합니다.
-        LoginResponseDTO response = new LoginResponseDTO(jwtToken, roleLevel, finalStoreId);
+        LoginResponseDTO response = new LoginResponseDTO(jwtToken, roleLevel, finalStoreId, userId);
 
         return ResponseEntity.ok()
                 .body(response);

@@ -92,11 +92,16 @@ public class RobotService {
      * @param storeId 매장 ID
      * @return 해당 매장에 속한 로봇 목록
      */
+    @Transactional(readOnly = true)
     public List<RobotDTO> getRobotListFromDB(Long storeId) {
-        return robotRepository.findAllByStore_StoreId(storeId)
-                .stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
+
+        if (storeId != null) {
+            List<Robot> robotList = robotRepository.findAllByStore_StoreId(storeId);
+
+            return robotList.stream().map(this::convertToDto).toList();
+        }else {
+            return robotRepository.findAll().stream().map(this::convertToDto).toList();
+        }
     }
 
     /**

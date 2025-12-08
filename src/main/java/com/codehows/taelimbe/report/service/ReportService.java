@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.time.*;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.*;
 
 @Service
@@ -277,6 +279,73 @@ public class ReportService {
 
 
     // ========== 3. Report 조회 ==========
+
+    @Transactional(readOnly = true)
+    public List<ReportResponseDTO> getReports(Long storeId, String startDate, String endDate) {
+        List<Report> reports;
+
+        // 날짜 범위 설정
+        LocalDateTime startDateTime = null;
+        LocalDateTime endDateTime = null;
+
+        // DateTimeFormatter 정의
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        if (startDate != null && !startDate.isEmpty()) {
+            try {
+                startDateTime = LocalDateTime.parse(startDate, formatter);
+                System.out.println("시작 시간: " + startDateTime);
+            } catch (DateTimeParseException e) {
+                System.err.println("시작 날짜 파싱 오류: " + startDate);
+                e.printStackTrace();
+            }
+        }
+
+        if (endDate != null && !endDate.isEmpty()) {
+            try {
+                endDateTime = LocalDateTime.parse(endDate, formatter);
+                System.out.println("종료 시간: " + endDateTime);
+            } catch (DateTimeParseException e) {
+                System.err.println("종료 날짜 파싱 오류: " + endDate);
+                e.printStackTrace();
+            }
+        }
+
+        if (storeId != null) {
+            List<Robot> robots = robotRepository.findAllByStore_StoreId(storeId);
+
+            if (robots.isEmpty()) {
+                System.out.println("매장 ID " + storeId + "에 등록된 로봇이 없습니다.");
+                return List.of();
+            }
+
+            List<Long> robotIds = robots.stream()
+                    .map(Robot::getRobotId)
+                    .toList();
+
+            if (startDateTime != null && endDateTime != null) {
+                reports = reportRepository.findAllByRobot_RobotIdInAndStartTimeBetween(
+                        robotIds, startDateTime, endDateTime);
+                System.out.println("매장 + 날짜 필터링 조회: " + reports.size() + "개");
+            } else {
+                reports = reportRepository.findAllByRobot_RobotIdIn(robotIds);
+                System.out.println("매장 필터링만 조회: " + reports.size() + "개");
+            }
+
+        } else {
+            if (startDateTime != null && endDateTime != null) {
+                reports = reportRepository.findByStartTimeBetween(startDateTime, endDateTime);
+                System.out.println("날짜 필터링만 조회: " + reports.size() + "개");
+            } else {
+                reports = reportRepository.findAll();
+                System.out.println("전체 조회: " + reports.size() + "개");
+            }
+        }
+
+        return reports.stream()
+                .map(ReportResponseDTO::createReportResponseDTO)
+                .toList();
+    }
 
     /**
      * 특정 기간의 Report를 DB에서 조회
