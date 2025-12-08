@@ -7,6 +7,7 @@ import com.codehows.taelimbe.pudureport.entity.PuduReport;
 import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.StoreRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,56 +29,61 @@ public class PuduReportService {
     private final StoreRepository storeRepository;
 
 
+    // 단일 매장 특정 기간 보고서 조회
     @Transactional
-    public int syncSingleStoreByTimeRange(StoreTimeRangeSyncRequestDTO req){
+    public int syncSingleStoreByTimeRange(StoreTimeRangeSyncRequestDTO req) {
 
         Store store = storeRepository.findById(req.getStoreId())
-                .orElseThrow(()->new IllegalArgumentException("Store not found"));
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
 
         Long shopId = store.getShopId();
 
-        int offset=req.getOffset(), saved=0;
-        List<PuduReport> buffer=new ArrayList<>();
+        int offset = req.getOffset(), saved = 0;
+        List<PuduReport> buffer = new ArrayList<>();
 
-        while(true){
+        while (true) {
 
-            List<Map<String,Object>> list = processor.fetchList(
-                    req.getStartTime(),req.getEndTime(),
-                    shopId,req.getTimezoneOffset(),offset);
+            List<JsonNode> list = processor.fetchList(
+                    req.getStartTime(), req.getEndTime(),
+                    shopId, req.getTimezoneOffset(), offset);
 
-            if(list.isEmpty()) break;
+            if (list.isEmpty()) break;
 
             List<CompletableFuture<PuduReport>> future = list.stream()
-                    .map(x->processor.convertAsync(
-                            (String)x.get("sn"),x.get("report_id").toString(),
-                            req.getStartTime(),req.getEndTime(),
-                            req.getTimezoneOffset(),shopId))
+                    .map(x -> processor.convertAsync(
+                            x.path("sn").asText(),
+                            x.path("report_id").asText(),
+                            req.getStartTime(), req.getEndTime(),
+                            req.getTimezoneOffset(), shopId))
                     .toList();
 
             CompletableFuture.allOf(future.toArray(new CompletableFuture[0])).join();
 
-            future.forEach(f->{
-                PuduReport r=f.join();
-                System.out.println(">>> REPORT: " + r); // ★ 로그 추가
-                if(r!=null)buffer.add(r);});
+            future.forEach(f -> {
+                PuduReport r = f.join();
+                System.out.println(">>> REPORT: " + r);
+                if (r != null) buffer.add(r);
+            });
 
-            if(buffer.size()>=50){
+            if (buffer.size() >= 50) {
                 puduReportRepository.saveAll(buffer);
-                saved+=buffer.size(); buffer.clear();
+                saved += buffer.size();
+                buffer.clear();
             }
 
-            offset+=20;
+            offset += 20;
         }
 
-        if(!buffer.isEmpty()){
+        if (!buffer.isEmpty()) {
             puduReportRepository.saveAll(buffer);
-            saved+=buffer.size();
+            saved += buffer.size();
         }
 
         return saved;
     }
 
 
+    // 전체 매장 특정 기간 보고서 조회
     @Transactional
     public int syncAllStoresByTimeRange(TimeRangeSyncRequestDTO req){
         return storeRepository.findAll().stream()
@@ -92,6 +98,7 @@ public class PuduReportService {
                 )).sum();
     }
 
+    // 전체 매장 최대기간(6개월) 보고서 조회
     @Transactional
     public int syncAllStoresFullHistorical(){
         LocalDateTime start = LocalDate.now().minusDays(180).atStartOfDay();
@@ -112,18 +119,21 @@ public class PuduReportService {
 
 
 
+    // db에서 상세 보고서 목록 가져오기
     public List<PuduReportDTO> getAllReports(){
         return puduReportRepository.findAll().stream()
                 .map(PuduReportDTO::createReportDTO)
                 .toList();
     }
 
+    // id로 보고서 가져오기
     public PuduReportDTO getReportById(Long id){
         return puduReportRepository.findById(id)
                 .map(PuduReportDTO::createReportDTO)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: "+id));
     }
 
+    // sn으로 상세 보고서 목록 가져오기
     public List<PuduReportDTO> getReportsByRobotSn(String sn){
         return puduReportRepository.findByRobot_Sn(sn).stream()
                 .map(PuduReportDTO::createReportDTO)
