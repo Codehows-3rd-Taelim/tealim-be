@@ -7,6 +7,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -17,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtFilter extends OncePerRequestFilter
@@ -36,11 +38,14 @@ public class JwtFilter extends OncePerRequestFilter
         // 필터 ==> 요청, 응답을 중간에서 가로챈 다음 ==> 필요한 동작을 수행
         // 1. 요청 헤더 (Authorization)에서 JWT 토큰을 꺼냄
         String jwtToken = request.getHeader(HttpHeaders.AUTHORIZATION);
-        System.out.println("📌 [JWT FILTER] URI = " + request.getRequestURI() + " | Authorization = " + jwtToken);
+        log.info("🔍 [JWT] Authorization = {}", jwtToken);//나중에 지울거
+
+
         if (jwtToken != null)
         {
             // 2. 꺼낸 토큰에서 유저 정보 추출
             String id = jwtService.parseToken(request);
+            log.info("🔍 [JWT] parsedTokenUserId = {}", id);//나중에 지울거
 
             // 2) userId(claim) 추출
             Long userId = jwtService.extractUserId(jwtToken);
@@ -55,6 +60,7 @@ public class JwtFilter extends OncePerRequestFilter
 
             // Controller 에서 userId 사용할 수 있도록 저장
             request.setAttribute("userId", userId);
+            log.info("🔍 [JWT] request.setAttribute userId = {}", request.getAttribute("userId")); //나중에 지울거
 
         }
         // 마지막에 다음 필터를 호출

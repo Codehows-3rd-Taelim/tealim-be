@@ -39,48 +39,34 @@ public class AgentService {
     private final Agent chatAgent;
 
 
-    @Async("ChatAgentExecutor")
+    @Async
     public void process(String conversationId, String message, Long userId) {
 
-        // LangChain4j Agent 스트리밍 호출
+        log.info("🔍 [process] START conversationId={}, userId={}, msg={}", conversationId, userId, message);
+
+        // 1) 사용자 메시지 저장
+        aiChatService.saveUserMessage(conversationId, userId, message);
+
+        // 2) TokenStream 가져오기
         TokenStream stream = chatAgent.chat(message, conversationId);
 
+        StringBuilder aiBuilder = new StringBuilder();
+
+        // 3) 토큰 스트리밍 시작
         stream.onNext(token -> {
-            // 🔥 토큰 AI 답변 → SSE로 push
-            sseService.send(conversationId, token);
-        });
-
-
-
+                    log.info("🔍 token = {}", token);
+                    aiBuilder.append(token);
+                    sseService.send(conversationId, token);
+                })
+                .onComplete(finalResponse -> {
+                    log.info("🔍 [process] onComplete 호출됨");
+                    aiChatService.saveAiMessage(conversationId, userId, aiBuilder.toString());
+                })
+                .onError(e -> {
+                    log.error("AI 스트림 오류", e);
+                })
+                .start();  
     }
-
-    /**
-     * 사용자의 메시지를 받아 AI와 대화하고, 응답을 스트리밍으로 클라이언트에게 전송합니다.
-     * 이 메서드는 `SseEmitter`를 사용하여 Server-Sent Events (SSE) 방식으로 실시간 응답을 처리합니다.
-     *
-     * @param req 사용자 메시지와 대화 ID를 포함하는 요청 DTO
-     * @return `SseEmitter` 객체. 클라이언트에게 이벤트를 스트리밍하는 데 사용됩니다.
-     */
-    public SseEmitter chat(ChatPromptRequest req, Long userId) {
-
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-
-        // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
-        String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
-                ? UUID.randomUUID().toString()
-                : req.getConversationId();
-
-        String userMessage = req.getMessage();
-
-        // 유저 메시지 저장
-        aiChatService.saveUserMessage(convId, userId, userMessage);
-
-        // ai호출, sse 처리
-        createEmitter(emitter, convId, chatAgent, userMessage, userId);
-
-        return emitter;
-    }
-
     public SseEmitter report(ChatPromptRequest req, Long userId) {
 
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);

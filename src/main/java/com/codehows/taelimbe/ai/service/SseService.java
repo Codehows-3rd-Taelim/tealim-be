@@ -9,14 +9,14 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class SseService {
 
-    // conversationId → emitter
+    // conversationId → emitter 매핑
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     /**
-     * conversationId 기준으로 emitter 생성 + 저장
+     * SSE 연결 생성
      */
     public SseEmitter createEmitter(String conversationId) {
-        SseEmitter emitter = new SseEmitter(0L); // timeout 무제한
+        SseEmitter emitter = new SseEmitter(0L); // 타임아웃 없음
         emitters.put(conversationId, emitter);
 
         emitter.onCompletion(() -> emitters.remove(conversationId));
@@ -27,23 +27,16 @@ public class SseService {
     }
 
     /**
-     * emitter 가져오기
-     */
-    public SseEmitter get(String conversationId) {
-        return emitters.get(conversationId);
-    }
-
-    /**
-     * SSE 이벤트 전송
+     * SSE 메시지 전송
      */
     public void send(String conversationId, String data) {
         SseEmitter emitter = emitters.get(conversationId);
-        if (emitter != null) {
-            try {
-                emitter.send(SseEmitter.event().data(data));
-            } catch (Exception e) {
-                emitters.remove(conversationId);
-            }
+        if (emitter == null) return;
+
+        try {
+            emitter.send(SseEmitter.event().data(data));
+        } catch (Exception e) {
+            emitters.remove(conversationId);
         }
     }
 }
