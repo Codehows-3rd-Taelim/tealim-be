@@ -44,7 +44,7 @@ dependencies {
     // QueryDSL
     // ==============================
     implementation 'com.querydsl:querydsl-apt:5.1.0'
-    annotationProcessor 'com.querydsl:querydsl-apt:5.1.0:jpa'
+    implementation 'com.querydsl:querydsl-apt:5.1.0:jpa'
 
     // ==============================
     // 모델 매핑
@@ -73,14 +73,6 @@ dependencies {
     implementation 'io.grpc:grpc-protobuf'
     implementation 'io.grpc:grpc-stub'
     implementation 'io.grpc:grpc-services'
-    configurations.all {
-        resolutionStrategy.eachDependency { details ->
-            if (details.requested.group == 'io.grpc') {
-                details.useVersion '1.59.1'
-            }
-        }
-    }
-
     configurations.all {
         resolutionStrategy.eachDependency { details ->
             if (details.requested.group == 'io.grpc') {
