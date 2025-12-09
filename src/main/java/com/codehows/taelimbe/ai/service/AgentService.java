@@ -1,7 +1,17 @@
 package com.codehows.taelimbe.ai.service;
 
+import com.codehows.taelimbe.ai.dto.aiReport.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
+import com.codehows.taelimbe.ai.repository.MapStatsProjection;
+import com.codehows.taelimbe.ai.repository.ReportSummaryProjection;
+import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.langchain.Agent;
+import com.codehows.taelimbe.report.repository.ReportRepository;
+import com.codehows.taelimbe.robot.entity.Robot;
+import com.codehows.taelimbe.robot.repository.RobotRepository;
+import com.codehows.taelimbe.store.entity.Store;
+import com.codehows.taelimbe.user.entity.User;
+import com.codehows.taelimbe.user.repository.UserRepository;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.service.TokenStream;
@@ -9,118 +19,406 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
- * AI 에이전트와의 대화 로직을 캡슐화하는 서비스 클래스입니다.
- * `AgentController`의 복잡성을 줄이고, 대화 처리와 관련된 모든 로직을 이곳에서 관리합니다.
- * `@Service` 어노테이션은 이 클래스가 비즈니스 계층의 컴포넌트임을 나타냅니다.
- * `@RequiredArgsConstructor`는 Lombok 어노테이션으로, final 필드에 대한 생성자를 자동으로 생성하여 의존성 주입을 용이하게 합니다.
- * `@Slf4j`는 Lombok 어노테이션으로, 로깅을 위한 `log` 객체를 자동으로 생성합니다.
+ * AI 에이전트와의 대화 로직을 캡슐화하는 서비스 클래스
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AgentService {
 
-    // LangChain4j Agent 인터페이스의 구현체를 주입받습니다.
     @Qualifier("reportAgent")
     private final Agent reportAgent;
 
     @Qualifier("chatAgent")
     private final Agent chatAgent;
 
+    private final AiReportService aiReportService;
+    private final UserRepository userRepository;
+    private final RobotRepository robotRepository;
+    private final ReportRepository reportRepository;
+
     /**
-     * 사용자의 메시지를 받아 AI와 대화하고, 응답을 스트리밍으로 클라이언트에게 전송합니다.
-     * 이 메서드는 `SseEmitter`를 사용하여 Server-Sent Events (SSE) 방식으로 실시간 응답을 처리합니다.
-     *
-     * @param req 사용자 메시지와 대화 ID를 포함하는 요청 DTO
-     * @return `SseEmitter` 객체. 클라이언트에게 이벤트를 스트리밍하는 데 사용됩니다.
+     * 현재 로그인 유저 조회
+     */
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+
+        return userRepository.findById(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+    }
+
+    /**
+     * 일반 Chat SSE
      */
     public SseEmitter chat(ChatPromptRequest req) {
+
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-        // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
+
         String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
                 ? UUID.randomUUID().toString()
                 : req.getConversationId();
-        createEmitter(emitter, convId, chatAgent, req.getMessage());
+
+        createEmitter(
+                emitter,
+                convId,
+                chatAgent,
+                req.getMessage(),
+                req.getMessage(),
+                LocalDateTime.now(),
+                LocalDateTime.now()
+        );
+
         return emitter;
     }
 
+    /**
+     * 사용자가 입력한 메시지에서 날짜 범위 추출
+     * 예: 2025-04-04~2025-10-04
+     */
+    private LocalDateTime[] extractDateRange(String userMessage) {
+        String pattern = "(\\d{4}-\\d{2}-\\d{2})[\\s\\S]*?(\\d{4}-\\d{2}-\\d{2})";
+        Pattern r = Pattern.compile(pattern);
+        Matcher m = r.matcher(userMessage);
+
+        if (m.find()) {
+            LocalDateTime start = LocalDateTime.parse(m.group(1) + "T00:00:00");
+            LocalDateTime end = LocalDateTime.parse(m.group(2) + "T23:59:59");
+            return new LocalDateTime[]{start, end};
+        }
+
+        LocalDateTime today = LocalDateTime.now();
+        // 날짜를 포함하지 않는 경우, 현재 날짜 기준 1달로 설정 (임시)
+        return new LocalDateTime[]{today.minusMonths(1).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0),
+                today.withHour(23).withMinute(59).withSecond(59)};
+    }
+
+    private String getReportType(LocalDateTime start, LocalDateTime end) {
+        long days = java.time.temporal.ChronoUnit.DAYS
+                .between(start.toLocalDate(), end.toLocalDate()) + 1;
+
+        if (days >= 28 && days <= 31) return "월간 보고서";
+        if (days >= 7 && days <= 8) return "주간 보고서";
+        return "기간별 보고서";
+    }
+
+    /**
+     * AI 보고서 생성 SSE
+     */
     public SseEmitter report(ChatPromptRequest req) {
+
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-        // 현재 스레드에 사용자 이름을 설정하여, 도구 호출 등에서 사용자 컨텍스트를 활용할 수 있도록 합니다.
-        // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
+
+        // Conversation ID 설정
         String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
                 ? UUID.randomUUID().toString()
                 : req.getConversationId();
+
+        // 날짜 범위 추출
+        LocalDateTime[] range = extractDateRange(req.getMessage());
+        LocalDateTime startTime = range[0];
+        LocalDateTime endTime = range[1];
+
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy.MM.dd");
+
+        // 보고서 관리 기간 (오류 메시지 사용을 위해 미리 계산)
+        String periodText = startTime.format(fmt) + " ~ " + endTime.format(fmt);
+
+        // 보고서 작성일 (현재 날짜)
+        String generatedDate = now.format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
+
+        // 현재 로그인 유저 가져오기
+        User currentUser = getCurrentUser();
+        Store store = currentUser.getStore();
+
+        // 고객사명
+        String customerName = store.getShopName();
+
+        // 매장(storeId)에 연결된 모든 로봇의 모델(productCode) 조회
+        List<String> deviceNames = robotRepository
+                .findAllByStore_StoreId(store.getStoreId())
+                .stream()
+                .map(Robot::getProductCode) // "CC1", "MT1"
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        String deviceNameText = deviceNames.isEmpty()
+                ? "청소로봇"
+                : String.join(", ", deviceNames);
+
+        // 보고서 유형 자동 판별
+        String reportType = getReportType(startTime, endTime);
+
+        // ----------------------------------------------------
+        // 1. 데이터 집계 및 DTO 추출
+        // ----------------------------------------------------
+
+        // 1-1. 총괄 요약 데이터
+        // 💡 변경: orElseThrow 대신 orElse(null)을 사용하여 데이터가 없을 때 null을 허용
+        ReportSummaryProjection summary = reportRepository.summarizeReportByTimeRange(startTime, endTime).orElse(null);
+
+        // ----------------------------------------------------
+        // 💡 핵심 수정: 데이터 부재 시 처리 로직
+        // ----------------------------------------------------
+        if (summary == null) {
+            try {
+                // 사용자에게 데이터 부재 메시지 전송
+                emitter.send(SseEmitter.event()
+                        .name("reportInfo") // 정보성 이벤트 이름
+                        .data("요청하신 기간 (" + periodText + ") 동안의 청소 로봇 운영 데이터가 없습니다."));
+                emitter.send(SseEmitter.event()
+                        .name("done")
+                        .data("[DONE]"));
+                emitter.complete();
+            } catch (IOException e) {
+                log.error("Failed to send no data message: ", e);
+                emitter.completeWithError(e);
+            }
+            return emitter; // 데이터가 없으므로 여기서 메서드 종료
+        }
+        // ----------------------------------------------------
+
+        // 1-2. 맵별 통계 데이터
+        List<MapStatsProjection> mapStats = reportRepository.summarizeMapStatsByTimeRange(startTime, endTime);
+
+        // 1-3. 상태별 카운트 (작업 실패 및 중단 현황 파악용)
+        List<Object[]> statusCounts = reportRepository.countStatusByTimeRange(startTime, endTime);
+
+        // 💡 심볼 해결 오류(failedCount, mostFailedMapName) 해결을 위한 선언 및 계산 로직
+        long failedCount = 0; // failedCount 선언
+        String mostFailedMapName = "정보 없음"; // mostFailedMapName 선언
+
+        // 임무 취소/중단 횟수와 주요 발생 층 계산
+        for (Object[] count : statusCounts) {
+            Integer status = (Integer) count[0];
+            Long countVal = (Long) count[1];
+            // 4: 부분 완료/중단, 5: 실패 (실제 DB status 코드에 따라 수정 필요)
+            if (status.equals(4) || status.equals(5)) {
+                failedCount += countVal;
+            }
+        }
+
+        // 작업 횟수가 가장 많은 맵을 '주요 발생 층'으로 임시 지정 (더 정교한 실패 분석 쿼리 필요)
+        if (!mapStats.isEmpty()) {
+            mostFailedMapName = mapStats.stream()
+                    .max((s1, s2) -> Long.compare(s1.getTaskCount(), s2.getTaskCount()))
+                    .get().getMapName();
+        }
+        // ----------------------------------------------------
+        // 2. AI에게 전달할 Markdown 데이터 구조화
+        // ----------------------------------------------------
+
+        StringBuilder dataForAi = new StringBuilder();
+
+        // 💡 변경: Null-Safe 처리 (데이터가 있더라도 내부 필드가 null일 수 있으므로)
+        long totalCleanTime = summary.getTotalCleanTime() != null ? summary.getTotalCleanTime().longValue() : 0L;
+        double totalTaskArea = summary.getTotalTaskArea() != null ? summary.getTotalTaskArea() : 0.0;
+        double totalCleanArea = summary.getTotalCleanArea() != null ? summary.getTotalCleanArea() : 0.0;
+        long totalTaskCount = summary.getTotalTaskCount() != null ? summary.getTotalTaskCount() : 0L;
+        long totalCostWater = summary.getTotalCostWater() != null ? summary.getTotalCostWater() : 0L;
+        long totalCostBattery = summary.getTotalCostBattery() != null ? summary.getTotalCostBattery() : 0L;
+
+
+        // 1. 장비 운영 요약 데이터
+        dataForAi.append("### 1. 장비 운영 요약 데이터 (총괄 수치)\n");
+        // Float/Long 값을 Double로 변환하여 계산
+        dataForAi.append(String.format("총 청소 작업시간: %.2f 시간 (%.2f 분)\n",
+                totalCleanTime / 3600.0, totalCleanTime / 60.0));
+        dataForAi.append(String.format("총 계획 청소 면적: %.2f m2\n", totalTaskArea));
+        dataForAi.append(String.format("총 실제 청소 면적: %.2f m2\n", totalCleanArea));
+        dataForAi.append(String.format("총 작업 수: %d 회\n", totalTaskCount));
+        // Long costWater (ml) -> L 변환
+        dataForAi.append(String.format("총 물 소비량: %.2f L\n", totalCostWater / 1000.0));
+        // Long costBattery (bigint, kWh로 가정, 1000으로 나누어 보기 쉽게 조정)
+        dataForAi.append(String.format("총 전력 소모량: %.2f kWh\n\n", totalCostBattery / 1000.0));
+        // 2. 층별 작업 현황 데이터
+        dataForAi.append("### 2. 층별 작업 현황 데이터 (세부 수치)\n");
+        dataForAi.append("| 구분 | 작업 횟수 (회) | 총 청소면적 (m2) | 총 전력 소비 (kWh) | 총 물 사용량 (L) |\n");
+        dataForAi.append("| :--- | :--- | :--- | :--- | :--- |\n");
+        for (MapStatsProjection stats : mapStats) {
+            dataForAi.append(String.format("| %s | %d | %.2f | %.2f | %.2f |\n",
+                    stats.getMapName(),
+                    stats.getTaskCount(),
+                    stats.getCleanArea(),
+                    // Long costBattery (kWh로 가정)
+                    stats.getCostBattery() / 1000.0,
+                    // Long costWater (ml -> L 변환)
+                    stats.getCostWater() / 1000.0));
+        }
+        dataForAi.append("\n");
+
+        // 3.  유지관리 이력 (Placeholder) - AI가 채우도록 가이드
+        dataForAi.append("### 3.  유지관리 이력 (점검 및 특이사항)\n");
+        dataForAi.append("(실제 유지보수 이력 데이터가 현재 시스템에 존재하지 않아, AI가 내용 없음으로 처리하거나 일반적인 문구를 사용해야 함)\n\n");
+
+        // 4. 작업 실패 및 중단 현황
+        dataForAi.append("### 4. 작업 실패 및 중단 현황\n");
+        dataForAi.append(String.format("임무 취소/중단 횟수: 총 %d 회\n", failedCount));
+        dataForAi.append(String.format("주요 취소/중단 발생 층: %s\n", mostFailedMapName));
+        dataForAi.append("임무 중단 및 이상 유무: " + (failedCount > 0 ? failedCount + "회 발생" : "0회 (이상 없음)") + "\n\n");
+
+        // ----------------------------------------------------
+        // 3. 프롬프트 템플릿 정의 및 최종 Prompt 생성
+        // ----------------------------------------------------
+
         PromptTemplate template = PromptTemplate.from("""
-                  제공받은 데이터셋을 분석하여, 전체 요약과 상세 보고서를 모두 포함하는 마크다운 형식의 리포트를 생성하세요.\\n\\
-                  리포트는 다음 항목을 포함해야 합니다:\\n\\
-                  \\n\\
-                  # 총괄 요약\\n\\
-                  - 데이터의 핵심 인사이트와 결론 요약\\n\\
-                  \\n\\
-                  # 상세 분석\\n\\
-                  - 섹션별 상세 분석\\n\\
-                  - 표와 리스트, 필요시 그래프 링크 포함 가능\\n\\
-                  \\n\\
-                  # 결론 및 제언\\n\\
-                  - 데이터 기반의 결론과 향후 조치/추천 사항\\n\\
-                  \\n\\
-                  **참고**:\\n\\
-                  - 항상 Markdown 형식 사용 (헤더, 리스트, 표, 코드블록 등)\\n\\
-                  - 요약은 주요 포인트를 간결하게\\n\\
-                  - 상세 분석은 항목별로 구체적 내용을 포함\\n\\
-                  \\n\\
-                  이제 다음의 질문에 답변해주세요.\\n\\
-                  {{question}}
-                """); // 설정 값 사용
-        Prompt prompt = template.apply(Map.of("question", req.getMessage()));
-        createEmitter(emitter, convId, reportAgent, prompt.text());
+        당신은 AI 산업용 청소로봇({{deviceNames}})의 관리 보고서 전문가입니다.
+        
+        아래 제공된 운영 데이터를 기반으로, 
+        '{{customerName}}' 매장의 '{{reportType}}'에 해당하는 
+        공식 비즈니스 문서 스타일의 '청소로봇 관리 보고서'를 작성하세요.
+        
+        보고서의 시작은 반드시 아래와 같이 **Markdown 제목(Heading)** 형식으로 시작하세요:
+                            # AI 산업용 청소로봇 {{deviceNames}} 관리 보고서
+                            ## 작성일: {{generatedDate}}
+        
+        # 보고서 기본 정보
+        - 고객사: {{customerName}}
+        - 장비명: AI 산업용 청소로봇 {{deviceNames}}
+        - 관리 기간: {{period}}
+
+        
+        # 데이터 입력 (실제 운영 데이터)
+        {{question}}
+        
+        # 출력 형식 요구사항 (반드시 준수)
+        1. 보고서 기본 정보 (표)
+        2. 1. 장비 운영 요약 (표, 총 횟수/시간/면적, 전력/물 소비량 포함)
+        3. 2. 층별 작업 현황 (표, 층별 횟수/면적/전력/물 소비량 포함)
+        4. 3. 유지관리 이력 (표, 일자/구분/작업 내용/결과 포함)
+        5. 4. 작업 실패 및 중단 현황 (요약 형식, 취소 횟수 및 원인 포함)
+        6. 5. 향후 점검 계획 및 권장사항
+           - 주요 성과 (계획 초과 달성 및 다층 운영 안정화 중점)
+           - 문제점 및 위험 요소
+           - 개선 및 최적화 권장사항 (잦은 취소율 관리 중점)
+        
+        출력은 반드시 Markdown 형식으로만 작성하세요.
+    """); // <-- '작성일'을 별도로 상단에 표시하도록 지시 및 {{generatedDate}} 변수 추가
+
+        // 템플릿 적용: AI에게 전달할 데이터(dataForAi)를 {{question}}에 삽입
+        Prompt prompt = template.apply(
+                Map.of(
+                        "customerName", customerName,
+                        "deviceNames", deviceNameText,
+                        "period", periodText,
+                        "reportType", reportType,
+                        "generatedDate", generatedDate, // <-- 새롭게 추가된 현재 날짜 변수
+                        "question", dataForAi.toString() // <--- 집계된 데이터가 들어갑니다.
+                )
+        );
+
+        // SSE 스트리밍 시작
+        createEmitter(
+                emitter,
+                convId,
+                reportAgent,
+                prompt.text(),
+                req.getMessage(), // 사용자가 입력한 메시지(원본)
+                startTime,
+                endTime
+        );
+
         return emitter;
     }
 
+
+    /**
+     * SSE 공통 스트리밍 처리
+     */
     @Async("taskExecutor")
     protected void createEmitter(
             SseEmitter emitter,
             String convId,
             Agent agent,
-            String prompt) {
+            String prompt,
+            String userMessage,
+            LocalDateTime startTime,
+            LocalDateTime endTime
+    ) {
+
+        StringBuilder fullText = new StringBuilder();
+
         try {
-            // Agent의 chat 메서드를 호출하여 Gemini 모델과 상호작용합니다.
-            // 스트리밍 방식으로 응답을 받으며, 각 토큰을 클라이언트에게 전송합니다.
+
             TokenStream tokenStream = agent.chat(prompt, convId);
-            // 첫 응답으로 대화 ID를 전송합니다.
-            emitter.send(SseEmitter.event().name("conversationId").data(convId));
-            // 스트리밍 응답의 각 토큰을 처리합니다.
-            tokenStream.onNext(token -> {
-                try {
-                    // 각 토큰을 SSE 이벤트로 클라이언트에게 전송합니다.
-                    emitter.send(SseEmitter.event().data(token));
-                } catch (IOException e) {
-                    // 토큰 전송 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
-                    log.error("SSE 토큰 전송 중 오류 발생: {}", e.getMessage());
-                    emitter.completeWithError(e);
-                }
-            })
-            // 스트리밍 완료 시 emitter를 완료합니다.
-            .onComplete(response -> emitter.complete())
-            // 스트리밍 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
-            .onError(emitter::completeWithError)
-            // 스트리밍을 시작합니다.
-            .start();
+            User currentUser = getCurrentUser();
+
+            // 대화 ID 먼저 전송
+            emitter.send(
+                    SseEmitter.event()
+                            .name("conversationId")
+                            .data(convId)
+            );
+
+            // 스트림 시작
+            tokenStream
+                    .onNext(token -> {
+                        try {
+                            fullText.append(token);
+                            emitter.send(SseEmitter.event().data(token));
+                        } catch (IOException e) {
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    .onComplete(response -> {
+                        try {
+                            // DB 저장
+                            AiReport savedReport = aiReportService.saveReport(
+                                    currentUser.getUserId(),
+                                    convId,
+                                    userMessage,
+                                    fullText.toString(),
+                                    startTime,
+                                    endTime
+                            );
+
+                            AiReportDTO dto = AiReportDTO.from(savedReport);
+
+                            emitter.send(
+                                    SseEmitter.event()
+                                            .name("savedReport")
+                                            .data(dto)
+                            );
+
+                            emitter.send(
+                                    SseEmitter.event()
+                                            .name("done")
+                                            .data("[DONE]")
+                            );
+
+                        } catch (Exception e) {
+                            emitter.completeWithError(e);
+                        } finally {
+                            emitter.complete();
+                        }
+                    })
+                    .onError(e -> {
+                        log.error("TokenStream error: ", e);
+                        emitter.completeWithError(e);
+                    })
+                    .start();
+
         } catch (Exception e) {
-            // 예외 발생 시 emitter를 오류와 함께 완료합니다.
-            log.error("채팅 처리 중 오류 발생: {}", e.getMessage(), e);
-        }finally {
-            // 요청 처리 완료 후 스레드 로컬에 저장된 사용자 정보를 제거합니다.
-            emitter.complete();
+            emitter.completeWithError(e);
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.langchain.config;
+package com.codehows.taelimbe.ai.config;
 
 import com.codehows.taelimbe.langchain.Agent;
 import com.codehows.taelimbe.langchain.tools.ChatTools;

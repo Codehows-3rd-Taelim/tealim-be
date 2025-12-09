@@ -25,7 +25,7 @@ import java.util.concurrent.CompletableFuture;
  * `@Slf4j`는 Lombok 어노테이션으로, 로깅을 위한 `log` 객체를 자동으로 생성합니다.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("")
 @RequiredArgsConstructor
 @Slf4j
 public class AgentController {
@@ -50,13 +50,13 @@ public class AgentController {
         return agentService.chat(chatPromptRequest);
     }
 
-    @PostMapping(value = "/agent/report", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter report(
-            @RequestBody ChatPromptRequest chatPromptRequest
-    ) {
-        // 채팅 요청 처리를 ConversationService로 위임합니다.
-        return agentService.report(chatPromptRequest);
-    }
+//    @PostMapping(value = "/agent/report", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+//    public SseEmitter report(
+//            @RequestBody ChatPromptRequest chatPromptRequest
+//    ) {
+//        // 채팅 요청 처리를 ConversationService로 위임합니다.
+//        return agentService.report(chatPromptRequest);
+//    }
 
     /**
      * 주어진 텍스트를 비동기적으로 임베딩하여 벡터 저장소에 저장합니다.
