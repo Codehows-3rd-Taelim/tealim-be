@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.report.dto;
+package com.codehows.taelimbe.pudureport.dto;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
