@@ -4,16 +4,16 @@ import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.dto.EmbeddingRequest;
 import com.codehows.taelimbe.ai.service.AgentService;
 import com.codehows.taelimbe.ai.service.EmbeddingService;
+import com.codehows.taelimbe.ai.service.SseService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -34,30 +34,48 @@ public class AgentController {
     private final AgentService agentService;
     // 임베딩 관련 비즈니스 로직을 처리하는 서비스를 주입받습니다.
     private final EmbeddingService embeddingService;
+    private final SseService sseService;
 
     /**
-     * 사용자의 메시지를 받아 AI와 대화하고, 응답을 스트리밍으로 반환합니다.
-     * `/agent/chat`은 일반적인 대화를, `/agent/report`는 보고서 생성을 위한 특정 프롬프트 처리를 담당합니다.
-     * 이 메서드는 실제 채팅 로직을 `conversationService`로 위임합니다.
-     *
-     * @param chatPromptRequest 사용자 메시지와 대화 ID를 포함하는 요청 DTO
-     * @return Server-Sent Events (SSE)를 통해 AI의 응답을 스트리밍하는 SseEmitter
+     * 🔥 SSE 스트림 연결 (프론트 EventSource가 여기로 연결됨)
      */
-    @PostMapping(value = "/agent/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter chat(
-            @RequestBody ChatPromptRequest chatPromptRequest
-    ) {
-        return agentService.chat(chatPromptRequest);
+    @GetMapping(value = "/stream/{conversationId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter connect(@PathVariable String conversationId) {
+        return sseService.createEmitter(conversationId);
     }
+
+    /**
+     * 🔥 메시지 전송 (SSE 스트림 반환 X, ID만 반환)
+     */
+    @PostMapping("/chat")
+    public ResponseEntity<String> chat(@RequestBody ChatPromptRequest req) {
+
+        // 대화 ID 생성 또는 기존 ID 유지
+        String conversationId = req.getConversationId();
+        if (conversationId == null || conversationId.isBlank()) {
+            conversationId = UUID.randomUUID().toString();
+        }
+
+        // AI 처리 비동기 실행
+        agentService.process(conversationId, req.getMessage());
+
+        // 프론트는 이 ID를 받아 SSE 연결
+        return ResponseEntity.ok(conversationId);
+    }
+
+
 
     @PostMapping(value = "/agent/report", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter report(
-            @RequestBody ChatPromptRequest chatPromptRequest
+            @RequestBody ChatPromptRequest chatPromptRequest,
+            HttpServletRequest request
     ) {
-        // 채팅 요청 처리를 ConversationService로 위임합니다.
-        return agentService.report(chatPromptRequest);
-    }
+        // JWT Filter에서 저장된 userId 가져오기
+        Long userId = Long.valueOf(request.getAttribute("userId").toString());
 
+        // 채팅 요청 처리를 ConversationService로 위임합니다.
+        return agentService.report(chatPromptRequest, userId);
+    }
     /**
      * 주어진 텍스트를 비동기적으로 임베딩하여 벡터 저장소에 저장합니다.
      * 이 메서드는 요청을 즉시 수락하고 백그라운드에서 작업을 처리합니다.

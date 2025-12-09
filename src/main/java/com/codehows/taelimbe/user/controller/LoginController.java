@@ -56,7 +56,8 @@ public class LoginController {
         Long finalStoreId = storeId != null ? storeId : 0L;
 
         // 3. JWT 토큰을 발급합니다.
-        String jwtToken = jwtService.generateToken(authentication.getName());
+        String jwtToken = jwtService.generateToken(authentication.getName(), userId);
+
 
         // 4. 응답에 포함할 DTO를 생성합니다.
         LoginResponseDTO response = new LoginResponseDTO(jwtToken, roleLevel, finalStoreId, userId);

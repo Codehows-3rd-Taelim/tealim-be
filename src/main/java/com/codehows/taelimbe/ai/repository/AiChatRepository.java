@@ -25,7 +25,20 @@ public interface AiChatRepository extends JpaRepository<AiChat, Long> {
     @Query("SELECT COALESCE(MAX(c.messageIndex), 0) FROM AiChat c WHERE c.conversationId = :conversationId")
     Long findMaxMessageIndexByConversationId(@Param("conversationId") String conversationId);
 
-    // 특정 대화의 고유한 대화 ID 목록 조회 (최신순)
-    @Query("SELECT DISTINCT c.conversationId FROM AiChat c WHERE c.user.userId = :userId ORDER BY c.createdAt DESC")
-    List<String> findDistinctConversationIdsByUserId(@Param("userId") Long userId);
+    @Query("""
+    SELECT c.conversationId
+    FROM AiChat c
+    WHERE c.user.userId = :userId
+    GROUP BY c.conversationId
+    ORDER BY MAX(c.createdAt) DESC
+""")
+    List<String> findConversationIdsByUserId(@Param("userId") Long userId);
+
+
+    List<AiChat> findByConversationIdOrderByMessageIndexAsc(String conversationId);
+
+    @Query("SELECT DISTINCT a.conversationId FROM AiChat a WHERE a.user.userId = :userId")
+    List<String> findConversationIdsByUser(@Param("userId") Long userId);
+
+    long countByConversationId(String conversationId);
 }

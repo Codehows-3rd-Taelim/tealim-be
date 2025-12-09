@@ -20,7 +20,7 @@ public class AiChatController {
      * 사용자의 대화 목록 조회 (사이드바에서 사용)
      * 각 대화의 첫 번째 메시지 (사용자 질문)를 제목으로 반환
      */
-    @GetMapping("/chat-history")
+    @GetMapping("/chat/history")
     public ResponseEntity<List<AiChatDTO>> getChatHistory() {
         List<AiChatDTO> chatList = aiChatService.getUserChatList();
         return ResponseEntity.ok(chatList);

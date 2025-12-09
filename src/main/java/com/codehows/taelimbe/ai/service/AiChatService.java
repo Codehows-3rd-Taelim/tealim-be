@@ -14,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,24 +36,6 @@ public class AiChatService {
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + username));
     }
 
-    /**
-     * 사용자 메시지 저장
-     */
-    public AiChat saveUserMessage(String conversationId, String message) {
-        User user = getCurrentUser();
-        Long nextMessageIndex = aiChatRepository.findMaxMessageIndexByConversationId(conversationId) + 1;
-
-        AiChat userChat = AiChat.builder()
-                .conversationId(conversationId)
-                .senderType(SenderType.USER)
-                .rawMessage(message)
-                .messageIndex(nextMessageIndex)
-                .user(user)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        return aiChatRepository.save(userChat);
-    }
 
     /**
      * AI 응답 메시지 저장
@@ -90,24 +74,33 @@ public class AiChatService {
     @Transactional(readOnly = true)
     public List<AiChatDTO> getUserChatList() {
         User user = getCurrentUser();
-        List<String> conversationIds = aiChatRepository.findDistinctConversationIdsByUserId(user.getUserId());
+        List<String> conversationIds = aiChatRepository.findConversationIdsByUserId(user.getUserId());
+
+        // 대화 자체가 하나도 없으면 빈 배열 반환
+        if (conversationIds == null || conversationIds.isEmpty()) {
+            return Collections.emptyList();
+        }
 
         return conversationIds.stream()
                 .map(convId -> {
                     List<AiChat> messages = aiChatRepository.findByConversationIdOrderByMessageIndex(convId);
-                    if (!messages.isEmpty()) {
-                        // 첫 번째 메시지 (사용자의 초기 질문)를 대화 제목으로
-                        AiChat firstMessage = messages.stream()
-                                .filter(msg -> msg.getSenderType() == SenderType.USER)
-                                .findFirst()
-                                .orElse(messages.get(0));
-                        return AiChatDTO.from(firstMessage);
+
+                    // 메시지가 하나도 없으면 null 결과 대신 skip
+                    if (messages == null || messages.isEmpty()) {
+                        return null; // 이 뒤에 filter로 걸러짐
                     }
-                    return null;
+
+                    AiChat firstMessage = messages.stream()
+                            .filter(msg -> msg.getSenderType() == SenderType.USER)
+                            .findFirst()
+                            .orElse(messages.get(0)); // 이제 안전함 (messages가 empty 아닌 상태로 들어오기 때문)
+
+                    return AiChatDTO.from(firstMessage);
                 })
-                .filter(dto -> dto != null)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
     }
+
 
     /**
      * 특정 매장의 모든 대화 조회 (관리자용)
@@ -135,5 +128,51 @@ public class AiChatService {
     public void deleteChatMessage(Long aiChatId) {
         aiChatRepository.deleteById(aiChatId);
         log.info("메시지 '{}' 삭제 완료", aiChatId);
+    }
+
+    /** USER 메시지 저장 */
+    public void saveUserMessage(String convId, Long userId, String msg) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        long idx = aiChatRepository.countByConversationId(convId);
+
+        AiChat chat = AiChat.builder()
+                .conversationId(convId)
+                .senderType(SenderType.USER)
+                .rawMessage(msg)
+                .messageIndex(idx)
+                .user(user)
+                .build();
+
+        aiChatRepository.save(chat);
+    }
+
+    /** AI 메시지 저장 */
+    public void saveAiMessage(String convId, Long userId, String msg) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        long idx = aiChatRepository.countByConversationId(convId);
+
+        AiChat chat = AiChat.builder()
+                .conversationId(convId)
+                .senderType(SenderType.AI)
+                .rawMessage(msg)
+                .messageIndex(idx)
+                .user(user)
+                .build();
+
+        aiChatRepository.save(chat);
+    }
+
+    public List<AiChat> loadConversation(String convId) {
+        return aiChatRepository.findByConversationIdOrderByMessageIndexAsc(convId);
+    }
+
+    public List<String> loadChatHistory(Long userId) {
+        return aiChatRepository.findConversationIdsByUser(userId);
     }
 }
