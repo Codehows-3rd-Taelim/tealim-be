@@ -19,7 +19,7 @@ public class AiChat {
     @Column(name = "ai_chat_id")
     private Long aiChatId;
 
-    @Column(name = "conversation_id", length = 10)
+    @Column(name = "conversation_id", length = 100)
     private String conversationId;
 
     @Column(name = "sender_type", length = 10)

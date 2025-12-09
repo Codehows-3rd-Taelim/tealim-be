@@ -118,6 +118,10 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    // csv 임베딩
+    implementation 'org.apache.commons:commons-csv:1.10.0'
+    implementation 'commons-io:commons-io:2.16.1'
 }
 
 tasks.named('test') {

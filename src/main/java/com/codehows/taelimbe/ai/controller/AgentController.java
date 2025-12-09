@@ -8,10 +8,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.concurrent.CompletableFuture;
@@ -97,6 +95,22 @@ public class AgentController {
                     Throwable cause = ex.getCause();
                     String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
                     return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
+                });
+    }
+
+    @PostMapping("/embeddings/upload-csv")
+    public CompletableFuture<ResponseEntity<String>> embedCsv(@RequestParam("file") MultipartFile file) {
+        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body("CSV 파일을 선택하거나 유효한 파일 형식을 확인해주세요."));
+        }
+
+        // CSV 파일 처리 로직을 EmbeddingService로 위임합니다.
+        return embeddingService.embedAndStoreCsv(file)
+                .thenApply(v -> ResponseEntity.ok("CSV 파일 임베딩 및 저장 프로세스가 성공적으로 시작되었습니다."))
+                .exceptionally(ex -> {
+                    log.error("CSV 파일 embedAndStore 작업 실행 실패", ex);
+                    return ResponseEntity.internalServerError().body("CSV 파일 처리 실패: " + ex.getMessage());
                 });
     }
 }

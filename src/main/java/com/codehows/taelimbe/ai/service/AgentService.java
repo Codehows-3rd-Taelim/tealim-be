@@ -8,13 +8,18 @@ import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * AI 에이전트와의 대화 로직을 캡슐화하는 서비스 클래스입니다.
@@ -35,6 +40,9 @@ public class AgentService {
     @Qualifier("chatAgent")
     private final Agent chatAgent;
 
+    private final EmbeddingService embeddingService;
+    private final AiChatService aiChatService;
+
     /**
      * 사용자의 메시지를 받아 AI와 대화하고, 응답을 스트리밍으로 클라이언트에게 전송합니다.
      * 이 메서드는 `SseEmitter`를 사용하여 Server-Sent Events (SSE) 방식으로 실시간 응답을 처리합니다.
@@ -48,7 +56,8 @@ public class AgentService {
         String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
                 ? UUID.randomUUID().toString()
                 : req.getConversationId();
-        createEmitter(emitter, convId, chatAgent, req.getMessage());
+        System.out.println("convId: " + convId);
+        createChatEmitter(emitter, convId, chatAgent, req.getMessage());
         return emitter;
     }
 
@@ -84,6 +93,57 @@ public class AgentService {
         Prompt prompt = template.apply(Map.of("question", req.getMessage()));
         createEmitter(emitter, convId, reportAgent, prompt.text());
         return emitter;
+    }
+
+    @Async("taskExecutor")
+    protected void createChatEmitter(
+            SseEmitter emitter,
+            String convId,
+            Agent agent, // chatAgent
+            String prompt) {
+
+        // DB에 저장할 AI 응답 전체를 담을 StringBuilder
+        StringBuilder aiResponseBuilder = new StringBuilder();
+
+        try {
+            // 1. [전처리] 사용자 질문 저장 및 메모리 로드
+            aiChatService.saveMessage(convId, "user", prompt);
+            aiChatService.loadChatMemory(convId); // LangChain4j 메모리 복원
+
+            // Agent의 chat 메서드를 호출하여 Gemini 모델과 상호작용합니다.
+            TokenStream tokenStream = agent.chat(prompt, convId);
+
+            // 첫 응답으로 대화 ID를 전송합니다.
+            emitter.send(SseEmitter.event().name("conversationId").data(convId));
+
+            // 스트리밍 응답의 각 토큰을 처리합니다.
+            tokenStream.onNext(token -> {
+                        try {
+                            // AI 응답을 스트리밍 버퍼에 추가 (후처리용)
+                            aiResponseBuilder.append(token);
+                            emitter.send(SseEmitter.event().data(token));
+                        } catch (IOException e) {
+                            log.error("SSE 토큰 전송 중 오류 발생 : {}", e.getMessage());
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    // 스트리밍 완료 시 emitter를 완료합니다.
+                    .onComplete(response -> {
+                        // 2. [후처리] AI 응답 전체를 모아서 DB에 저장
+                        aiChatService.saveMessage(convId, "ai", aiResponseBuilder.toString());
+                        emitter.complete();
+                    })
+                    // 스트리밍 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
+                    .onError(emitter::completeWithError)
+                    // 스트리밍을 시작합니다.
+                    .start();
+
+        } catch (Exception e) {
+            log.error("채팅 처리 중 오류 발생: {}", e.getMessage(), e);
+        }finally {
+            // 요청 처리 완료 후 스레드 로컬에 저장된 사용자 정보를 제거합니다.
+            emitter.complete();
+        }
     }
 
     @Async("taskExecutor")
@@ -123,4 +183,6 @@ public class AgentService {
             emitter.complete();
         }
     }
+
+
 }
