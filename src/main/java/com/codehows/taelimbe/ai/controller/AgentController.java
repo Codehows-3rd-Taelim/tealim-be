@@ -37,32 +37,36 @@ public class AgentController {
     private final SseService sseService;
 
     /**
-     * 🔥 SSE 스트림 연결 (프론트 EventSource가 여기로 연결됨)
-     */
-    @GetMapping(value = "/stream/{conversationId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter connect(@PathVariable String conversationId) {
-        return sseService.createEmitter(conversationId);
-    }
-
-    /**
-     * 🔥 메시지 전송 (SSE 스트림 반환 X, ID만 반환)
+     * 🔥 1) 메시지 전송 — SSE 반환하지 않음
+     * 대화 ID만 반환한다.
      */
     @PostMapping("/chat")
-    public ResponseEntity<String> chat(@RequestBody ChatPromptRequest req) {
+    public ResponseEntity<String> chat(@RequestBody ChatPromptRequest req,
+                                       HttpServletRequest request) {
 
-        // 대화 ID 생성 또는 기존 ID 유지
+        Long userId = Long.valueOf(request.getAttribute("userId").toString());
+
+        // 기존 conversationId 유지 or 새로 생성
         String conversationId = req.getConversationId();
         if (conversationId == null || conversationId.isBlank()) {
             conversationId = UUID.randomUUID().toString();
         }
 
-        // AI 처리 비동기 실행
-        agentService.process(conversationId, req.getMessage());
+        // 비동기 AI 처리 시작
+        agentService.process(conversationId, req.getMessage(), userId);
 
-        // 프론트는 이 ID를 받아 SSE 연결
+        // 프론트는 이 ID로 SSE에 연결
         return ResponseEntity.ok(conversationId);
     }
 
+    /**
+     * 🔥 2) SSE 스트림 연결 — 프론트 EventSource가 연결됨
+     */
+    @GetMapping(value = "/stream/{conversationId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter connect(@PathVariable String conversationId) {
+        return sseService.createEmitter(conversationId);
+    }
+}
 
 
     @PostMapping(value = "/agent/report", produces = MediaType.TEXT_EVENT_STREAM_VALUE)

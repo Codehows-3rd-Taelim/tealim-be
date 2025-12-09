@@ -40,7 +40,7 @@ public class AgentService {
 
 
     @Async("ChatAgentExecutor")
-    public void process(String conversationId, String message) {
+    public void process(String conversationId, String message, Long userId) {
 
         // LangChain4j Agent 스트리밍 호출
         TokenStream stream = chatAgent.chat(message, conversationId);
