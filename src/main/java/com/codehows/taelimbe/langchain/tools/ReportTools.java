@@ -36,8 +36,6 @@ public class ReportTools {
      * @param endDate   조회 종료 날짜 (YYYY-MM-DD 형식)
      * @return 페이징된 청소 데이터 요약 보고서 문자열 (JSON 형식)
      */
-
-
     //@Tool 메서드는 직접 호출되지 않고, LangChain4j가 런타임에 리플렉션으로 동적 호출하기 때문에 사용위치가 지금 당장은 안뜬다.
     @Tool("지정된 기간 동안의 청소 데이터를 페이징하여 가져옵니다.")
     public String getReport(String startDate, String endDate) {

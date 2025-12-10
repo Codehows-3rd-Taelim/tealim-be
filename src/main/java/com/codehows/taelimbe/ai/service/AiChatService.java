@@ -1,15 +1,11 @@
 package com.codehows.taelimbe.ai.service;
 
+import com.codehows.taelimbe.ai.constant.SenderType;
 import com.codehows.taelimbe.ai.dto.AiChatDTO;
 import com.codehows.taelimbe.ai.entity.AiChat;
 import com.codehows.taelimbe.ai.repository.AiChatRepository;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.repository.UserRepository;
-import dev.langchain4j.data.message.AiMessage;
-import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.memory.chat.ChatMemoryProvider;
-import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -18,99 +14,183 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Transactional
 @Slf4j
 public class AiChatService {
 
     private final AiChatRepository aiChatRepository;
     private final UserRepository userRepository;
-    private final ChatMemoryProvider chatMemoryProvider;
 
-    // 현재 로그인한 유저 정보 가져오기
+    // 현재 로그인한 사용자 정보 가져오기
     private User getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String username = authentication.getName();
         return userRepository.findById(username)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + username));
     }
 
-    // 본인 리포팅 조회
-    public List<AiChatDTO> getAllChats() {
-        Long userId = getCurrentUser().getUserId();
 
-        return aiChatRepository.findByUser_UserId(userId)
+
+
+    public String startNewChat(Long userId) {
+        String id = UUID.randomUUID().toString();
+
+        AiChat chat = AiChat.builder()
+                .conversationId(id)
+                .user(userRepository.findById(userId).orElseThrow())
+                // 메시지는 넣지 않음!!
+                .build();
+
+
+        return id;
+    }
+
+
+    /**
+     * AI 응답 메시지 저장
+     */
+    public AiChat saveAgentMessage(String conversationId, String response) {
+        User user = getCurrentUser();
+        Long nextMessageIndex = aiChatRepository.findMaxMessageIndexByConversationId(conversationId) + 1;
+
+        AiChat agentChat = AiChat.builder()
+                .conversationId(conversationId)
+                .senderType(SenderType.AI)
+                .rawMessage(response)
+                .messageIndex(nextMessageIndex)
+                .user(user)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return aiChatRepository.save(agentChat);
+    }
+
+    /**
+     * 특정 대화의 모든 메시지 조회
+     */
+    @Transactional(readOnly = true)
+    public List<AiChatDTO> getChatHistory(String conversationId) {
+        return aiChatRepository.findByConversationIdOrderByMessageIndex(conversationId)
                 .stream()
                 .map(AiChatDTO::from)
                 .collect(Collectors.toList());
     }
 
     /**
-     * 새로운 메시지를 데이터베이스에 저장합니다.
-     * messageIndex를 결정하기 위해 현재 conversationId의 메시지 수를 계산합니다.
-     *
-     * @param conversationId 대화 ID
-     * @param senderType     송신자 타입 ("user" 또는 "ai")
-     * @param rawMessage     원본 메시지 텍스트
-     * @return 저장된 AiChat 엔티티
+     * 사용자의 대화 목록 조회 (최신순)
+     * 각 대화의 첫 번째 메시지를 대화 제목으로 사용
      */
-    @Transactional
-    public AiChat saveMessage(String conversationId, String senderType, String rawMessage) {
-        User currentUser = getCurrentUser();
-        System.out.println(currentUser.getUsername());
-        LocalDateTime now = LocalDateTime.now();
+    @Transactional(readOnly = true)
+    public List<AiChatDTO> getUserChatList() {
+        User user = getCurrentUser();
+        List<String> conversationIds = aiChatRepository.findConversationIdsByUserId(user.getUserId());
 
-        // 현재 대화 ID의 메시지 수를 세어 새로운 messageIndex를 결정합니다.
-        Long nextMessageIndex = aiChatRepository.countByConversationIdAndUser_UserId(conversationId, currentUser.getUserId()) + 1;
+        // 대화 자체가 하나도 없으면 빈 배열 반환
+        if (conversationIds == null || conversationIds.isEmpty()) {
+            return Collections.emptyList();
+        }
 
-        AiChat aiChat = AiChat.builder()
-                .conversationId(conversationId)
-                .senderType(senderType)
-                .rawMessage(rawMessage)
-                .createdAt(now)
-                .messageIndex(nextMessageIndex)
-                .user(currentUser)
-                .build();
+        return conversationIds.stream()
+                .map(convId -> {
+                    List<AiChat> messages = aiChatRepository.findByConversationIdOrderByMessageIndex(convId);
 
-        return aiChatRepository.save(aiChat);
+                    // 메시지가 하나도 없으면 null 결과 대신 skip
+                    if (messages == null || messages.isEmpty()) {
+                        return null; // 이 뒤에 filter로 걸러짐
+                    }
+
+                    AiChat firstMessage = messages.stream()
+                            .filter(msg -> msg.getSenderType() == SenderType.USER)
+                            .findFirst()
+                            .orElse(messages.get(0)); // 이제 안전함 (messages가 empty 아닌 상태로 들어오기 때문)
+
+                    return AiChatDTO.from(firstMessage);
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+
+    /**
+     * 특정 매장의 모든 대화 조회 (관리자용)
+     */
+    @Transactional(readOnly = true)
+    public List<AiChatDTO> getStoreChatHistory(Long storeId) {
+        return aiChatRepository.findByStoreIdOrderByCreatedAtDesc(storeId)
+                .stream()
+                .map(AiChatDTO::from)
+                .collect(Collectors.toList());
     }
 
     /**
-     * 특정 대화 ID의 기존 채팅 기록을 불러와 LangChain4j의 ChatMemory에 복원합니다.
-     * * @param conversationId 대화 ID
-     * @return 복원된 ChatMemory (MessageWindowChatMemory)
+     * 대화 메시지 삭제 (대화 전체 삭제)
      */
-    public MessageWindowChatMemory loadChatMemory(String conversationId) {
-        // ChatMemoryProvider를 통해 ChatMemory 인스턴스를 가져옵니다.
-        MessageWindowChatMemory chatMemory = (MessageWindowChatMemory) chatMemoryProvider.get(conversationId);
+    public void deleteConversation(String conversationId) {
+        List<AiChat> chats = aiChatRepository.findByConversationIdOrderByMessageIndex(conversationId);
+        aiChatRepository.deleteAll(chats);
+        log.info("대화 '{}' 삭제 완료", conversationId);
+    }
 
-        // 현재 LangChain4j 메모리에 메시지가 없다면 DB에서 불러와 채웁니다.
-        if (chatMemory.messages().isEmpty()) {
-            Long userId = getCurrentUser().getUserId();
-            List<AiChat> chats = aiChatRepository.findByConversationIdAndUser_UserIdOrderByMessageIndexAsc(conversationId, userId);
+    /**
+     * 특정 메시지 삭제
+     */
+    public void deleteChatMessage(Long aiChatId) {
+        aiChatRepository.deleteById(aiChatId);
+        log.info("메시지 '{}' 삭제 완료", aiChatId);
+    }
 
-            for (AiChat chat : chats) {
-                ChatMessage message;
+    /** USER 메시지 저장 */
+    public void saveUserMessage(String convId, Long userId, String msg) {
+        log.info("🔍 [saveUserMessage] START convId={}, userId={}, msg={}", convId, userId, msg);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-                // senderType에 따라 LangChain4j 메시지 객체로 변환
-                if ("user".equalsIgnoreCase(chat.getSenderType())) {
-                    message = UserMessage.from(chat.getRawMessage());
-                } else if ("ai".equalsIgnoreCase(chat.getSenderType())) {
-                    message = AiMessage.from(chat.getRawMessage());
-                } else {
-                    // System 메시지 등 다른 타입은 기본적으로 User 메시지로 처리하거나 무시
-                    log.warn("Unknown senderType: {} in conversation {}", chat.getSenderType(), conversationId);
-                    continue;
-                }
+        long idx = aiChatRepository.countByConversationId(convId);
+        log.info("🔍 [saveUserMessage] nextIndex={}", idx);
 
-                // ChatMemory에 메시지를 추가합니다.
-                chatMemory.add(message);
-            }
-        }
-        return chatMemory;
+        AiChat chat = AiChat.builder()
+                .conversationId(convId)
+                .senderType(SenderType.USER)
+                .rawMessage(msg)
+                .messageIndex(idx)
+                .user(user)
+                .build();
+
+        aiChatRepository.save(chat);
+    }
+
+    /** AI 메시지 저장 */
+    public void saveAiMessage(String convId, Long userId, String msg) {
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        long idx = aiChatRepository.countByConversationId(convId);
+
+        AiChat chat = AiChat.builder()
+                .conversationId(convId)
+                .senderType(SenderType.AI)
+                .rawMessage(msg)
+                .messageIndex(idx)
+                .user(user)
+                .build();
+
+        aiChatRepository.save(chat);
+    }
+
+    public List<AiChat> loadConversation(String convId) {
+        return aiChatRepository.findByConversationIdOrderByMessageIndexAsc(convId);
+    }
+
+    public List<String> loadChatHistory(Long userId) {
+        return aiChatRepository.findConversationIdsByUser(userId);
     }
 }

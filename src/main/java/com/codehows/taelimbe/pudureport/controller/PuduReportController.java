@@ -64,6 +64,7 @@ public class PuduReportController {
     }
 
     // 로봇별 Report 조회
+    // sn으로 상세 보고서 목록 가져오기
     @GetMapping("/list/robot/{sn}")
     public ResponseEntity<List<PuduReportDTO>> getReportsByRobotSn(@PathVariable String sn) {
         return ResponseEntity.ok(puduReportService.getReportsByRobotSn(sn));

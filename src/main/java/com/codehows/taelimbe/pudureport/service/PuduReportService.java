@@ -121,9 +121,6 @@ public class PuduReportService {
                 .sum();
     }
 
-
-
-
     // db에서 상세 보고서 목록 가져오기
     public List<PuduReportDTO> getAllReports(){
         return puduReportRepository.findAll().stream()

@@ -68,7 +68,7 @@ dependencies {
     implementation 'com.google.genai:google-genai:1.28.0'
 
     implementation 'dev.langchain4j:langchain4j-milvus:0.31.0'
-    implementation platform('io.grpc:grpc-bom:1.59.1') 
+    implementation platform('io.grpc:grpc-bom:1.59.1')
     implementation 'io.grpc:grpc-api'
     implementation 'io.grpc:grpc-core'
     implementation 'io.grpc:grpc-protobuf'

@@ -33,7 +33,8 @@ public class SecurityConfig {
                         ((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login").permitAll()
-                        .anyRequest().authenticated())
+                        .anyRequest().permitAll()) //나중에 꼭 지우기
+                        //.anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling((ex) -> ex.authenticationEntryPoint(authEntryPoint));
         return http.build();

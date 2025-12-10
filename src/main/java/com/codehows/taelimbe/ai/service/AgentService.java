@@ -2,6 +2,7 @@ package com.codehows.taelimbe.ai.service;
 
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.langchain.Agent;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.service.TokenStream;
@@ -32,6 +33,8 @@ import java.util.concurrent.CompletableFuture;
 @RequiredArgsConstructor
 @Slf4j
 public class AgentService {
+    private final SseService sseService;
+    private final AiChatService aiChatService;
 
     // LangChain4j Agent 인터페이스의 구현체를 주입받습니다.
     @Qualifier("reportAgent")
@@ -40,34 +43,45 @@ public class AgentService {
     @Qualifier("chatAgent")
     private final Agent chatAgent;
 
-    private final EmbeddingService embeddingService;
-    private final AiChatService aiChatService;
 
-    /**
-     * 사용자의 메시지를 받아 AI와 대화하고, 응답을 스트리밍으로 클라이언트에게 전송합니다.
-     * 이 메서드는 `SseEmitter`를 사용하여 Server-Sent Events (SSE) 방식으로 실시간 응답을 처리합니다.
-     *
-     * @param req 사용자 메시지와 대화 ID를 포함하는 요청 DTO
-     * @return `SseEmitter` 객체. 클라이언트에게 이벤트를 스트리밍하는 데 사용됩니다.
-     */
-    public SseEmitter chat(ChatPromptRequest req) {
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-        // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
-        String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
-                ? UUID.randomUUID().toString()
-                : req.getConversationId();
-        System.out.println("convId: " + convId);
-        createChatEmitter(emitter, convId, chatAgent, req.getMessage());
-        return emitter;
+    @Async
+    public void process(String conversationId, String message, Long userId) {
+
+        log.info("🔍 [process] START conversationId={}, userId={}, msg={}", conversationId, userId, message);
+
+        // 1) 사용자 메시지 저장
+        aiChatService.saveUserMessage(conversationId, userId, message);
+
+        // 2) TokenStream 가져오기
+        TokenStream stream = chatAgent.chat(message, conversationId);
+
+        StringBuilder aiBuilder = new StringBuilder();
+
+        // 3) 토큰 스트리밍 시작
+        stream.onNext(token -> {
+                    log.info("🔍 token = {}", token);
+                    aiBuilder.append(token);
+                    sseService.send(conversationId, token);
+                })
+                .onComplete(finalResponse -> {
+                    log.info("🔍 [process] onComplete 호출됨");
+                    aiChatService.saveAiMessage(conversationId, userId, aiBuilder.toString());
+                })
+                .onError(e -> {
+                    log.error("AI 스트림 오류", e);
+                })
+                .start();  
     }
+    public SseEmitter report(ChatPromptRequest req, Long userId) {
 
-    public SseEmitter report(ChatPromptRequest req) {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+
         // 현재 스레드에 사용자 이름을 설정하여, 도구 호출 등에서 사용자 컨텍스트를 활용할 수 있도록 합니다.
         // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
         String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
                 ? UUID.randomUUID().toString()
                 : req.getConversationId();
+
         PromptTemplate template = PromptTemplate.from("""
                   제공받은 데이터셋을 분석하여, 전체 요약과 상세 보고서를 모두 포함하는 마크다운 형식의 리포트를 생성하세요.\\n\\
                   리포트는 다음 항목을 포함해야 합니다:\\n\\
@@ -90,8 +104,11 @@ public class AgentService {
                   이제 다음의 질문에 답변해주세요.\\n\\
                   {{question}}
                 """); // 설정 값 사용
+
         Prompt prompt = template.apply(Map.of("question", req.getMessage()));
-        createEmitter(emitter, convId, reportAgent, prompt.text());
+
+        createEmitter(emitter, convId, reportAgent, prompt.text(), userId);
+
         return emitter;
     }
 
@@ -151,38 +168,52 @@ public class AgentService {
             SseEmitter emitter,
             String convId,
             Agent agent,
-            String prompt) {
+            String prompt,
+            Long userId) {
+
         try {
             // Agent의 chat 메서드를 호출하여 Gemini 모델과 상호작용합니다.
             // 스트리밍 방식으로 응답을 받으며, 각 토큰을 클라이언트에게 전송합니다.
             TokenStream tokenStream = agent.chat(prompt, convId);
+
+            // AI 메시지 누적 버퍼
+            StringBuilder aiBuilder = new StringBuilder();
+
             // 첫 응답으로 대화 ID를 전송합니다.
             emitter.send(SseEmitter.event().name("conversationId").data(convId));
+
             // 스트리밍 응답의 각 토큰을 처리합니다.
             tokenStream.onNext(token -> {
-                try {
-                    // 각 토큰을 SSE 이벤트로 클라이언트에게 전송합니다.
-                    emitter.send(SseEmitter.event().data(token));
-                } catch (IOException e) {
-                    // 토큰 전송 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
-                    log.error("SSE 토큰 전송 중 오류 발생: {}", e.getMessage());
-                    emitter.completeWithError(e);
-                }
-            })
-            // 스트리밍 완료 시 emitter를 완료합니다.
-            .onComplete(response -> emitter.complete())
-            // 스트리밍 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
-            .onError(emitter::completeWithError)
-            // 스트리밍을 시작합니다.
-            .start();
+                        try {
+                            aiBuilder.append(token);
+                            // 각 토큰을 SSE 이벤트로 클라이언트에게 전송합니다.
+                            emitter.send(SseEmitter.event().data(token));
+                        } catch (IOException e) {
+                            // 토큰 전송 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
+                            log.error("SSE 토큰 전송 중 오류 발생: {}", e.getMessage());
+                            emitter.completeWithError(e);
+                        }
+                    })
+                    // 스트리밍 완료 시 AI 메시지 저장만 수행합니다.
+                    .onComplete(response -> {
+                        aiChatService.saveAiMessage(convId, userId, aiBuilder.toString());
+
+                        // 스트림 정상 종료
+                        emitter.complete();
+
+                    })
+                    // 스트리밍 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
+                    .onError(emitter::completeWithError)
+                    // 스트리밍을 시작합니다.
+                    .start();
+
         } catch (Exception e) {
             // 예외 발생 시 emitter를 오류와 함께 완료합니다.
             log.error("채팅 처리 중 오류 발생: {}", e.getMessage(), e);
-        }finally {
-            // 요청 처리 완료 후 스레드 로컬에 저장된 사용자 정보를 제거합니다.
-            emitter.complete();
+            emitter.completeWithError(e);
+//        } finally {
+//            // 요청 처리 완료 후 스레드 로컬에 저장된 사용자 정보를 제거합니다.
+//            emitter.complete();   // ← 네가 원한 그대로 유지
         }
     }
-
-
 }

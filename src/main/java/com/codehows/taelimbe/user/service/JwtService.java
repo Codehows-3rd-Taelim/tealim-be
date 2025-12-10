@@ -33,13 +33,32 @@ public class JwtService {
     }
 
     // loginId(ID)를 받아서 JWT 생성
-    public String generateToken(String loginId) {
+    public String generateToken(String username, Long userId) {
         return Jwts.builder()
-                .setSubject(loginId)
-                .setExpiration(new Date(System.currentTimeMillis() + expirationTime))
-                .signWith(signingKey, SignatureAlgorithm.HS256)
+                .setSubject(username)
+                .claim("userId", userId)   // userId 포함!
+                .setIssuedAt(new Date())
+                .setExpiration(new Date(System.currentTimeMillis() + expirationTime)) // ← 수정
+                .signWith(signingKey, SignatureAlgorithm.HS256) // ← 수정
                 .compact();
     }
+
+    public Long extractUserId(String token) {
+        try {
+            JwtParser parser = Jwts.parserBuilder()
+                    .setSigningKey(signingKey)
+                    .build();
+
+            return parser.parseClaimsJws(token.replace("Bearer ", ""))
+                    .getBody()
+                    .get("userId", Long.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+
+
 
     // JWT를 받아서 id(ID)를 반환
     public String parseToken(HttpServletRequest request) {
