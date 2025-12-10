@@ -194,4 +194,8 @@ public class StoreService {
         return newCount;
     }
 
+    public List<Store> findAllStores() {
+        return storeRepository.findAll();
+    }
+
 }

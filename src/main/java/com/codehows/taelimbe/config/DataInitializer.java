@@ -118,6 +118,18 @@ public class DataInitializer implements CommandLineRunner {
                     .store(defaultStore) // Store 객체 할당
                     .build();
 
+            User manager = User.builder()
+                    .id("manager")
+                    .pw(passwordEncoder.encode("test1234"))
+                    .name("매니저")
+                    .phone("010-2222-3333")
+                    .email("manager1@test.com")
+                    .role(Role.MANAGER)
+                    .store(defaultStore)  // 첫 번째 매장 연결
+                    .build();
+
+            userRepository.save(manager);
+
             userRepository.save(admin);
             System.out.println("Admin User (ID: admin) initialized successfully.");
         }

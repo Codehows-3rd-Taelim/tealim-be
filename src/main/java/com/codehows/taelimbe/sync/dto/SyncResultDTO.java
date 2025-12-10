@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.sync;
+package com.codehows.taelimbe.sync.dto;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.*;
