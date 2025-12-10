@@ -17,6 +17,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,6 +35,22 @@ public class AiChatService {
         String username = authentication.getName();
         return userRepository.findById(username)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + username));
+    }
+
+
+
+
+    public String startNewChat(Long userId) {
+        String id = UUID.randomUUID().toString();
+
+        AiChat chat = AiChat.builder()
+                .conversationId(id)
+                .user(userRepository.findById(userId).orElseThrow())
+                // 메시지는 넣지 않음!!
+                .build();
+
+
+        return id;
     }
 
 

@@ -38,14 +38,11 @@ public class JwtFilter extends OncePerRequestFilter
         // 필터 ==> 요청, 응답을 중간에서 가로챈 다음 ==> 필요한 동작을 수행
         // 1. 요청 헤더 (Authorization)에서 JWT 토큰을 꺼냄
         String jwtToken = request.getHeader(HttpHeaders.AUTHORIZATION);
-        log.info("🔍 [JWT] Authorization = {}", jwtToken);//나중에 지울거
-
 
         if (jwtToken != null)
         {
             // 2. 꺼낸 토큰에서 유저 정보 추출
             String id = jwtService.parseToken(request);
-            log.info("🔍 [JWT] parsedTokenUserId = {}", id);//나중에 지울거
 
             // 2) userId(claim) 추출
             Long userId = jwtService.extractUserId(jwtToken);
@@ -53,14 +50,18 @@ public class JwtFilter extends OncePerRequestFilter
             // 3. 추출된 유저 정보로 Authentication 을 만들어서 SecurityContext에 set
             if(id != null)
             {
-                Authentication authentication =
+                UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(id, null, Collections.emptyList());
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                authentication.setDetails(userId);
             }
+
+
 
             // Controller 에서 userId 사용할 수 있도록 저장
             request.setAttribute("userId", userId);
-            log.info("🔍 [JWT] request.setAttribute userId = {}", request.getAttribute("userId")); //나중에 지울거
+
 
         }
         // 마지막에 다음 필터를 호출

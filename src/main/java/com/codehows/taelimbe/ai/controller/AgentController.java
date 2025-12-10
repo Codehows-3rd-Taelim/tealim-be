@@ -10,9 +10,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -54,23 +57,16 @@ public class AgentController {
             HttpServletRequest request
     ) {
 
-        // ★ 추가된 로그 — 너 코드 그대로 유지
-        log.info("🔍 [chat] request.getAttribute(\"userId\") = {}", request.getAttribute("userId"));
-        log.info("🔍 [chat] req.getConversationId() = {}", req.getConversationId());
-        log.info("🔍 [chat] req.getMessage() = {}", req.getMessage());
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
 
-        Long userId = Long.valueOf(request.getAttribute("userId").toString());
-        log.info("🔍 [chat] parsed userId = {}", userId);
+        Long userId = (Long) authentication.getDetails();
 
         String conversationId = req.getConversationId();
-        log.info("🔍 [chat] incoming conversationId = {}", conversationId);
+
         if (conversationId == null || conversationId.isBlank()) {
             conversationId = UUID.randomUUID().toString();
-
-            // ★ 여기만 추가
-            log.info("🔍 [chat] generated new conversationId = {}", conversationId);
         }
-        log.info("🔍 [chat] calling agentService.process()");
         agentService.process(conversationId, req.getMessage(), userId);
 
         return ResponseEntity.ok(conversationId);
@@ -87,6 +83,7 @@ public class AgentController {
     public SseEmitter connect(@PathVariable String conversationId) {
         return sseService.createEmitter(conversationId);
     }
+
 
     /**
      * ------------------------------------------------------------
@@ -138,4 +135,5 @@ public class AgentController {
                     return ResponseEntity.internalServerError().body(ex.getMessage());
                 });
     }
+
 }

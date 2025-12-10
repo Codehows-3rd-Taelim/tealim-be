@@ -5,9 +5,12 @@ import com.codehows.taelimbe.ai.service.AiChatService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @RestController
@@ -50,5 +53,17 @@ public class AiChatController {
             return ResponseEntity.internalServerError()
                     .body("대화 삭제 중 오류가 발생했습니다.");
         }
+    }
+
+    @PostMapping("/new/chat")
+    public ResponseEntity<?> startNewChat() {
+
+        Authentication authentication =
+                SecurityContextHolder.getContext().getAuthentication();
+
+        Long userId = (Long) authentication.getDetails();
+        String conversationId = aiChatService.startNewChat(userId);
+
+        return ResponseEntity.ok(Map.of("conversationId", conversationId));
     }
 }
