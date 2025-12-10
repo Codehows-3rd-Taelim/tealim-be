@@ -38,12 +38,20 @@ public class RobotService {
 
         List<RobotDTO> robots = getRobotListByShop(shopId);
 
-        int cnt = 0;
+        int newCount = 0;
+
         for (RobotDTO dto : robots) {
+            Robot existing = robotRepository.findBySn(dto.getSn()).orElse(null);
+            boolean isNew = (existing == null);
             saveRobot(dto, store);
-            cnt++;
+            if (isNew) {
+                newCount++;
+            }
+
+
+
         }
-        return cnt;
+        return newCount;
     }
 
     // 모든 매장의 로봇 동기화
@@ -55,7 +63,7 @@ public class RobotService {
         System.out.println("\n===== Sync All Stores Robots =====");
         System.out.println("Total Stores: " + stores.size());
 
-        int totalCount = 0;
+        int newTotal = 0;
 
         for (Store store : stores) {
             System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
@@ -64,7 +72,7 @@ public class RobotService {
                 int count = syncRobots(RobotSyncRequestDTO.builder()
                         .storeId(store.getStoreId())
                         .build());
-                totalCount += count;
+                newTotal += count;
                 System.out.println("Store " + store.getStoreId() + " Synced: " + count + " robots");
             } catch (Exception e) {
                 System.out.println("Error syncing store " + store.getStoreId() + ": " + e.getMessage());
@@ -73,10 +81,10 @@ public class RobotService {
         }
 
         System.out.println("\n===== All Stores Robot Sync Complete =====");
-        System.out.println("Total Synced: " + totalCount);
+        System.out.println("Total New Robots: " + newTotal);
         System.out.println("==========================================\n");
 
-        return totalCount;
+        return newTotal;
     }
 
 

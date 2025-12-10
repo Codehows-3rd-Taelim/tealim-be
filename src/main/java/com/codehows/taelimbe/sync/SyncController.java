@@ -66,8 +66,8 @@ public class SyncController {
 
             int report = puduReportService.syncAllStoresByTimeRange(timeReq);
 
-            return ResponseEntity.ok("[ADMIN] 전체동기화 완료 → " +
-                    "Store:"+store+" / Robot:"+robot+" / Report:"+report);
+            return ResponseEntity.ok("[ADMIN] 동기화 완료 → " +
+                    "Store:"+store+" / Robot:"+robot+" / Report:"+report + "개가 추가되었습니다");
         }
 
         // manager, employee
@@ -77,7 +77,6 @@ public class SyncController {
         int robot = robotService.syncRobots(new RobotSyncRequestDTO(storeId));
         int report = puduReportService.syncSingleStoreByTimeRange(req);
 
-        return ResponseEntity.ok("[USER/MANAGER] 매장:" + storeId + " Sync 완료 → " +
-                "Robot:"+robot+" / Report:"+report);
+        return ResponseEntity.ok("[USER/MANAGER] 동기화 완료 -> " + "매장:" + storeId + "Robot:"+robot+" / Report:"+report + "개가 추가되었습니다");
     }
 }
