@@ -22,4 +22,5 @@ public class RobotDTO {
     private String softVersion;
 
     private Long storeId;
+    private Integer isCharging;
 }

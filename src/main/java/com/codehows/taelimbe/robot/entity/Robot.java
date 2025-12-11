@@ -33,6 +33,9 @@ public class Robot {
     private String productCode;
     private String softVersion;
 
+    @Column(name = "is_charging")
+    private Integer isCharging;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "store_id")
     private Store store;
@@ -46,13 +49,14 @@ public class Robot {
 
     // ================= Update Methods =================
     public void updateRobotInfo(String nickname, boolean online, int battery,
-                                int status, String productCode, String softVersion) {
+                                int status, String productCode, String softVersion, Integer isCharging) {
         this.nickname = nickname;
         this.online = online;
         this.battery = battery;
         this.status = status;
         this.productCode = productCode;
         this.softVersion = softVersion;
+        this.isCharging = isCharging;
     }
 
     public void changeStore(Store store) {
