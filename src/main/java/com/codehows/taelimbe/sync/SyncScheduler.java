@@ -24,28 +24,18 @@ public class SyncScheduler {
     private final PuduReportService puduReportService;
     private final SyncRecordService syncRecordService;
 
-    /** 매장/로봇 전체동기화 */
     @Scheduled(cron = "0 0 0/3 * * *", zone = "Asia/Seoul")
-    public void syncStoresAndRobots() {
+    public void syncScheduler() {
 
         LocalDateTime syncTime = LocalDateTime.now();
 
+        // 1) 매장 전체
         storeService.syncAllStores();
+
+        // 2) 로봇 전체
         robotService.syncAllStoresRobots();
 
-        List<Store> stores = storeService.findAllStores();
-        for (Store store : stores) {
-            Long sid = store.getStoreId();
-            syncRecordService.updateStoreSyncTime(sid, syncTime);
-            syncRecordService.updateGlobalSyncTime(sid, syncTime);
-        }
-    }
-
-    /** 리포트 전체동기화 */
-    @Scheduled(cron = "0 0 1/3 * * *", zone = "Asia/Seoul")
-    public void syncReports() {
-
-        LocalDateTime syncTime = LocalDateTime.now();
+        // 3) 보고서 전체
         LocalDateTime end = LocalDateTime.now();
         LocalDateTime start = end.minusHours(3);
 
@@ -57,11 +47,14 @@ public class SyncScheduler {
 
         puduReportService.syncAllStoresByTimeRange(req);
 
+        // 4) SyncRecord 업데이트
         List<Store> stores = storeService.findAllStores();
-        for (Store store : stores) {
-            Long sid = store.getStoreId();
+        for (Store s : stores) {
+            Long sid = s.getStoreId();
             syncRecordService.updateStoreSyncTime(sid, syncTime);
             syncRecordService.updateGlobalSyncTime(sid, syncTime);
         }
+
     }
 }
+
