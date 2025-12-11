@@ -22,35 +22,14 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@RequestMapping("/api")   // ✔ 너 원래 코드 그대로
+@RequestMapping("")   // ✔ 너 원래 코드 그대로
 public class AgentController {
 
     private final AgentService agentService;
     private final SseService sseService;
     private final EmbeddingService embeddingService;
 
-    /**
-     * ------------------------------------------------------------
-     * 1) 메시지 전송 (SSE emitter 반환 X)
-     * POST /api/agent/chat
-     * ------------------------------------------------------------
-     */
-//    @PostMapping("/agent/chat")
-//    public ResponseEntity<String> chat(
-//            @RequestBody ChatPromptRequest req,
-//            HttpServletRequest request
-//    ) {
-//        Long userId = Long.valueOf(request.getAttribute("userId").toString());
-//
-//        String conversationId = req.getConversationId();
-//        if (conversationId == null || conversationId.isBlank()) {
-//            conversationId = UUID.randomUUID().toString();
-//        }
-//
-//        agentService.process(conversationId, req.getMessage(), userId);
-//
-//        return ResponseEntity.ok(conversationId);
-//    }
+
     @PostMapping("/agent/chat")
     public ResponseEntity<String> chat(
             @RequestBody ChatPromptRequest req,

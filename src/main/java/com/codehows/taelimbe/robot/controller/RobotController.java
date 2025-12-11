@@ -11,7 +11,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/robot")
+@RequestMapping("/robot")
 public class RobotController {
 
     private final RobotService robotService;
