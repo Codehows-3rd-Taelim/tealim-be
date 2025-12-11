@@ -24,80 +24,44 @@ public class SyncScheduler {
     private final PuduReportService puduReportService;
     private final SyncRecordService syncRecordService;
 
-    /**
-     * 매장 전체 동기화 + 로봇 전체 동기화
-     * (00, 03, 06, 09, 12, 15, 18, 21시)
-     */
+    /** 매장/로봇 전체동기화 */
     @Scheduled(cron = "0 0 0/3 * * *", zone = "Asia/Seoul")
-    public void syncStoresAndRobotsScheduled() {
+    public void syncStoresAndRobots() {
 
-        LocalDateTime syncStartTime = LocalDateTime.now();
-        System.out.println("\n[SCHEDULER] === Store + Robot Sync Start === " + syncStartTime);
+        LocalDateTime syncTime = LocalDateTime.now();
 
-        try {
-            // 1) 실동기화
-            int storeCount = storeService.syncAllStores();
-            int robotCount = robotService.syncAllStoresRobots();
+        storeService.syncAllStores();
+        robotService.syncAllStoresRobots();
 
-            System.out.println("[SCHEDULER] Store Sync Completed → " + storeCount + " stores");
-            System.out.println("[SCHEDULER] Robot Sync Completed → " + robotCount + " robots");
-
-            // 2) 모든 매장의 동기화 시간 기록
-            List<Store> stores = storeService.findAllStores();
-            for (Store store : stores) {
-                syncRecordService.updateStoreSyncTime(store.getStoreId(), syncStartTime);
-            }
-
-            // 3) 관리자(Admin, storeId=0)의 동기화 시간 기록
-            syncRecordService.updateAdminSyncTime(syncStartTime);
-
-            System.out.println("[SCHEDULER] === Store + Robot Sync FINISHED ===\n");
-
-        } catch (Exception e) {
-            System.out.println("[SCHEDULER] Store+Robot Sync FAILED : " + e.getMessage());
-            e.printStackTrace();
+        List<Store> stores = storeService.findAllStores();
+        for (Store store : stores) {
+            Long sid = store.getStoreId();
+            syncRecordService.updateStoreSyncTime(sid, syncTime);
+            syncRecordService.updateGlobalSyncTime(sid, syncTime);
         }
     }
 
-    /**
-     * 보고서 전체 동기화
-     * (01, 04, 07, 10, 13, 16, 19, 22시)
-     */
+    /** 리포트 전체동기화 */
     @Scheduled(cron = "0 0 1/3 * * *", zone = "Asia/Seoul")
-    public void syncReportsScheduled() {
+    public void syncReports() {
 
-        LocalDateTime syncStartTime = LocalDateTime.now();
-        System.out.println("\n[SCHEDULER] === Report Sync Start === " + syncStartTime);
+        LocalDateTime syncTime = LocalDateTime.now();
+        LocalDateTime end = LocalDateTime.now();
+        LocalDateTime start = end.minusHours(3);
 
-        try {
-            LocalDateTime end = LocalDateTime.now();
-            LocalDateTime start = end.minusHours(3);
+        TimeRangeSyncRequestDTO req = TimeRangeSyncRequestDTO.builder()
+                .startTime(start)
+                .endTime(end)
+                .timezoneOffset(0)
+                .build();
 
-            // 1) 보고서 전체 동기화
-            int count = puduReportService.syncAllStoresByTimeRange(
-                    TimeRangeSyncRequestDTO.builder()
-                            .startTime(start)
-                            .endTime(end)
-                            .timezoneOffset(0)
-                            .build()
-            );
+        puduReportService.syncAllStoresByTimeRange(req);
 
-            System.out.println("[SCHEDULER] Report Sync Completed → " + count + " reports");
-
-            // 2) 각 매장 동기화 시간 기록
-            List<Store> stores = storeService.findAllStores();
-            for (Store store : stores) {
-                syncRecordService.updateStoreSyncTime(store.getStoreId(), syncStartTime);
-            }
-
-            // 3) Admin 전체 시스템 동기화 기록
-            syncRecordService.updateAdminSyncTime(syncStartTime);
-
-            System.out.println("[SCHEDULER] === Report Sync FINISHED ===\n");
-
-        } catch (Exception e) {
-            System.out.println("[SCHEDULER] Report Sync FAILED : " + e.getMessage());
-            e.printStackTrace();
+        List<Store> stores = storeService.findAllStores();
+        for (Store store : stores) {
+            Long sid = store.getStoreId();
+            syncRecordService.updateStoreSyncTime(sid, syncTime);
+            syncRecordService.updateGlobalSyncTime(sid, syncTime);
         }
     }
 }

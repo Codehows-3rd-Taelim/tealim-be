@@ -7,5 +7,5 @@ import java.util.Optional;
 
 public interface SyncRecordRepository extends JpaRepository<SyncRecord, Long> {
 
-    Optional<SyncRecord> findByStoreId(Long storeId);
+    Optional<SyncRecord> findByStore_StoreId(Long storeId);
 }
