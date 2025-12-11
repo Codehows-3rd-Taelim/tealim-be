@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.ai.dto.aiReport;
+package com.codehows.taelimbe.ai.dto;
 
 import com.codehows.taelimbe.ai.entity.AiReport;
 
@@ -41,7 +41,6 @@ public class AiReportDTO {
                 .build();
     }
 
-
     // from으로 가져오면 rawReport까지 get 해야해서 용량이 너무 많아진다 rawReport는 따로 관리
     public static AiReportDTO fromProjection(AiReportMetaProjection projection) { // 🚨 AiReportMetaDTO -> AiReportMetaProjection
         return AiReportDTO.builder()
@@ -52,13 +51,6 @@ public class AiReportDTO {
                 .createdAt(projection.getCreatedAt())
                 .rawMessage(projection.getRawMessage())
                 .name(projection.getName())
-                // rawReport 필드는 Projection에 없으므로 비워둠
-                .build();
-    }
-
-    public static AiReportDTO fromRawReport(RawReportProjection rawReportProjection) { // 🚨 RawReportDTO -> RawReportProjection
-        return AiReportDTO.builder()
-                .rawReport(rawReportProjection.getRawReport())
                 .build();
     }
 }

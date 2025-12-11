@@ -35,20 +35,26 @@ public class AiReportService {
     // 전체 리포트 조회 (권한에 따라 필터링)
     public List<AiReportMetaProjection> getAllReports() {
         User currentUser = getCurrentUser();
+        Role role = currentUser.getRole();
 
-        if (currentUser.getRole() == Role.ADMIN) {
+        if (role == Role.ADMIN) {
+            // 관리자 → 전체 보고서
             return aiReportRepository.findAllMetaOrderByCreatedAtDesc();
-        } else {
-            Long storeId = currentUser.getStore().getStoreId();
-            return aiReportRepository.findMetaByStoreIdOrderByCreatedAtDesc(storeId);
         }
+
+        if (role == Role.MANAGER) {
+            // 매장 담당자 → 같은 매장 + ADMIN 제외
+            Long storeId = currentUser.getStore().getStoreId();
+            return aiReportRepository.findMetaByStoreExcludingAdmin(storeId);
+        }
+
+        // 일반 사용자(USER) → 본인이 작성한 보고서만
+        return aiReportRepository.findMetaByUserId(currentUser.getUserId());
     }
 
-    public RawReportProjection getrawReport (Long reportId) {
-        RawReportProjection rawReport = aiReportRepository.findRawReportById(reportId)
+    public RawReportProjection getRawReport(Long reportId) {
+        return aiReportRepository.findRawReportById(reportId)
                 .orElseThrow(() -> new RuntimeException("보고서를 찾을 수 없습니다. ID: " + reportId));
-
-        return rawReport; // 💡 조회된 Projection 인스턴스를 그대로 반환
     }
 
 

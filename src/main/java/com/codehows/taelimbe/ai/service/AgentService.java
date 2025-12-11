@@ -1,10 +1,11 @@
 package com.codehows.taelimbe.ai.service;
 
-import com.codehows.taelimbe.ai.dto.aiReport.AiReportDTO;
+import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.repository.MapStatsProjection;
 import com.codehows.taelimbe.ai.repository.ReportSummaryProjection;
 import com.codehows.taelimbe.ai.entity.AiReport;
+import com.codehows.taelimbe.ai.util.DateRangeParser;
 import com.codehows.taelimbe.langchain.Agent;
 import com.codehows.taelimbe.report.repository.ReportRepository;
 import com.codehows.taelimbe.robot.entity.Robot;
@@ -17,6 +18,7 @@ import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.service.TokenStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
@@ -31,8 +33,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -53,6 +53,7 @@ public class AgentService {
     private final UserRepository userRepository;
     private final RobotRepository robotRepository;
     private final ReportRepository reportRepository;
+    private final IntentClassificationService intentService;
 
     /**
      * 현재 로그인 유저 조회
@@ -89,35 +90,6 @@ public class AgentService {
         return emitter;
     }
 
-    /**
-     * 사용자가 입력한 메시지에서 날짜 범위 추출
-     * 예: 2025-04-04~2025-10-04
-     */
-    private LocalDateTime[] extractDateRange(String userMessage) {
-        String pattern = "(\\d{4}-\\d{2}-\\d{2})[\\s\\S]*?(\\d{4}-\\d{2}-\\d{2})";
-        Pattern r = Pattern.compile(pattern);
-        Matcher m = r.matcher(userMessage);
-
-        if (m.find()) {
-            LocalDateTime start = LocalDateTime.parse(m.group(1) + "T00:00:00");
-            LocalDateTime end = LocalDateTime.parse(m.group(2) + "T23:59:59");
-            return new LocalDateTime[]{start, end};
-        }
-
-        LocalDateTime today = LocalDateTime.now();
-        // 날짜를 포함하지 않는 경우, 현재 날짜 기준 1달로 설정 (임시)
-        return new LocalDateTime[]{today.minusMonths(1).withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0),
-                today.withHour(23).withMinute(59).withSecond(59)};
-    }
-
-    private String getReportType(LocalDateTime start, LocalDateTime end) {
-        long days = java.time.temporal.ChronoUnit.DAYS
-                .between(start.toLocalDate(), end.toLocalDate()) + 1;
-
-        if (days >= 28 && days <= 31) return "월간 보고서";
-        if (days >= 7 && days <= 8) return "주간 보고서";
-        return "기간별 보고서";
-    }
 
     /**
      * AI 보고서 생성 SSE
@@ -132,7 +104,7 @@ public class AgentService {
                 : req.getConversationId();
 
         // 날짜 범위 추출
-        LocalDateTime[] range = extractDateRange(req.getMessage());
+        LocalDateTime[] range = DateRangeParser.extractDateRange(req.getMessage());
         LocalDateTime startTime = range[0];
         LocalDateTime endTime = range[1];
 
@@ -165,8 +137,37 @@ public class AgentService {
                 ? "청소로봇"
                 : String.join(", ", deviceNames);
 
-        // 보고서 유형 자동 판별
-        String reportType = getReportType(startTime, endTime);
+        try {
+            String userMsg = req.getMessage();
+
+            // 1차 키워드 필터
+            if (!intentService.isLikelyReportByKeyword(userMsg)) {
+                emitter.send(SseEmitter.event()
+                        .name("reportInfo")
+                        .data("보고서 요청이 아닌 것으로 판단되었습니다. (키워드 없음)"));
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                emitter.complete();
+                return emitter;
+            }
+
+            // 2차 LLM 의도 분류
+            String result = intentService.classifyByLLM(userMsg);
+
+            if (!"REPORT".equals(result)) {
+                emitter.send(SseEmitter.event()
+                        .name("reportInfo")
+                        .data("보고서 요청이 아닌 것으로 판단되었습니다. (분류: " + result + ")"));
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
+                emitter.complete();
+                return emitter;
+            }
+
+        } catch (Exception e) {
+            emitter.completeWithError(new RuntimeException("분류 중 오류 발생"));
+            return emitter;
+        }
+
+
 
         // ----------------------------------------------------
         // 1. 데이터 집계 및 DTO 추출
@@ -174,38 +175,59 @@ public class AgentService {
 
         // 1-1. 총괄 요약 데이터
         // 💡 변경: orElseThrow 대신 orElse(null)을 사용하여 데이터가 없을 때 null을 허용
-        ReportSummaryProjection summary = reportRepository.summarizeReportByTimeRange(startTime, endTime).orElse(null);
+        ReportSummaryProjection summary = reportRepository
+                .summarizeReportByTimeRange(startTime, endTime)
+                .orElse(null);
 
-        // ----------------------------------------------------
-        // 💡 핵심 수정: 데이터 부재 시 처리 로직
-        // ----------------------------------------------------
-        if (summary == null) {
+        List<MapStatsProjection> mapStats =
+                reportRepository.summarizeMapStatsByTimeRange(startTime, endTime);
+
+        List<Object[]> statusCounts =
+                reportRepository.countStatusByTimeRange(startTime, endTime);
+
+
+        boolean summaryHasData = false;
+        if (summary != null) {
+            Number tct = summary.getTotalCleanTime();   // Long 또는 Integer 등
+            Number tta = summary.getTotalTaskArea();    // Double 등
+            Number tca = summary.getTotalCleanArea();
+            Number ttc = summary.getTotalTaskCount();
+            Number tcw = summary.getTotalCostWater();
+            Number tcb = summary.getTotalCostBattery();
+
+            if ((tct != null && tct.longValue() > 0L)
+                    || (tta != null && tta.doubleValue() > 0.0)
+                    || (tca != null && tca.doubleValue() > 0.0)
+                    || (ttc != null && ttc.longValue() > 0L)
+                    || (tcw != null && tcw.longValue() > 0L)
+                    || (tcb != null && tcb.longValue() > 0L)) {
+                summaryHasData = true;
+            }
+        }
+
+        if (!summaryHasData) {
             try {
-                // 사용자에게 데이터 부재 메시지 전송
-                emitter.send(SseEmitter.event()
-                        .name("reportInfo") // 정보성 이벤트 이름
-                        .data("요청하신 기간 (" + periodText + ") 동안의 청소 로봇 운영 데이터가 없습니다."));
-                emitter.send(SseEmitter.event()
-                        .name("done")
-                        .data("[DONE]"));
+                emitter.send(
+                        SseEmitter.event()
+                                .name("reportInfo")
+                                .data("요청하신 기간 (" + periodText + ") 동안 로봇 운영 데이터가 없어 보고서를 생성할 수 없습니다.")
+                );
+                emitter.send(
+                        SseEmitter.event()
+                                .name("done")
+                                .data("[DONE]")
+                );
                 emitter.complete();
             } catch (IOException e) {
-                log.error("Failed to send no data message: ", e);
+                log.error("Failed to send no-data message: ", e);
                 emitter.completeWithError(e);
             }
-            return emitter; // 데이터가 없으므로 여기서 메서드 종료
+            return emitter;
         }
         // ----------------------------------------------------
 
-        // 1-2. 맵별 통계 데이터
-        List<MapStatsProjection> mapStats = reportRepository.summarizeMapStatsByTimeRange(startTime, endTime);
-
-        // 1-3. 상태별 카운트 (작업 실패 및 중단 현황 파악용)
-        List<Object[]> statusCounts = reportRepository.countStatusByTimeRange(startTime, endTime);
-
-        // 💡 심볼 해결 오류(failedCount, mostFailedMapName) 해결을 위한 선언 및 계산 로직
-        long failedCount = 0; // failedCount 선언
-        String mostFailedMapName = "정보 없음"; // mostFailedMapName 선언
+        long failedCount = 0;
+        String mostFailedMapName = "정보 없음";
 
         // 임무 취소/중단 횟수와 주요 발생 층 계산
         for (Object[] count : statusCounts) {
@@ -243,16 +265,17 @@ public class AgentService {
         // Float/Long 값을 Double로 변환하여 계산
         dataForAi.append(String.format("총 청소 작업시간: %.2f 시간 (%.2f 분)\n",
                 totalCleanTime / 3600.0, totalCleanTime / 60.0));
-        dataForAi.append(String.format("총 계획 청소 면적: %.2f m2\n", totalTaskArea));
-        dataForAi.append(String.format("총 실제 청소 면적: %.2f m2\n", totalCleanArea));
+        dataForAi.append(String.format("총 계획 청소 면적: %.2f m²\n", totalTaskArea));
+        dataForAi.append(String.format("총 실제 청소 면적: %.2f m²\n", totalCleanArea));
         dataForAi.append(String.format("총 작업 수: %d 회\n", totalTaskCount));
         // Long costWater (ml) -> L 변환
         dataForAi.append(String.format("총 물 소비량: %.2f L\n", totalCostWater / 1000.0));
+        dataForAi.append(String.format("평균 업무 효율성: %.2f m²/h\n", totalCleanArea / totalCleanTime));
         // Long costBattery (bigint, kWh로 가정, 1000으로 나누어 보기 쉽게 조정)
         dataForAi.append(String.format("총 전력 소모량: %.2f kWh\n\n", totalCostBattery / 1000.0));
         // 2. 층별 작업 현황 데이터
         dataForAi.append("### 2. 층별 작업 현황 데이터 (세부 수치)\n");
-        dataForAi.append("| 구분 | 작업 횟수 (회) | 총 청소면적 (m2) | 총 전력 소비 (kWh) | 총 물 사용량 (L) |\n");
+        dataForAi.append("| 구분 | 작업 횟수 (회) | 총 청소면적 (m²) | 총 전력 소비 (kWh) | 총 물 사용량 (L) |\n");
         dataForAi.append("| :--- | :--- | :--- | :--- | :--- |\n");
         for (MapStatsProjection stats : mapStats) {
             dataForAi.append(String.format("| %s | %d | %.2f | %.2f | %.2f |\n",
@@ -283,17 +306,17 @@ public class AgentService {
         PromptTemplate template = PromptTemplate.from("""
         당신은 AI 산업용 청소로봇({{deviceNames}})의 관리 보고서 전문가입니다.
         
-        아래 제공된 운영 데이터를 기반으로, 
-        '{{customerName}}' 매장의 '{{reportType}}'에 해당하는 
-        공식 비즈니스 문서 스타일의 '청소로봇 관리 보고서'를 작성하세요.
+        아래 제공된 운영 데이터를 기반으로,
+        '{{customerName}}' 매장의 공식 비즈니스 문서 스타일의 '청소로봇 관리 보고서'를 작성하세요.
         
-        보고서의 시작은 반드시 아래와 같이 **Markdown 제목(Heading)** 형식으로 시작하세요:
+        보고서의 시작은 반드시 아래와 같이 **Markdown 제목(Headirng)** 형식으로 시작하세요:
                             # AI 산업용 청소로봇 {{deviceNames}} 관리 보고서
                             ## 작성일: {{generatedDate}}
         
         # 보고서 기본 정보
         - 고객사: {{customerName}}
         - 장비명: AI 산업용 청소로봇 {{deviceNames}}
+        - 제조사: PUDU ROBOTICS
         - 관리 기간: {{period}}
 
         
@@ -320,7 +343,6 @@ public class AgentService {
                         "customerName", customerName,
                         "deviceNames", deviceNameText,
                         "period", periodText,
-                        "reportType", reportType,
                         "generatedDate", generatedDate, // <-- 새롭게 추가된 현재 날짜 변수
                         "question", dataForAi.toString() // <--- 집계된 데이터가 들어갑니다.
                 )

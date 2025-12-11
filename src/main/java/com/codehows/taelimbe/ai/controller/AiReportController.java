@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.ai.controller;
 
-import com.codehows.taelimbe.ai.dto.aiReport.AiReportDTO;
+import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.repository.AiReportMetaProjection;
 
@@ -17,13 +17,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("")
+@RequestMapping("/ai/Report")
 @RequiredArgsConstructor
 public class AiReportController {
 
     private final AiReportService aiReportService;
     private final AgentService agentService;
-    @GetMapping("/ai/Report")
+    @GetMapping("")
     @ResponseBody
     public ResponseEntity<List<AiReportDTO>> getAllReports() {
         List<AiReportMetaProjection> reportsProjection = aiReportService.getAllReports();
@@ -35,18 +35,20 @@ public class AiReportController {
     }
 
 
-    @GetMapping("/ai/Report/{reportId}/rawReport")
+    @GetMapping("/{reportId}/rawReport")
     @ResponseBody
-    public ResponseEntity<RawReportProjection> getrawReport(@PathVariable Long reportId) {
-        RawReportProjection rawReportProjection = aiReportService.getrawReport(reportId);
+    public ResponseEntity<RawReportProjection> getRawReport(@PathVariable Long reportId) {
+        RawReportProjection rawReportProjection = aiReportService.getRawReport(reportId);
         return ResponseEntity.ok(rawReportProjection);
     }
 
 
-    @PostMapping(value = "/ai/Report", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE) // 경로를 명확히 /ai/Report/sse로 설정
     public SseEmitter report(
-            @RequestBody ChatPromptRequest chatPromptRequest
+            @RequestParam("message") String message,
+            @RequestParam("conversationId") String conversationId
     ) {
-        return agentService.report(chatPromptRequest);
+        ChatPromptRequest request = new ChatPromptRequest(message, conversationId);
+        return agentService.report(request);
     }
 }

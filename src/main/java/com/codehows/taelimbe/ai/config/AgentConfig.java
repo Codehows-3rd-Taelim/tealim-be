@@ -44,4 +44,13 @@ public class AgentConfig {
                 .contentRetriever(contentRetriever) // RAG를 위한 콘텐츠 검색기를 등록합니다.
                 .build();
     }
+
+
+    //Chat 분류 하기 위해 사용
+    @Bean
+    public Agent intentAgent(StreamingChatLanguageModel streamingChatLanguageModel) {
+        return AiServices.builder(Agent.class)
+                .streamingChatLanguageModel(streamingChatLanguageModel)
+                .build();
+    }
 }
