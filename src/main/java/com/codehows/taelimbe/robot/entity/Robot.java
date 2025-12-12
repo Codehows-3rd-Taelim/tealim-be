@@ -31,7 +31,6 @@ public class Robot {
     private Integer battery;
     private Integer status;
     private String productCode;
-    private String softVersion;
 
     @Column(name = "is_charging")
     private Integer isCharging;
@@ -49,13 +48,12 @@ public class Robot {
 
     // ================= Update Methods =================
     public void updateRobotInfo(String nickname, boolean online, int battery,
-                                int status, String productCode, String softVersion, Integer isCharging) {
+                                int status, String productCode, Integer isCharging) {
         this.nickname = nickname;
         this.online = online;
         this.battery = battery;
         this.status = status;
         this.productCode = productCode;
-        this.softVersion = softVersion;
         this.isCharging = isCharging;
     }
 

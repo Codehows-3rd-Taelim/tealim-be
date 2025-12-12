@@ -112,7 +112,6 @@ public class RobotService {
                 dto.getBattery(),
                 dto.getStatus(),
                 dto.getProductCode(),
-                dto.getSoftVersion(),
                 dto.getIsCharging()
         );
 
@@ -129,11 +128,14 @@ public class RobotService {
         int battery = 0;
         int status = 0;
         String productCode = null;
-        String softVersion = null;
         int isCharging = 0;
 
         JsonNode base = fetchRobotBySn(sn, shopId);
-        if (base != null) mac = base.path("mac").asText(null);
+        if (base != null) {
+            mac = base.path("mac").asText(null);
+            productCode = base.path("product_code").asText(null);
+        }
+
 
         JsonNode detail = fetchRobotDetail(sn);
         if (detail != null) {
@@ -143,11 +145,6 @@ public class RobotService {
             status = detail.path("cleanbot").path("clean").path("status").asInt();
         }
 
-        JsonNode chargeLog = fetchLatestChargeLog(sn, shopId);
-        if (chargeLog != null) {
-            productCode = chargeLog.path("product_code").asText(null);
-            softVersion = chargeLog.path("soft_version").asText(null);
-        }
 
         JsonNode chargeStatus = fetchRobotStatusV2(sn);
         if (chargeStatus != null) {
@@ -162,7 +159,6 @@ public class RobotService {
                 .battery(battery)
                 .status(status)
                 .productCode(productCode)
-                .softVersion(softVersion)
                 .isCharging(isCharging)
                 .build();
     }
@@ -350,7 +346,6 @@ public class RobotService {
                 .battery(robot.getBattery())
                 .status(robot.getStatus())
                 .productCode(robot.getProductCode())
-                .softVersion(robot.getSoftVersion())
                 .storeId(robot.getStore().getStoreId())
                 .isCharging(robot.getIsCharging())
                 .build();

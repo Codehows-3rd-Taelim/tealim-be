@@ -12,15 +12,11 @@ public class RobotDTO {
     private Long robotId;
     private String sn;
     private String mac;
-
     private String nickname;
     private Boolean online;
     private Integer battery;
     private Integer status;
-
     private String productCode;
-    private String softVersion;
-
     private Long storeId;
     private Integer isCharging;
 }
