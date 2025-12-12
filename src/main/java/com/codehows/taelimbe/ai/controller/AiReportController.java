@@ -34,7 +34,7 @@ public class AiReportController {
         return ResponseEntity.ok(reportsDTO);
     }
 
-
+    //raw 리포트만 따로 가져오게
     @GetMapping("/{reportId}/rawReport")
     @ResponseBody
     public ResponseEntity<RawReportProjection> getRawReport(@PathVariable Long reportId) {
@@ -42,8 +42,8 @@ public class AiReportController {
         return ResponseEntity.ok(rawReportProjection);
     }
 
-
-    @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE) // 경로를 명확히 /ai/Report/sse로 설정
+    //서버가 실시간으로 데이터 스트리밍해서 전달 내가 보낸 메시지랑 대화 ID 받아서 실시간 보고서 만들어줌
+    @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter report(
             @RequestParam("message") String message,
             @RequestParam("conversationId") String conversationId

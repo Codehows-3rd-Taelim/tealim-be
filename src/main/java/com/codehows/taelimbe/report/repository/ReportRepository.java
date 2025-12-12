@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.report.repository;
 
+import com.codehows.taelimbe.ai.repository.MapFailStatsProjection;
 import com.codehows.taelimbe.ai.repository.MapStatsProjection;
 import com.codehows.taelimbe.ai.repository.ReportSummaryProjection;
 import com.codehows.taelimbe.report.entity.Report;
@@ -70,6 +71,25 @@ public interface ReportRepository extends JpaRepository<Report, Long> {
         GROUP BY r.status
     """)
     List<Object[]> countStatusByTimeRange(
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+
+    /**
+     * 기간별 층(mapName) 기준 실패 분석 (전체 작업 수 + 실패 수)
+     */
+    @Query("""
+    SELECT 
+        r.mapName AS mapName,
+        COUNT(r) AS totalCount,
+        SUM(CASE WHEN r.status IN (3, 5, 6) THEN 1 ELSE 0 END) AS failCount
+    FROM Report r
+    WHERE r.startTime BETWEEN :start AND :end
+    GROUP BY r.mapName
+    ORDER BY failCount DESC
+""")
+    List<MapFailStatsProjection> findFailStatsByDateRange(
             LocalDateTime start,
             LocalDateTime end
     );

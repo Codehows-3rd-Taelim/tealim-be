@@ -2,6 +2,7 @@ package com.codehows.taelimbe.ai.service;
 
 import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
+import com.codehows.taelimbe.ai.repository.MapFailStatsProjection;
 import com.codehows.taelimbe.ai.repository.MapStatsProjection;
 import com.codehows.taelimbe.ai.repository.ReportSummaryProjection;
 import com.codehows.taelimbe.ai.entity.AiReport;
@@ -111,7 +112,7 @@ public class AgentService {
         LocalDateTime now = LocalDateTime.now();
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy.MM.dd");
 
-        // 보고서 관리 기간 (오류 메시지 사용을 위해 미리 계산)
+        // 보고서 관리 기간
         String periodText = startTime.format(fmt) + " ~ " + endTime.format(fmt);
 
         // 보고서 작성일 (현재 날짜)
@@ -169,12 +170,6 @@ public class AgentService {
 
 
 
-        // ----------------------------------------------------
-        // 1. 데이터 집계 및 DTO 추출
-        // ----------------------------------------------------
-
-        // 1-1. 총괄 요약 데이터
-        // 💡 변경: orElseThrow 대신 orElse(null)을 사용하여 데이터가 없을 때 null을 허용
         ReportSummaryProjection summary = reportRepository
                 .summarizeReportByTimeRange(startTime, endTime)
                 .orElse(null);
@@ -188,8 +183,8 @@ public class AgentService {
 
         boolean summaryHasData = false;
         if (summary != null) {
-            Number tct = summary.getTotalCleanTime();   // Long 또는 Integer 등
-            Number tta = summary.getTotalTaskArea();    // Double 등
+            Number tct = summary.getTotalCleanTime();
+            Number tta = summary.getTotalTaskArea();
             Number tca = summary.getTotalCleanArea();
             Number ttc = summary.getTotalTaskCount();
             Number tcw = summary.getTotalCostWater();
@@ -226,32 +221,26 @@ public class AgentService {
         }
         // ----------------------------------------------------
 
-        long failedCount = 0;
-        String mostFailedMapName = "정보 없음";
 
-        // 임무 취소/중단 횟수와 주요 발생 층 계산
-        for (Object[] count : statusCounts) {
-            Integer status = (Integer) count[0];
-            Long countVal = (Long) count[1];
-            // 4: 부분 완료/중단, 5: 실패 (실제 DB status 코드에 따라 수정 필요)
-            if (status.equals(4) || status.equals(5)) {
-                failedCount += countVal;
-            }
-        }
+        List<MapFailStatsProjection> failStats =
+                reportRepository.findFailStatsByDateRange(startTime, endTime);
 
-        // 작업 횟수가 가장 많은 맵을 '주요 발생 층'으로 임시 지정 (더 정교한 실패 분석 쿼리 필요)
-        if (!mapStats.isEmpty()) {
-            mostFailedMapName = mapStats.stream()
-                    .max((s1, s2) -> Long.compare(s1.getTaskCount(), s2.getTaskCount()))
-                    .get().getMapName();
-        }
-        // ----------------------------------------------------
-        // 2. AI에게 전달할 Markdown 데이터 구조화
-        // ----------------------------------------------------
+        // 총 실패 횟수
+        long failedCount = failStats.stream()
+                .mapToLong(MapFailStatsProjection::getFailCount)
+                .sum();
 
+        // 실패가 가장 많이 발생한 층
+        String mostFailedMapName = failStats.stream()
+                .max((a, b) -> Long.compare(a.getFailCount(), b.getFailCount()))
+                .map(MapFailStatsProjection::getMapName)
+                .orElse("정보 없음");
+
+
+        // AI에게 전달할 Markdown 데이터 구조화
         StringBuilder dataForAi = new StringBuilder();
 
-        // 💡 변경: Null-Safe 처리 (데이터가 있더라도 내부 필드가 null일 수 있으므로)
+        // Null-Safe 처리 한 이유 (데이터가 있더라도 내부 필드가 null일 수 있으므로)
         long totalCleanTime = summary.getTotalCleanTime() != null ? summary.getTotalCleanTime().longValue() : 0L;
         double totalTaskArea = summary.getTotalTaskArea() != null ? summary.getTotalTaskArea() : 0.0;
         double totalCleanArea = summary.getTotalCleanArea() != null ? summary.getTotalCleanArea() : 0.0;
@@ -260,7 +249,7 @@ public class AgentService {
         long totalCostBattery = summary.getTotalCostBattery() != null ? summary.getTotalCostBattery() : 0L;
 
 
-        // 1. 장비 운영 요약 데이터
+        //  장비 운영 요약 데이터
         dataForAi.append("### 1. 장비 운영 요약 데이터 (총괄 수치)\n");
         // Float/Long 값을 Double로 변환하여 계산
         dataForAi.append(String.format("총 청소 작업시간: %.2f 시간 (%.2f 분)\n",
@@ -289,20 +278,18 @@ public class AgentService {
         }
         dataForAi.append("\n");
 
-        // 3.  유지관리 이력 (Placeholder) - AI가 채우도록 가이드
+        //유지관리 이력 (Placeholder) - AI가 채우도록 가이드
         dataForAi.append("### 3.  유지관리 이력 (점검 및 특이사항)\n");
         dataForAi.append("(실제 유지보수 이력 데이터가 현재 시스템에 존재하지 않아, AI가 내용 없음으로 처리하거나 일반적인 문구를 사용해야 함)\n\n");
 
-        // 4. 작업 실패 및 중단 현황
+        //작업 실패 및 중단 현황
         dataForAi.append("### 4. 작업 실패 및 중단 현황\n");
         dataForAi.append(String.format("임무 취소/중단 횟수: 총 %d 회\n", failedCount));
         dataForAi.append(String.format("주요 취소/중단 발생 층: %s\n", mostFailedMapName));
         dataForAi.append("임무 중단 및 이상 유무: " + (failedCount > 0 ? failedCount + "회 발생" : "0회 (이상 없음)") + "\n\n");
 
-        // ----------------------------------------------------
-        // 3. 프롬프트 템플릿 정의 및 최종 Prompt 생성
-        // ----------------------------------------------------
 
+        // 3. 프롬프트 템플릿 정의 및 최종 Prompt 생성
         PromptTemplate template = PromptTemplate.from("""
         당신은 AI 산업용 청소로봇({{deviceNames}})의 관리 보고서 전문가입니다.
         
@@ -335,16 +322,16 @@ public class AgentService {
            - 개선 및 최적화 권장사항 (잦은 취소율 관리 중점)
         
         출력은 반드시 Markdown 형식으로만 작성하세요.
-    """); // <-- '작성일'을 별도로 상단에 표시하도록 지시 및 {{generatedDate}} 변수 추가
+    """);
 
-        // 템플릿 적용: AI에게 전달할 데이터(dataForAi)를 {{question}}에 삽입
+
         Prompt prompt = template.apply(
                 Map.of(
                         "customerName", customerName,
                         "deviceNames", deviceNameText,
                         "period", periodText,
-                        "generatedDate", generatedDate, // <-- 새롭게 추가된 현재 날짜 변수
-                        "question", dataForAi.toString() // <--- 집계된 데이터가 들어갑니다.
+                        "generatedDate", generatedDate,
+                        "question", dataForAi.toString()
                 )
         );
 

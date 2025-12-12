@@ -3,7 +3,6 @@ package com.codehows.taelimbe.ai.dto;
 import com.codehows.taelimbe.ai.entity.AiReport;
 
 import com.codehows.taelimbe.ai.repository.AiReportMetaProjection;
-import com.codehows.taelimbe.ai.repository.RawReportProjection;
 
 import lombok.*;
 
@@ -26,7 +25,7 @@ public class AiReportDTO {
     private Long userId;
     private String name;
 
-
+//지금은 데이버 베이스에 저장하는 용도로 사용중
     public static AiReportDTO from(AiReport aiReport) {
         return AiReportDTO.builder()
                 .aiReportId(aiReport.getAiReportId())
@@ -42,7 +41,8 @@ public class AiReportDTO {
     }
 
     // from으로 가져오면 rawReport까지 get 해야해서 용량이 너무 많아진다 rawReport는 따로 관리
-    public static AiReportDTO fromProjection(AiReportMetaProjection projection) { // 🚨 AiReportMetaDTO -> AiReportMetaProjection
+    // 목록 조회 최적화하기 위해 AiReportMetaProjection 라는걸 따로 만들어서 DTO에서 빼오는겨
+    public static AiReportDTO fromProjection(AiReportMetaProjection projection) {
         return AiReportDTO.builder()
                 .aiReportId(projection.getAiReportId())
                 .conversationId(projection.getConversationId())
@@ -53,4 +53,5 @@ public class AiReportDTO {
                 .name(projection.getName())
                 .build();
     }
+
 }

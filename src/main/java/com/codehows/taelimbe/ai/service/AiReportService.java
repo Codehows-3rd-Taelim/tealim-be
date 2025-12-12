@@ -58,8 +58,9 @@ public class AiReportService {
     }
 
 
-
+//DB에 저장하기 위해서 사용
     @Transactional
+    // 모두 성공하면 커밋 하나라도 실패하면 롤백
     public AiReport saveReport(
             Long userId,
             String conversationId,
