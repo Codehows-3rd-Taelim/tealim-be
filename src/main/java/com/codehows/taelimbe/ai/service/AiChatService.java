@@ -54,9 +54,7 @@ public class AiChatService {
     }
 
 
-    /**
-     * AI 응답 메시지 저장
-     */
+
     public AiChat saveAgentMessage(String conversationId, String response) {
         User user = getCurrentUser();
         Long nextMessageIndex = aiChatRepository.findMaxMessageIndexByConversationId(conversationId) + 1;
@@ -73,9 +71,7 @@ public class AiChatService {
         return aiChatRepository.save(agentChat);
     }
 
-    /**
-     * 특정 대화의 모든 메시지 조회
-     */
+
     @Transactional(readOnly = true)
     public List<AiChatDTO> getChatHistory(String conversationId) {
         return aiChatRepository.findByConversationIdOrderByMessageIndex(conversationId)
@@ -130,22 +126,7 @@ public class AiChatService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 대화 메시지 삭제 (대화 전체 삭제)
-     */
-    public void deleteConversation(String conversationId) {
-        List<AiChat> chats = aiChatRepository.findByConversationIdOrderByMessageIndex(conversationId);
-        aiChatRepository.deleteAll(chats);
-        log.info("대화 '{}' 삭제 완료", conversationId);
-    }
 
-    /**
-     * 특정 메시지 삭제
-     */
-    public void deleteChatMessage(Long aiChatId) {
-        aiChatRepository.deleteById(aiChatId);
-        log.info("메시지 '{}' 삭제 완료", aiChatId);
-    }
 
     /** USER 메시지 저장 */
     public void saveUserMessage(String convId, Long userId, String msg) {

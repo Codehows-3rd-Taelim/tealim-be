@@ -39,21 +39,6 @@ public class AiChatController {
         return ResponseEntity.ok(messages);
     }
 
-    /**
-     * 대화 삭제
-     */
-    @DeleteMapping("/conversation/{conversationId}")
-    public ResponseEntity<String> deleteConversation(
-            @PathVariable String conversationId) {
-        try {
-            aiChatService.deleteConversation(conversationId);
-            return ResponseEntity.ok("대화가 삭제되었습니다.");
-        } catch (Exception e) {
-            log.error("대화 삭제 실패: {}", e.getMessage());
-            return ResponseEntity.internalServerError()
-                    .body("대화 삭제 중 오류가 발생했습니다.");
-        }
-    }
 
     @PostMapping("/new/chat")
     public ResponseEntity<?> startNewChat() {
