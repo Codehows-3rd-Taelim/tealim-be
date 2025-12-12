@@ -47,8 +47,6 @@ public class AgentService {
     @Async
     public void process(String conversationId, String message, Long userId) {
 
-        log.info("🔍 [process] START conversationId={}, userId={}, msg={}", conversationId, userId, message);
-
         // 1) 사용자 메시지 저장
         aiChatService.saveUserMessage(conversationId, userId, message);
 
@@ -59,12 +57,10 @@ public class AgentService {
 
         // 3) 토큰 스트리밍 시작
         stream.onNext(token -> {
-                    log.info("🔍 token = {}", token);
                     aiBuilder.append(token);
                     sseService.send(conversationId, token);
                 })
                 .onComplete(finalResponse -> {
-                    log.info("🔍 [process] onComplete 호출됨");
                     aiChatService.saveAiMessage(conversationId, userId, aiBuilder.toString());
                 })
                 .onError(e -> {

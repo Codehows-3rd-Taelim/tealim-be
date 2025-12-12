@@ -36,7 +36,7 @@ public class JwtService {
     public String generateToken(String username, Long userId) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("userId", userId)   // userId 포함!
+                .claim("userId", userId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime)) // ← 수정
                 .signWith(signingKey, SignatureAlgorithm.HS256) // ← 수정

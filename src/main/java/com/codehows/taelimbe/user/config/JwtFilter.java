@@ -59,9 +59,6 @@ public class JwtFilter extends OncePerRequestFilter
 
 
 
-            // Controller 에서 userId 사용할 수 있도록 저장
-            request.setAttribute("userId", userId);
-
 
         }
         // 마지막에 다음 필터를 호출

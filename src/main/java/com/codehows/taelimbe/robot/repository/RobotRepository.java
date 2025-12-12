@@ -9,9 +9,7 @@ import java.util.Optional;
 public interface RobotRepository extends JpaRepository<Robot, Long> {
 
     Optional<Robot> findBySn(String sn);
-    Optional<Robot> findByMac(String mac);
 
-    // Store.storeId = storeId
     List<Robot> findAllByStore_StoreId(Long storeId);
 
 

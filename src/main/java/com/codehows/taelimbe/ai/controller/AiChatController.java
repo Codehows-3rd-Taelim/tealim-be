@@ -16,24 +16,21 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("/api")
+@RequestMapping("")
 @RequiredArgsConstructor
 public class AiChatController {
 
     private final AiChatService aiChatService;
-    /**
-     * 사용자의 대화 목록 조회 (사이드바에서 사용)
-     * 각 대화의 첫 번째 메시지 (사용자 질문)를 제목으로 반환
-     */
+
+    // 사용자의 대화 목록 조회 (사이드바에서 사용)
     @GetMapping("/chat/history")
     public ResponseEntity<List<AiChatDTO>> getChatHistory() {
         List<AiChatDTO> chatList = aiChatService.getUserChatList();
         return ResponseEntity.ok(chatList);
     }
 
-    /**
-     * 특정 대화의 메시지 목록 조회
-     */
+
+    // 특정 대화의 메시지 목록 조회
     @GetMapping("/conversation/{conversationId}")
     public ResponseEntity<List<AiChatDTO>> getConversationMessages(
             @PathVariable String conversationId) {
@@ -41,22 +38,8 @@ public class AiChatController {
         return ResponseEntity.ok(messages);
     }
 
-    /**
-     * 대화 삭제
-     */
-    @DeleteMapping("/conversation/{conversationId}")
-    public ResponseEntity<String> deleteConversation(
-            @PathVariable String conversationId) {
-        try {
-            aiChatService.deleteConversation(conversationId);
-            return ResponseEntity.ok("대화가 삭제되었습니다.");
-        } catch (Exception e) {
-            log.error("대화 삭제 실패: {}", e.getMessage());
-            return ResponseEntity.internalServerError()
-                    .body("대화 삭제 중 오류가 발생했습니다.");
-        }
-    }
 
+    // 새 채팅
     @PostMapping("/new/chat")
     public ResponseEntity<?> startNewChat() {
 

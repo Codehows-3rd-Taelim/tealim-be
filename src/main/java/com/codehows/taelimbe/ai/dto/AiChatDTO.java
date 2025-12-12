@@ -22,9 +22,7 @@ public class AiChatDTO {
     private Long userId;
     private String userName;
 
-    /**
-     * Entity를 DTO로 변환
-     */
+
     public static AiChatDTO from(AiChat aiChat) {
         return AiChatDTO.builder()
                 .aiChatId(aiChat.getAiChatId())

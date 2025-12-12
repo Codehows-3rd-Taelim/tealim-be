@@ -46,5 +46,5 @@ public class RobotController {
         return ResponseEntity.ok(robotService.getRobotListFromDB(storeId));
     }
 
-    // 단일 로봇 조회
+
 }

@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -113,7 +116,7 @@ public class RobotService {
                 dto.getBattery(),
                 dto.getStatus(),
                 dto.getProductCode(),
-                dto.getSoftVersion()
+                dto.getIsCharging()
         );
 
         robot.changeStore(store);
@@ -129,10 +132,14 @@ public class RobotService {
         int battery = 0;
         int status = 0;
         String productCode = null;
-        String softVersion = null;
+        int isCharging = 0;
 
         JsonNode base = fetchRobotBySn(sn, shopId);
-        if (base != null) mac = base.path("mac").asText(null);
+        if (base != null) {
+            mac = base.path("mac").asText(null);
+            productCode = base.path("product_code").asText(null);
+        }
+
 
         JsonNode detail = fetchRobotDetail(sn);
         if (detail != null) {
@@ -142,10 +149,10 @@ public class RobotService {
             status = detail.path("cleanbot").path("clean").path("status").asInt();
         }
 
-        JsonNode charge = fetchLatestChargeLog(sn, shopId);
-        if (charge != null) {
-            productCode = charge.path("product_code").asText(null);
-            softVersion = charge.path("soft_version").asText(null);
+
+        JsonNode chargeStatus = fetchRobotStatusV2(sn);
+        if (chargeStatus != null) {
+            isCharging = chargeStatus.path("is_charging").asInt();
         }
 
         return RobotDTO.builder()
@@ -156,7 +163,7 @@ public class RobotService {
                 .battery(battery)
                 .status(status)
                 .productCode(productCode)
-                .softVersion(softVersion)
+                .isCharging(isCharging)
                 .build();
     }
 
@@ -240,30 +247,27 @@ public class RobotService {
 
 
 
-    private JsonNode fetchLatestChargeLog(String sn, Long shopId) {
-        long end = System.currentTimeMillis() / 1000;
-        long start = end - 60L * 60 * 24 * 90;
 
+    private JsonNode fetchRobotStatusV2(String sn) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
-                    .path("/data-board/v1/log/charge/query_list")
-                    .queryParam("start_time", start)
-                    .queryParam("end_time", end)
-                    .queryParam("limit", 1)
-                    .queryParam("offset", 0)
-                    .queryParam("shop_id", shopId)
+                    .path("/open-platform-service/v2/status/get_by_sn")
+                    .queryParam("sn", sn)
                     .toUriString();
+
 
             ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
 
-            JsonNode arr = mapper.readTree(res.getBody()).path("data").path("list");
-
-            if (arr.isArray() && arr.size() > 0) return arr.get(0);
+            return mapper.readTree(res.getBody()).path("data");
 
         } catch (Exception ignored) {}
 
         return null;
     }
+
+
+
+
 
     // 시리얼 번호로 로봇 조회
     public RobotDTO getRobotBySn(String sn) {
@@ -271,6 +275,7 @@ public class RobotService {
                 .map(this::convertToDto)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
     }
+
 
 
     private RobotDTO convertToDto(Robot robot) {
@@ -283,8 +288,8 @@ public class RobotService {
                 .battery(robot.getBattery())
                 .status(robot.getStatus())
                 .productCode(robot.getProductCode())
-                .softVersion(robot.getSoftVersion())
                 .storeId(robot.getStore().getStoreId())
+                .isCharging(robot.getIsCharging())
                 .build();
     }
 }

@@ -12,9 +12,8 @@ public class SseService {
     // conversationId → emitter 매핑
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
-    /**
-     * SSE 연결 생성
-     */
+
+    // SSE 연결 생성
     public SseEmitter createEmitter(String conversationId) {
         SseEmitter emitter = new SseEmitter(0L); // 타임아웃 없음
         emitters.put(conversationId, emitter);
@@ -26,9 +25,8 @@ public class SseService {
         return emitter;
     }
 
-    /**
-     * SSE 메시지 전송
-     */
+
+    // SSE 메시지 전송
     public void send(String conversationId, String data) {
         SseEmitter emitter = emitters.get(conversationId);
         if (emitter == null) return;
