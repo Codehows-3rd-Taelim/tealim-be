@@ -8,7 +8,6 @@ import com.codehows.taelimbe.ai.repository.ReportSummaryProjection;
 import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.ai.util.DateRangeParser;
 import com.codehows.taelimbe.langchain.Agent;
-import com.codehows.taelimbe.report.repository.ReportRepository;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.robot.repository.RobotRepository;
 import com.codehows.taelimbe.store.entity.Store;
@@ -61,7 +60,8 @@ public class AgentService {
     private final AiReportService aiReportService;
     private final UserRepository userRepository;
     private final RobotRepository robotRepository;
-    private final ReportRepository reportRepository;
+    // TODO: migration to pudureport Repository
+//    private final ReportRepository reportRepository;
     private final IntentClassificationService intentService;
 
     /**
@@ -100,7 +100,7 @@ public class AgentService {
                 .start();  
     }
 
-    public SseEmitter report(ChatPromptRequest req, Long userId) {
+    public SseEmitter report(ChatPromptRequest req, String userId) {
 
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
 
@@ -176,31 +176,31 @@ public class AgentService {
 
 
 
-        ReportSummaryProjection summary = reportRepository
-                .summarizeReportByTimeRange(startTime, endTime)
-                .orElse(null);
+//        ReportSummaryProjection summary = reportRepository
+//                .summarizeReportByTimeRange(startTime, endTime)
+//                .orElse(null);
+//
+//        // 실패 / 중단 통계 계산
+//        List<MapFailStatsProjection> failStats =
+//                reportRepository.findFailStatsByDateRange(startTime, endTime);
 
-        // 실패 / 중단 통계 계산
-        List<MapFailStatsProjection> failStats =
-                reportRepository.findFailStatsByDateRange(startTime, endTime);
-
-        // 실패 총합
-        long failedCount = failStats.stream()
-                .mapToLong(MapFailStatsProjection::getFailCount)
-                .sum();
-
-        // 실패율 가장 높은 층
-        String mostFailedMapName = failStats.stream()
-                .max((a, b) -> Long.compare(a.getFailCount(), b.getFailCount()))
-                .map(MapFailStatsProjection::getMapName)
-                .orElse("없음");
-
-
-        List<MapStatsProjection> mapStats =
-                reportRepository.summarizeMapStatsByTimeRange(startTime, endTime);
-
-        List<Object[]> statusCounts =
-                reportRepository.countStatusByTimeRange(startTime, endTime);
+//         실패 총합
+//        long failedCount = failStats.stream()
+//                .mapToLong(MapFailStatsProjection::getFailCount)
+//                .sum();
+//
+//        // 실패율 가장 높은 층
+//        String mostFailedMapName = failStats.stream()
+//                .max((a, b) -> Long.compare(a.getFailCount(), b.getFailCount()))
+//                .map(MapFailStatsProjection::getMapName)
+//                .orElse("없음");
+//
+//
+//        List<MapStatsProjection> mapStats =
+//                reportRepository.summarizeMapStatsByTimeRange(startTime, endTime);
+//
+//        List<Object[]> statusCounts =
+//                reportRepository.countStatusByTimeRange(startTime, endTime);
 
 
 
@@ -213,24 +213,23 @@ public class AgentService {
 
         boolean summaryHasData = false;
 
-        if (summary != null) {
-            Number tct = summary.getTotalCleanTime();
-            Number tta = summary.getTotalTaskArea();
-            Number tca = summary.getTotalCleanArea();
-            Number ttc = summary.getTotalTaskCount();
-            Number tcw = summary.getTotalCostWater();
-            Number tcb = summary.getTotalCostBattery();
-
-            totalCleanTime = (tct != null) ? tct.longValue() : 0L;
-            totalTaskArea = (tta != null) ? tta.doubleValue() : 0.0;
-            totalCleanArea = (tca != null) ? tca.doubleValue() : 0.0;
-            totalTaskCount = (ttc != null) ? ttc.longValue() : 0L;
-            totalCostWater = (tcw != null) ? tcw.longValue() : 0L;
-            totalCostBattery = (tcb != null) ? tcb.longValue() : 0L;
-
-
-            summaryHasData = (totalTaskCount > 0L);
-        }
+//        if (summary != null) {
+//            Number tct = summary.getTotalCleanTime();
+//            Number tta = summary.getTotalTaskArea();
+//            Number tca = summary.getTotalCleanArea();
+//            Number ttc = summary.getTotalTaskCount();
+//            Number tcw = summary.getTotalCostWater();
+//            Number tcb = summary.getTotalCostBattery();
+//
+//            totalCleanTime = (tct != null) ? tct.longValue() : 0L;
+//            totalTaskArea = (tta != null) ? tta.doubleValue() : 0.0;
+//            totalCleanArea = (tca != null) ? tca.doubleValue() : 0.0;
+//            totalTaskCount = (ttc != null) ? ttc.longValue() : 0L;
+//            totalCostWater = (tcw != null) ? tcw.longValue() : 0L;
+//            totalCostBattery = (tcb != null) ? tcb.longValue() : 0L;
+//
+//            summaryHasData = (totalTaskCount > 0L);
+//        }
 
         if (!summaryHasData) {
             try {
@@ -272,16 +271,16 @@ public class AgentService {
         dataForAi.append("### 2. 층별 작업 현황 데이터 (세부 수치)\n");
         dataForAi.append("| 구분 | 작업 횟수 (회) | 총 청소면적 (m²) | 총 전력 소비 (kWh) | 총 물 사용량 (L) |\n");
         dataForAi.append("| :--- | :--- | :--- | :--- | :--- |\n");
-        for (MapStatsProjection stats : mapStats) {
-            dataForAi.append(String.format("| %s | %d | %.2f | %.2f | %.2f |\n",
-                    stats.getMapName(),
-                    stats.getTaskCount(),
-                    stats.getCleanArea(),
-                    // Long costBattery (kWh로 가정)
-                    stats.getCostBattery() / 1000.0,
-                    // Long costWater (ml -> L 변환)
-                    stats.getCostWater() / 1000.0));
-        }
+//        for (MapStatsProjection stats : mapStats) {
+//            dataForAi.append(String.format("| %s | %d | %.2f | %.2f | %.2f |\n",
+//                    stats.getMapName(),
+//                    stats.getTaskCount(),
+//                    stats.getCleanArea(),
+//                    // Long costBattery (kWh로 가정)
+//                    stats.getCostBattery() / 1000.0,
+//                    // Long costWater (ml -> L 변환)
+//                    stats.getCostWater() / 1000.0));
+//        }
         dataForAi.append("\n");
 
         //유지관리 이력 (Placeholder) - AI가 채우도록 가이드
@@ -290,9 +289,9 @@ public class AgentService {
 
         //작업 실패 및 중단 현황
         dataForAi.append("### 4. 작업 실패 및 중단 현황\n");
-        dataForAi.append(String.format("임무 취소/중단 횟수: 총 %d 회\n", failedCount));
-        dataForAi.append(String.format("주요 취소/중단 발생 층: %s\n", mostFailedMapName));
-        dataForAi.append("임무 중단 및 이상 유무: " + (failedCount > 0 ? failedCount + "회 발생" : "0회 (이상 없음)") + "\n\n");
+//        dataForAi.append(String.format("임무 취소/중단 횟수: 총 %d 회\n", failedCount));
+//        dataForAi.append(String.format("주요 취소/중단 발생 층: %s\n", mostFailedMapName));
+//        dataForAi.append("임무 중단 및 이상 유무: " + (failedCount > 0 ? failedCount + "회 발생" : "0회 (이상 없음)") + "\n\n");
 
 
         // 3. 프롬프트 템플릿 정의 및 최종 Prompt 생성

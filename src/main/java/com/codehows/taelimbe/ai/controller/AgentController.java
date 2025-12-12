@@ -33,11 +33,8 @@ public class AgentController {
     @PostMapping("/agent/chat")
     public ResponseEntity<String> chat(
             @RequestBody ChatPromptRequest req,
-            HttpServletRequest request
+            Authentication authentication
     ) {
-
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
 
         Long userId = (Long) authentication.getDetails();
 

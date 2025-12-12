@@ -66,8 +66,11 @@ public class RobotService {
      * DB에 저장된 모든 매장의 로봇을 Pudu API에서 조회하여 동기화
      * 관리자가 전체 매장의 로봇 정보를 한 번에 업데이트할 때 사용
      */
-    @Transactional
 
+    @Transactional
+    public int syncAllStoresRobots() {
+
+        List<Store> stores = storeRepository.findAll();
         System.out.println("\n===== Sync All Stores Robots =====");
         System.out.println("Total Stores: " + stores.size());
 
@@ -131,7 +134,6 @@ public class RobotService {
         dto.setOnline(api.getOnline());
         dto.setStatus(api.getStatus());
         dto.setProductCode(api.getProductCode());
-        dto.setSoftVersion(api.getSoftVersion());
 
         return dto;
     }

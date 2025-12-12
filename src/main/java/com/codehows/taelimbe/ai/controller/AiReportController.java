@@ -10,6 +10,7 @@ import com.codehows.taelimbe.ai.service.AiReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -49,9 +50,10 @@ public class AiReportController {
     @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter report(
             @RequestParam("message") String message,
-            @RequestParam("conversationId") String conversationId
+            @RequestParam("conversationId") String conversationId,
+            Authentication authentication
     ) {
         ChatPromptRequest request = new ChatPromptRequest(message, conversationId);
-        return agentService.report(request);
+        return agentService.report(request, authentication.getName());
     }
 }

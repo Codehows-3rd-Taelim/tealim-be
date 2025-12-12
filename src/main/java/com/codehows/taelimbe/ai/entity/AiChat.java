@@ -20,7 +20,7 @@ public class AiChat {
     @Column(name = "ai_chat_id")
     private Long aiChatId;
 
-    @Column(name = "conversation_id", length = 50, nullable = false)
+    @Column(name = "conversation_id", length = 100, nullable = false)
     private String conversationId;
 
     @Enumerated(EnumType.STRING)
