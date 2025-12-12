@@ -14,6 +14,7 @@ import com.codehows.taelimbe.robot.repository.RobotRepository;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.repository.UserRepository;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.input.Prompt;
 import dev.langchain4j.model.input.PromptTemplate;
 import dev.langchain4j.service.TokenStream;
@@ -21,10 +22,14 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -35,6 +40,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * AI 에이전트와의 대화 로직을 캡슐화하는 서비스 클래스
@@ -43,6 +49,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Slf4j
 public class AgentService {
+    private final SseService sseService;
+    private final AiChatService aiChatService;
 
     @Qualifier("reportAgent")
     private final Agent reportAgent;
@@ -67,39 +75,37 @@ public class AgentService {
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다"));
     }
 
-    /**
-     * 일반 Chat SSE
-     */
-    public SseEmitter chat(ChatPromptRequest req) {
+    @Async
+    public void process(String conversationId, String message, Long userId) {
 
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        // 1) 사용자 메시지 저장
+        aiChatService.saveUserMessage(conversationId, userId, message);
 
-        String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
-                ? UUID.randomUUID().toString()
-                : req.getConversationId();
+        // 2) TokenStream 가져오기
+        TokenStream stream = chatAgent.chat(message, conversationId);
 
-        createEmitter(
-                emitter,
-                convId,
-                chatAgent,
-                req.getMessage(),
-                req.getMessage(),
-                LocalDateTime.now(),
-                LocalDateTime.now()
-        );
+        StringBuilder aiBuilder = new StringBuilder();
 
-        return emitter;
+        // 3) 토큰 스트리밍 시작
+        stream.onNext(token -> {
+                    aiBuilder.append(token);
+                    sseService.send(conversationId, token);
+                })
+                .onComplete(finalResponse -> {
+                    aiChatService.saveAiMessage(conversationId, userId, aiBuilder.toString());
+                })
+                .onError(e -> {
+                    log.error("AI 스트림 오류", e);
+                })
+                .start();  
     }
 
-
-    /**
-     * AI 보고서 생성 SSE
-     */
-    public SseEmitter report(ChatPromptRequest req) {
+    public SseEmitter report(ChatPromptRequest req, Long userId) {
 
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
 
-        // Conversation ID 설정
+        // 현재 스레드에 사용자 이름을 설정하여, 도구 호출 등에서 사용자 컨텍스트를 활용할 수 있도록 합니다.
+        // 대화 ID가 요청에 포함되어 있지 않다면 새로운 ID를 생성합니다.
         String convId = (req.getConversationId() == null || req.getConversationId().isBlank())
                 ? UUID.randomUUID().toString()
                 : req.getConversationId();

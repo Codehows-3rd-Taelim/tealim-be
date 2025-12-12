@@ -23,7 +23,7 @@ public class AiReportController {
 
     private final AiReportService aiReportService;
     private final AgentService agentService;
-    @GetMapping("")
+    @GetMapping
     @ResponseBody
     public ResponseEntity<List<AiReportDTO>> getAllReports() {
         List<AiReportMetaProjection> reportsProjection = aiReportService.getAllReports();

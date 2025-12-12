@@ -108,7 +108,7 @@ public class StoreService {
      */
     @Transactional
     public int syncAllStores() {
-        int totalCount = 0;
+        int newCount = 0;
         int offset = 0;
         int limit = 100;
         boolean hasMore = true;
@@ -157,14 +157,23 @@ public class StoreService {
                                 ));
                     }
 
-                    // Store 생성 또는 업데이트
-                    Store store = existing.orElse(new Store());
+                    // 신규인지 판단해서 store 객체 준비
+                    Store store;
+                    if (existing.isPresent()) {
+                        store = existing.get();        // 기존 store
+                    } else {
+                        store = new Store();           // 신규 store
+                        newCount++;                    // 신규 카운트 증가
+                    }
+
+                    // 공통 업데이트
                     store.setShopId(shopId);
                     store.setShopName(shopName);
                     store.setIndustry(industry);
 
+                    // 저장
                     storeRepository.save(store);
-                    totalCount++;
+
                 }
 
                 // 페이지네이션
@@ -181,8 +190,12 @@ public class StoreService {
             }
         }
 
-        System.out.println("Total Saved: " + totalCount + "\n");
-        return totalCount;
+        System.out.println("New Stores Created: " + newCount + "\n");
+        return newCount;
+    }
+
+    public List<Store> findAllStores() {
+        return storeRepository.findAll();
     }
 
 }

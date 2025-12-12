@@ -19,7 +19,7 @@ public class AiReport {
     @Column(name = "ai_report_id")
     private Long aiReportId;
 
-    @Column(name = "conversation_id", length = 10)
+    @Column(name = "conversation_id", length = 100)
     private String conversationId;
 
     @Column(name = "start_time")
