@@ -113,57 +113,6 @@ public class AgentService {
     }
 
     @Async("taskExecutor")
-    protected void createChatEmitter(
-            SseEmitter emitter,
-            String convId,
-            Agent agent, // chatAgent
-            String prompt) {
-
-        // DB에 저장할 AI 응답 전체를 담을 StringBuilder
-        StringBuilder aiResponseBuilder = new StringBuilder();
-
-        try {
-            // 1. [전처리] 사용자 질문 저장 및 메모리 로드
-            aiChatService.saveMessage(convId, "user", prompt);
-            aiChatService.loadChatMemory(convId); // LangChain4j 메모리 복원
-
-            // Agent의 chat 메서드를 호출하여 Gemini 모델과 상호작용합니다.
-            TokenStream tokenStream = agent.chat(prompt, convId);
-
-            // 첫 응답으로 대화 ID를 전송합니다.
-            emitter.send(SseEmitter.event().name("conversationId").data(convId));
-
-            // 스트리밍 응답의 각 토큰을 처리합니다.
-            tokenStream.onNext(token -> {
-                        try {
-                            // AI 응답을 스트리밍 버퍼에 추가 (후처리용)
-                            aiResponseBuilder.append(token);
-                            emitter.send(SseEmitter.event().data(token));
-                        } catch (IOException e) {
-                            log.error("SSE 토큰 전송 중 오류 발생 : {}", e.getMessage());
-                            emitter.completeWithError(e);
-                        }
-                    })
-                    // 스트리밍 완료 시 emitter를 완료합니다.
-                    .onComplete(response -> {
-                        // 2. [후처리] AI 응답 전체를 모아서 DB에 저장
-                        aiChatService.saveMessage(convId, "ai", aiResponseBuilder.toString());
-                        emitter.complete();
-                    })
-                    // 스트리밍 중 오류 발생 시 emitter를 오류와 함께 완료합니다.
-                    .onError(emitter::completeWithError)
-                    // 스트리밍을 시작합니다.
-                    .start();
-
-        } catch (Exception e) {
-            log.error("채팅 처리 중 오류 발생: {}", e.getMessage(), e);
-        }finally {
-            // 요청 처리 완료 후 스레드 로컬에 저장된 사용자 정보를 제거합니다.
-            emitter.complete();
-        }
-    }
-
-    @Async("taskExecutor")
     protected void createEmitter(
             SseEmitter emitter,
             String convId,
