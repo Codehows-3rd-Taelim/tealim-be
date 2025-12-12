@@ -116,6 +116,7 @@ services:
       MILVUS_HOST: milvus
       MILVUS_PORT: 19530
       SPRING_CONFIG_ADDITIONAL_LOCATION: optional:file:/app/config/
+      SPRING_JACKSON_TIME_ZONE: Asia/Seoul
     volumes:
       - ./config:/app/config:ro
     ports:
