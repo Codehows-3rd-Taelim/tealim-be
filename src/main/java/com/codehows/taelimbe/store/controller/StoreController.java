@@ -31,7 +31,7 @@ public class StoreController {
      * @param storeId 선택적 매개변수 (Long 타입, 없을 경우 null)
      * @return 조회된 Store 엔티티 목록 (JSON)
      */
-    @GetMapping
+    @GetMapping("/list")
     @ResponseBody
     public ResponseEntity<List<Store>> getStore(
             @RequestParam(value = "storeId", required = false) Long storeId) {
