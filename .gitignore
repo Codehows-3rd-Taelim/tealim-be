@@ -20,6 +20,8 @@ bin/
 ### IntelliJ IDEA ###
 application.properties
 docker-compose.yml
+Jenkinsfile
+Dockerfile
 .idea
 *.iws
 *.iml
