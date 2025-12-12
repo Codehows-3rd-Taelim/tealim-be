@@ -174,6 +174,22 @@ public class AgentService {
                 .summarizeReportByTimeRange(startTime, endTime)
                 .orElse(null);
 
+        // 실패 / 중단 통계 계산
+        List<MapFailStatsProjection> failStats =
+                reportRepository.findFailStatsByDateRange(startTime, endTime);
+
+        // 실패 총합
+        long failedCount = failStats.stream()
+                .mapToLong(MapFailStatsProjection::getFailCount)
+                .sum();
+
+        // 실패율 가장 높은 층
+        String mostFailedMapName = failStats.stream()
+                .max((a, b) -> Long.compare(a.getFailCount(), b.getFailCount()))
+                .map(MapFailStatsProjection::getMapName)
+                .orElse("없음");
+
+
         List<MapStatsProjection> mapStats =
                 reportRepository.summarizeMapStatsByTimeRange(startTime, endTime);
 
@@ -181,7 +197,16 @@ public class AgentService {
                 reportRepository.countStatusByTimeRange(startTime, endTime);
 
 
+
+        long totalCleanTime = 0L;
+        double totalTaskArea = 0.0;
+        double totalCleanArea = 0.0;
+        long totalTaskCount = 0L;
+        long totalCostWater = 0L;
+        long totalCostBattery = 0L;
+
         boolean summaryHasData = false;
+
         if (summary != null) {
             Number tct = summary.getTotalCleanTime();
             Number tta = summary.getTotalTaskArea();
@@ -190,14 +215,15 @@ public class AgentService {
             Number tcw = summary.getTotalCostWater();
             Number tcb = summary.getTotalCostBattery();
 
-            if ((tct != null && tct.longValue() > 0L)
-                    || (tta != null && tta.doubleValue() > 0.0)
-                    || (tca != null && tca.doubleValue() > 0.0)
-                    || (ttc != null && ttc.longValue() > 0L)
-                    || (tcw != null && tcw.longValue() > 0L)
-                    || (tcb != null && tcb.longValue() > 0L)) {
-                summaryHasData = true;
-            }
+            totalCleanTime = (tct != null) ? tct.longValue() : 0L;
+            totalTaskArea = (tta != null) ? tta.doubleValue() : 0.0;
+            totalCleanArea = (tca != null) ? tca.doubleValue() : 0.0;
+            totalTaskCount = (ttc != null) ? ttc.longValue() : 0L;
+            totalCostWater = (tcw != null) ? tcw.longValue() : 0L;
+            totalCostBattery = (tcb != null) ? tcb.longValue() : 0L;
+
+
+            summaryHasData = (totalTaskCount > 0L);
         }
 
         if (!summaryHasData) {
@@ -207,61 +233,35 @@ public class AgentService {
                                 .name("reportInfo")
                                 .data("요청하신 기간 (" + periodText + ") 동안 로봇 운영 데이터가 없어 보고서를 생성할 수 없습니다.")
                 );
-                emitter.send(
-                        SseEmitter.event()
-                                .name("done")
-                                .data("[DONE]")
-                );
+                emitter.send(SseEmitter.event().name("done").data("[DONE]"));
                 emitter.complete();
             } catch (IOException e) {
-                log.error("Failed to send no-data message: ", e);
                 emitter.completeWithError(e);
             }
             return emitter;
         }
-        // ----------------------------------------------------
 
 
-        List<MapFailStatsProjection> failStats =
-                reportRepository.findFailStatsByDateRange(startTime, endTime);
-
-        // 총 실패 횟수
-        long failedCount = failStats.stream()
-                .mapToLong(MapFailStatsProjection::getFailCount)
-                .sum();
-
-        // 실패가 가장 많이 발생한 층
-        String mostFailedMapName = failStats.stream()
-                .max((a, b) -> Long.compare(a.getFailCount(), b.getFailCount()))
-                .map(MapFailStatsProjection::getMapName)
-                .orElse("정보 없음");
-
-
-        // AI에게 전달할 Markdown 데이터 구조화
         StringBuilder dataForAi = new StringBuilder();
 
-        // Null-Safe 처리 한 이유 (데이터가 있더라도 내부 필드가 null일 수 있으므로)
-        long totalCleanTime = summary.getTotalCleanTime() != null ? summary.getTotalCleanTime().longValue() : 0L;
-        double totalTaskArea = summary.getTotalTaskArea() != null ? summary.getTotalTaskArea() : 0.0;
-        double totalCleanArea = summary.getTotalCleanArea() != null ? summary.getTotalCleanArea() : 0.0;
-        long totalTaskCount = summary.getTotalTaskCount() != null ? summary.getTotalTaskCount() : 0L;
-        long totalCostWater = summary.getTotalCostWater() != null ? summary.getTotalCostWater() : 0L;
-        long totalCostBattery = summary.getTotalCostBattery() != null ? summary.getTotalCostBattery() : 0L;
 
+        double avgEfficiency = 0.0;
+        if (totalCleanTime > 0) {
+            double hours = totalCleanTime / 3600.0; // 초→시간 변환
+            avgEfficiency = hours > 0 ? (totalCleanArea / hours) : 0.0;
+        }
 
-        //  장비 운영 요약 데이터
+// 장비 운영 요약
         dataForAi.append("### 1. 장비 운영 요약 데이터 (총괄 수치)\n");
-        // Float/Long 값을 Double로 변환하여 계산
         dataForAi.append(String.format("총 청소 작업시간: %.2f 시간 (%.2f 분)\n",
                 totalCleanTime / 3600.0, totalCleanTime / 60.0));
         dataForAi.append(String.format("총 계획 청소 면적: %.2f m²\n", totalTaskArea));
         dataForAi.append(String.format("총 실제 청소 면적: %.2f m²\n", totalCleanArea));
         dataForAi.append(String.format("총 작업 수: %d 회\n", totalTaskCount));
-        // Long costWater (ml) -> L 변환
         dataForAi.append(String.format("총 물 소비량: %.2f L\n", totalCostWater / 1000.0));
-        dataForAi.append(String.format("평균 업무 효율성: %.2f m²/h\n", totalCleanArea / totalCleanTime));
-        // Long costBattery (bigint, kWh로 가정, 1000으로 나누어 보기 쉽게 조정)
+        dataForAi.append(String.format("평균 업무 효율성: %.2f m²/h\n", avgEfficiency));
         dataForAi.append(String.format("총 전력 소모량: %.2f kWh\n\n", totalCostBattery / 1000.0));
+
         // 2. 층별 작업 현황 데이터
         dataForAi.append("### 2. 층별 작업 현황 데이터 (세부 수치)\n");
         dataForAi.append("| 구분 | 작업 횟수 (회) | 총 청소면적 (m²) | 총 전력 소비 (kWh) | 총 물 사용량 (L) |\n");

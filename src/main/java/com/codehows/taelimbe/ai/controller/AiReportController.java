@@ -42,7 +42,10 @@ public class AiReportController {
         return ResponseEntity.ok(rawReportProjection);
     }
 
+    //SSE 구성할때 post로 하면 요청이 끝나야 응답을 주는데 get을 쓰면 길게 열어놓고 계속 보내는 게 가능해짐
     //서버가 실시간으로 데이터 스트리밍해서 전달 내가 보낸 메시지랑 대화 ID 받아서 실시간 보고서 만들어줌
+    //Post 사용하면 POST로 보고서 생성 요청 → 요청 정보 DB에 저장하고 클라이언트에서 GET /sse 로 연결해서 스트리밍만 받기
+    //이렇게 두번 하기 때문에 GET한 번으로 요청,응답 동시에 하는게 좋다.
     @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter report(
             @RequestParam("message") String message,
