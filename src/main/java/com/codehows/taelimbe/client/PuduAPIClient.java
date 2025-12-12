@@ -130,30 +130,4 @@ public class PuduAPIClient {
         return mac.doFinal(text.getBytes(ENCODING));
     }
 
-
-    // ============================
-// 🔵 OpenPlatform 전용 (HMAC X)
-// ============================
-    public ResponseEntity<String> callOpenPlatformAPI(String url) throws Exception {
-
-        System.out.println("🔥 [OpenPlatform API 호출] URL = " + url);
-
-        CloseableHttpClient httpClient = HttpClients.createDefault();
-        HttpGet httpGet = new HttpGet(url);
-
-        // 이 API는 Content-Type만 요구함
-        httpGet.setHeader("Content-Type", "application/json");
-        httpGet.setHeader("Accept", "application/json");
-
-        CloseableHttpResponse response = httpClient.execute(httpGet);
-        int statusCode = response.getStatusLine().getStatusCode();
-        String responseBody = EntityUtils.toString(response.getEntity());
-
-        System.out.println("🔵 OpenPlatform Response Status: " + statusCode);
-        System.out.println("🔵 OpenPlatform Response Body: " + responseBody);
-
-        httpClient.close();
-
-        return ResponseEntity.status(statusCode).body(responseBody);
-    }
 }

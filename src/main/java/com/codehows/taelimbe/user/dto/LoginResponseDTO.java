@@ -14,4 +14,6 @@ public class LoginResponseDTO
     private Integer roleLevel;
 
     private Long storeId;
+    
+    private Long userId;
 }

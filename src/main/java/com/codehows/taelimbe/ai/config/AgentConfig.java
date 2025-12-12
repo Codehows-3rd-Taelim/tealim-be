@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.langchain.config;
+package com.codehows.taelimbe.ai.config;
 
 import com.codehows.taelimbe.langchain.Agent;
 import com.codehows.taelimbe.langchain.tools.ChatTools;
@@ -42,6 +42,15 @@ public class AgentConfig {
                 .tools(tools) // AI가 사용할 수 있는 도구들을 등록합니다.
                 .chatMemoryProvider(chatMemoryProvider) // 대화 메모리 제공자를 등록합니다.
                 .contentRetriever(contentRetriever) // RAG를 위한 콘텐츠 검색기를 등록합니다.
+                .build();
+    }
+
+
+    //Chat 분류 하기 위해 사용
+    @Bean
+    public Agent intentAgent(StreamingChatLanguageModel streamingChatLanguageModel) {
+        return AiServices.builder(Agent.class)
+                .streamingChatLanguageModel(streamingChatLanguageModel)
                 .build();
     }
 }

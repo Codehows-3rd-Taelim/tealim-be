@@ -31,7 +31,7 @@ public class StoreController {
      * @param storeId 선택적 매개변수 (Long 타입, 없을 경우 null)
      * @return 조회된 Store 엔티티 목록 (JSON)
      */
-    @GetMapping
+    @GetMapping("/list")
     @ResponseBody
     public ResponseEntity<List<Store>> getStore(
             @RequestParam(value = "storeId", required = false) Long storeId) {
@@ -91,7 +91,7 @@ public class StoreController {
      *
      * @return 저장된 Store 개수
      */
-    @PostMapping("api/store/sync")
+    @PostMapping("/sync")
     public ResponseEntity<String> syncAllStores() {
         int count = storeService.syncAllStores();
         return ResponseEntity.ok(count + "개 Store 저장/업데이트 완료");

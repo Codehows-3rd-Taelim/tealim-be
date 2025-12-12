@@ -15,6 +15,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,32 +41,40 @@ public class RobotService {
 
         Store store = storeRepository.findById(req.getStoreId())
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+
         Long shopId = store.getShopId();
 
         List<RobotDTO> robots = getRobotListByShop(shopId);
 
-        int cnt = 0;
+        int newCount = 0;
+
         for (RobotDTO dto : robots) {
+            Robot existing = robotRepository.findBySn(dto.getSn()).orElse(null);
+            boolean isNew = (existing == null);
             saveRobot(dto, store);
-            cnt++;
+            if (isNew) {
+                newCount++;
+            }
+
+
+
         }
-        return cnt;
+        return newCount;
     }
 
     /**
      * DB에 저장된 모든 매장의 로봇을 Pudu API에서 조회하여 동기화
      * 관리자가 전체 매장의 로봇 정보를 한 번에 업데이트할 때 사용
-     * @return 저장된 전체 로봇 개수
      */
+
     @Transactional
     public int syncAllStoresRobots() {
 
         List<Store> stores = storeRepository.findAll();
-
         System.out.println("\n===== Sync All Stores Robots =====");
         System.out.println("Total Stores: " + stores.size());
 
-        int totalCount = 0;
+        int newTotal = 0;
 
         for (Store store : stores) {
             System.out.println("\n--- Processing Store: " + store.getStoreId() + " ---");
@@ -72,7 +83,7 @@ public class RobotService {
                 int count = syncRobots(RobotSyncRequestDTO.builder()
                         .storeId(store.getStoreId())
                         .build());
-                totalCount += count;
+                newTotal += count;
                 System.out.println("Store " + store.getStoreId() + " Synced: " + count + " robots");
             } catch (Exception e) {
                 System.out.println("Error syncing store " + store.getStoreId() + ": " + e.getMessage());
@@ -81,10 +92,10 @@ public class RobotService {
         }
 
         System.out.println("\n===== All Stores Robot Sync Complete =====");
-        System.out.println("Total Synced: " + totalCount);
+        System.out.println("Total New Robots: " + newTotal);
         System.out.println("==========================================\n");
 
-        return totalCount;
+        return newTotal;
     }
 
     /**
@@ -93,6 +104,7 @@ public class RobotService {
      * @return 해당 매장에 속한 로봇 목록
      */
     public List<RobotDTO> getRobotListFromDB(Long storeId) {
+
         return robotRepository.findAllByStore_StoreId(storeId)
                 .stream()
                 .map(this::convertToDto)
@@ -106,6 +118,7 @@ public class RobotService {
      * @return 병합된 로봇 정보
      */
     public RobotDTO getRobotInfoByStoreId(String sn, Long storeId) {
+
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new IllegalArgumentException("Store not found"));
 
@@ -114,13 +127,13 @@ public class RobotService {
         RobotDTO api = getRobotInfo(sn, shopId);
         Robot robot = robotRepository.findBySn(sn).orElse(null);
         if (robot == null) return api;
+
         RobotDTO dto = convertToDto(robot);
 
         dto.setBattery(api.getBattery());
         dto.setOnline(api.getOnline());
         dto.setStatus(api.getStatus());
         dto.setProductCode(api.getProductCode());
-        dto.setSoftVersion(api.getSoftVersion());
 
         return dto;
     }
@@ -142,7 +155,7 @@ public class RobotService {
                 dto.getBattery(),
                 dto.getStatus(),
                 dto.getProductCode(),
-                dto.getSoftVersion()
+                dto.getIsCharging()
         );
 
         robot.changeStore(store);
@@ -163,10 +176,14 @@ public class RobotService {
         int battery = 0;
         int status = 0;
         String productCode = null;
-        String softVersion = null;
+        int isCharging = 0;
 
         JsonNode base = fetchRobotBySn(sn, shopId);
-        if (base != null) mac = base.path("mac").asText(null);
+        if (base != null) {
+            mac = base.path("mac").asText(null);
+            productCode = base.path("product_code").asText(null);
+        }
+
 
         JsonNode detail = fetchRobotDetail(sn);
         if (detail != null) {
@@ -176,10 +193,10 @@ public class RobotService {
             status = detail.path("cleanbot").path("clean").path("status").asInt();
         }
 
-        JsonNode charge = fetchLatestChargeLog(sn, shopId);
-        if (charge != null) {
-            productCode = charge.path("product_code").asText(null);
-            softVersion = charge.path("soft_version").asText(null);
+
+        JsonNode chargeStatus = fetchRobotStatusV2(sn);
+        if (chargeStatus != null) {
+            isCharging = chargeStatus.path("is_charging").asInt();
         }
 
         return RobotDTO.builder()
@@ -190,7 +207,7 @@ public class RobotService {
                 .battery(battery)
                 .status(status)
                 .productCode(productCode)
-                .softVersion(softVersion)
+                .isCharging(isCharging)
                 .build();
     }
 
@@ -217,6 +234,7 @@ public class RobotService {
      * @return 로봇 JSON 노드 리스트
      */
     private List<JsonNode> fetchRobotListAll(Long shopId) {
+
         List<JsonNode> list = new ArrayList<>();
 
         try {
@@ -238,12 +256,7 @@ public class RobotService {
         return list;
     }
 
-    /**
-     * Pudu API에서 시리얼 번호로 특정 로봇 조회
-     * @param sn 로봇 시리얼 번호
-     * @param shopId 샵 ID
-     * @return 로봇 JSON 노드
-     */
+
     private JsonNode fetchRobotBySn(String sn, Long shopId) {
 
         try {
@@ -267,11 +280,7 @@ public class RobotService {
         return null;
     }
 
-    /**
-     * Pudu API에서 로봇의 상세 정보 조회 (별칭, 배터리, 온라인 상태 등)
-     * @param sn 로봇 시리얼 번호
-     * @return 로봇 상세 정보 JSON 노드
-     */
+
     private JsonNode fetchRobotDetail(String sn) {
 
         try {
@@ -289,31 +298,20 @@ public class RobotService {
         return null;
     }
 
-    /**
-     * Pudu API에서 로봇의 최신 충전 로그 조회 (제품 코드, 소프트웨어 버전 등)
-     * @param sn 로봇 시리얼 번호
-     * @param shopId 샵 ID
-     * @return 최신 충전 로그 JSON 노드
-     */
-    private JsonNode fetchLatestChargeLog(String sn, Long shopId) {
-        long end = System.currentTimeMillis() / 1000;
-        long start = end - 60L * 60 * 24 * 90;
 
+
+
+    private JsonNode fetchRobotStatusV2(String sn) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
-                    .path("/data-board/v1/log/charge/query_list")
-                    .queryParam("start_time", start)
-                    .queryParam("end_time", end)
-                    .queryParam("limit", 1)
-                    .queryParam("offset", 0)
-                    .queryParam("shop_id", shopId)
+                    .path("/open-platform-service/v2/status/get_by_sn")
+                    .queryParam("sn", sn)
                     .toUriString();
+
 
             ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
 
-            JsonNode arr = mapper.readTree(res.getBody()).path("data").path("list");
-
-            if (arr.isArray() && arr.size() > 0) return arr.get(0);
+            return mapper.readTree(res.getBody()).path("data");
 
         } catch (Exception ignored) {}
 
@@ -346,8 +344,8 @@ public class RobotService {
                 .battery(robot.getBattery())
                 .status(robot.getStatus())
                 .productCode(robot.getProductCode())
-                .softVersion(robot.getSoftVersion())
                 .storeId(robot.getStore().getStoreId())
+                .isCharging(robot.getIsCharging())
                 .build();
     }
 }
