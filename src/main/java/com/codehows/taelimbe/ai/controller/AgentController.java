@@ -51,29 +51,10 @@ public class AgentController {
         return ResponseEntity.ok(conversationId);
     }
 
-
-
-
     // SSE 연결
     @GetMapping(value = "/agent/stream/{conversationId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter connect(@PathVariable String conversationId) {
         return sseService.createEmitter(conversationId);
-    }
-
-
-    /**
-     * ------------------------------------------------------------
-     * 3) 리포트 생성 (SSE 직접 반환)
-     * POST /api/agent/report
-     * ------------------------------------------------------------
-     */
-    @PostMapping(value = "/agent/report", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter report(
-            @RequestBody ChatPromptRequest req,
-            HttpServletRequest request
-    ) {
-        Long userId = Long.valueOf(request.getAttribute("userId").toString());
-        return agentService.report(req, userId);
     }
 
     /**

@@ -29,9 +29,9 @@ dependencies {
     // Spring Boot 스타터
     // ==============================
     implementation 'org.springframework.boot:spring-boot-starter-web'         // Web MVC
-    implementation 'org.springframework.boot:spring-boot-starter-webflux'     // WebFlux
+//    implementation 'org.springframework.boot:spring-boot-starter-webflux'     // WebFlux
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'    // JPA
-    implementation 'org.springframework.boot:spring-boot-starter-jdbc'        // JDBC
+//    implementation 'org.springframework.boot:spring-boot-starter-jdbc'        // JDBC
     implementation 'org.springframework.boot:spring-boot-starter-security'    // Spring Security
     implementation 'org.springframework.boot:spring-boot-starter-validation'  // Bean Validation
 
@@ -44,7 +44,7 @@ dependencies {
     // QueryDSL
     // ==============================
     implementation 'com.querydsl:querydsl-apt:5.1.0'
-    implementation 'com.querydsl:querydsl-jpa:5.1.0'
+    implementation 'com.querydsl:querydsl-apt:5.1.0:jpa'
 
     // ==============================
     // 모델 매핑
@@ -67,32 +67,12 @@ dependencies {
 
     implementation 'com.google.genai:google-genai:1.28.0'
 
-    implementation 'dev.langchain4j:langchain4j-milvus:0.31.0'
-    
-    implementation platform('io.grpc:grpc-bom:1.59.1')
+    implementation platform('io.grpc:grpc-bom:1.59.1') 
     implementation 'io.grpc:grpc-api'
     implementation 'io.grpc:grpc-core'
     implementation 'io.grpc:grpc-protobuf'
     implementation 'io.grpc:grpc-stub'
     implementation 'io.grpc:grpc-services'
-    configurations.all {
-        resolutionStrategy.eachDependency { details ->
-            if (details.requested.group == 'io.grpc') {
-                details.useVersion '1.59.1'
-            }
-        }
-    }
-
-    // ==============================
-    // gRPC
-    // ==============================
-    implementation platform('io.grpc:grpc-bom:1.59.1')
-    implementation 'io.grpc:grpc-api'
-    implementation 'io.grpc:grpc-core'
-    implementation 'io.grpc:grpc-protobuf'
-    implementation 'io.grpc:grpc-stub'
-    implementation 'io.grpc:grpc-services'
-
     configurations.all {
         resolutionStrategy.eachDependency { details ->
             if (details.requested.group == 'io.grpc') {

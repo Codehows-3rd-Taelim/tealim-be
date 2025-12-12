@@ -52,6 +52,10 @@ public class DataInitializer implements CommandLineRunner {
     private List<Industry> initializeIndustryData() {
         if (industryRepository.count() == 0) {
             System.out.println(">>> Initializing Industry Data...");
+            List<String> industryNames = Arrays.asList(
+                    "식음료", "소매", "접객", "산업 시설/창고/물류", "헬스케어",
+                    "운송 및 관련 서비스", "엔터테인먼트 및 스포츠", "주거 및 오피스 빌딩", "교육", "공공 서비스"
+            );
 
             // IndustryType Enum의 모든 값을 스트림으로 변환하여 업종 이름을 가져옵니다.
             List<Industry> industries = Arrays.stream(IndustryType.values())

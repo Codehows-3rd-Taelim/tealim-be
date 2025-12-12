@@ -16,8 +16,12 @@ public class RobotController {
 
     private final RobotService robotService;
 
-
-    // 특정 매장의 로봇 동기화
+    /**
+     * 특정 매장의 로봇 동기화
+     * 요청한 매장 ID에 해당하는 로봇을 Pudu API에서 조회하여 DB에 저장/업데이트
+     * @param req storeId 포함 요청 정보
+     * @return 저장된 로봇 개수
+     */
     @PostMapping("/sync")
     public ResponseEntity<String> syncRobots(@Valid @RequestBody RobotSyncRequestDTO req) {
         int count = robotService.syncRobots(req);
@@ -45,6 +49,4 @@ public class RobotController {
     public ResponseEntity<List<RobotDTO>> getAllRobots(@RequestParam(value = "storeId", required = false) Long storeId) {
         return ResponseEntity.ok(robotService.getRobotListFromDB(storeId));
     }
-
-
 }
