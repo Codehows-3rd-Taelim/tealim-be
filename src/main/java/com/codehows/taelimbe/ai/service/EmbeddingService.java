@@ -49,29 +49,13 @@ public class EmbeddingService {
      * @param text 임베딩하고 저장할 텍스트
      * @return 비동기 작업의 완료를 나타내는 `CompletableFuture<Void>`
      */
-//    public CompletableFuture<Void> embedAndStore(String text) {
-//        return CompletableFuture.runAsync(() -> {
-//            log.info("텍스트 임베딩 및 저장 시작: '{}'", text);
-//
-//            // 1. 텍스트 분할 전략을 사용하여 텍스트를 작은 `TextSegment`들로 분할합니다.
-//            List<TextSegment> segments = textSplitterStrategy.split(text).stream().map(TextSegment::from).toList();
-//
-//            // 2. `EmbeddingModel`을 사용하여 각 `TextSegment`를 임베딩 벡터로 변환합니다.
-//            Response<List<Embedding>> embedding = embeddingModel.embedAll(segments);
-//
-//            // 3. 임베딩된 `TextSegment`와 해당 임베딩 벡터를 `EmbeddingStore`에 추가합니다.
-//            embeddingStore.addAll(embedding.content(), segments);
-//
-//            log.info("텍스트 임베딩 및 저장 완료.");
-//        }, taskExecutor); // 지정된 `taskExecutor` 스레드 풀에서 실행
-//    }
 
     public CompletableFuture<Void> embedAndStore(String text) {
         return CompletableFuture.runAsync(() -> {
             log.info("텍스트 임베딩 및 저장 시작: '{}'", text);
 
             try {
-                // 1. 텍스트 분할
+                // 1. 텍스트 분할 전략을 사용하여 텍스트를 작은 `TextSegment`들로 분할합니다.
                 List<TextSegment> segments = textSplitterStrategy
                         .split(text)
                         .stream()
@@ -84,15 +68,15 @@ public class EmbeddingService {
                     return;
                 }
 
-                // 2. 임베딩 수행
+                // 2. `EmbeddingModel`을 사용하여 각 `TextSegment`를 임베딩 벡터로 변환합니다.
                 Response<List<Embedding>> embedding = embeddingModel.embedAll(segments);
-                log.info("Embedding size = {}", embedding.content().size());
 
-                // 3. 임베딩 스토어에 저장
+
+                // 3. 임베딩된 `TextSegment`와 해당 임베딩 벡터를 `EmbeddingStore`에 추가합니다.
                 embeddingStore.addAll(embedding.content(), segments);
 
             } catch (Exception e) {
-                log.error("❌ 임베딩 중 오류 발생!", e);
+                log.error("임베딩 중 오류 발생!", e);
                 throw new RuntimeException(e);
             }
 

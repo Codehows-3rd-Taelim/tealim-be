@@ -55,23 +55,6 @@ public class AiChatService {
 
 
 
-    public AiChat saveAgentMessage(String conversationId, String response) {
-        User user = getCurrentUser();
-        Long nextMessageIndex = aiChatRepository.findMaxMessageIndexByConversationId(conversationId) + 1;
-
-        AiChat agentChat = AiChat.builder()
-                .conversationId(conversationId)
-                .senderType(SenderType.AI)
-                .rawMessage(response)
-                .messageIndex(nextMessageIndex)
-                .user(user)
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        return aiChatRepository.save(agentChat);
-    }
-
-
     @Transactional(readOnly = true)
     public List<AiChatDTO> getChatHistory(String conversationId) {
         return aiChatRepository.findByConversationIdOrderByMessageIndex(conversationId)
@@ -80,10 +63,8 @@ public class AiChatService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * 사용자의 대화 목록 조회 (최신순)
-     * 각 대화의 첫 번째 메시지를 대화 제목으로 사용
-     */
+
+    // 사용자의 대화 목록 조회 각 대화의 첫 번째 메시지를 대화 제목으로 사용
     @Transactional(readOnly = true)
     public List<AiChatDTO> getUserChatList() {
         User user = getCurrentUser();
@@ -115,20 +96,7 @@ public class AiChatService {
     }
 
 
-    /**
-     * 특정 매장의 모든 대화 조회 (관리자용)
-     */
-    @Transactional(readOnly = true)
-    public List<AiChatDTO> getStoreChatHistory(Long storeId) {
-        return aiChatRepository.findByStoreIdOrderByCreatedAtDesc(storeId)
-                .stream()
-                .map(AiChatDTO::from)
-                .collect(Collectors.toList());
-    }
-
-
-
-    /** USER 메시지 저장 */
+    // USER 메시지 저장
     public void saveUserMessage(String convId, Long userId, String msg) {
         log.info("🔍 [saveUserMessage] START convId={}, userId={}, msg={}", convId, userId, msg);
         User user = userRepository.findById(userId)
@@ -148,7 +116,7 @@ public class AiChatService {
         aiChatRepository.save(chat);
     }
 
-    /** AI 메시지 저장 */
+    // AI 메시지 저장
     public void saveAiMessage(String convId, Long userId, String msg) {
 
         User user = userRepository.findById(userId)
@@ -165,13 +133,5 @@ public class AiChatService {
                 .build();
 
         aiChatRepository.save(chat);
-    }
-
-    public List<AiChat> loadConversation(String convId) {
-        return aiChatRepository.findByConversationIdOrderByMessageIndexAsc(convId);
-    }
-
-    public List<String> loadChatHistory(Long userId) {
-        return aiChatRepository.findConversationIdsByUser(userId);
     }
 }

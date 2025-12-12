@@ -22,7 +22,6 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 @RequiredArgsConstructor
 @Slf4j
-@RequestMapping("")   // ✔ 너 원래 코드 그대로
 public class AgentController {
 
     private final AgentService agentService;
@@ -52,12 +51,9 @@ public class AgentController {
     }
 
 
-    /**
-     * ------------------------------------------------------------
-     * 2) SSE 연결
-     * GET /api/agent/stream/{conversationId}
-     * ------------------------------------------------------------
-     */
+
+
+    // SSE 연결
     @GetMapping(value = "/agent/stream/{conversationId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter connect(@PathVariable String conversationId) {
         return sseService.createEmitter(conversationId);

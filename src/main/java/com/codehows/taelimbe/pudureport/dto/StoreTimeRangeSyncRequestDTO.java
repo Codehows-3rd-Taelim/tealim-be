@@ -27,8 +27,4 @@ public class StoreTimeRangeSyncRequestDTO {
     @Builder.Default
     private Integer offset = 0;
 
-    @AssertTrue(message = "startTime이 endTime보다 작아야 합니다")
-    public boolean isValidTimeRange() {
-        return startTime.isBefore(endTime);
-    }
 }

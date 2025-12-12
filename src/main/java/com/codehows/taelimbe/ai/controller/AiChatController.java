@@ -19,19 +19,16 @@ import java.util.Map;
 public class AiChatController {
 
     private final AiChatService aiChatService;
-    /**
-     * 사용자의 대화 목록 조회 (사이드바에서 사용)
-     * 각 대화의 첫 번째 메시지 (사용자 질문)를 제목으로 반환
-     */
+
+    // 사용자의 대화 목록 조회 (사이드바에서 사용)
     @GetMapping("/chat/history")
     public ResponseEntity<List<AiChatDTO>> getChatHistory() {
         List<AiChatDTO> chatList = aiChatService.getUserChatList();
         return ResponseEntity.ok(chatList);
     }
 
-    /**
-     * 특정 대화의 메시지 목록 조회
-     */
+
+    // 특정 대화의 메시지 목록 조회
     @GetMapping("/conversation/{conversationId}")
     public ResponseEntity<List<AiChatDTO>> getConversationMessages(
             @PathVariable String conversationId) {
@@ -40,6 +37,7 @@ public class AiChatController {
     }
 
 
+    // 새 채팅
     @PostMapping("/new/chat")
     public ResponseEntity<?> startNewChat() {
 

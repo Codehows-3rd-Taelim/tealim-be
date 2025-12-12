@@ -243,58 +243,6 @@ public class RobotService {
 
 
 
-    private JsonNode fetchLatestChargeLog(String sn, Long shopId) {
-        long end = System.currentTimeMillis() / 1000;
-        long start = end - 60L * 60 * 24 * 90; // 최근 90일
-        int limit = 20;
-
-        JsonNode latest = null;
-
-        try {
-            for (int offset = 0; ; offset += limit) {
-
-                String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())
-                        .path("/data-board/v1/log/charge/query_list")
-                        .queryParam("start_time", start)
-                        .queryParam("end_time", end)
-                        .queryParam("limit", limit)
-                        .queryParam("offset", offset)
-                        .queryParam("shop_id", shopId)
-                        .toUriString();
-
-                ResponseEntity<String> res = puduAPIClient.callPuduAPI(url, "GET");
-
-                JsonNode arr = mapper.readTree(res.getBody())
-                        .path("data").path("list");
-
-                // 더 이상 데이터 없음 → 종료
-                if (!arr.isArray() || arr.size() == 0) break;
-
-                for (JsonNode node : arr) {
-
-                    // SN 일치하는 것만 체크
-                    if (!sn.equals(node.path("sn").asText())) continue;
-
-                    if (latest == null) {
-                        latest = node;
-                        continue;
-                    }
-
-                    long t1 = convertTime(node.path("upload_time").asText());
-                    long t2 = convertTime(latest.path("upload_time").asText());
-
-                    if (t1 > t2) latest = node;
-                }
-
-
-                if (latest != null && offset > 40) break;
-            }
-
-        } catch (Exception ignored) {}
-
-        return latest;
-    }
-
 
     private JsonNode fetchRobotStatusV2(String sn) {
         try {
@@ -322,16 +270,6 @@ public class RobotService {
         return robotRepository.findBySn(sn)
                 .map(this::convertToDto)
                 .orElseThrow(() -> new IllegalArgumentException("Robot not found"));
-    }
-
-    private long convertTime(String timeStr) {
-        try {
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            LocalDateTime dt = LocalDateTime.parse(timeStr, formatter);
-            return dt.atZone(ZoneId.of("Asia/Seoul")).toEpochSecond();
-        } catch (Exception e) {
-            return 0;
-        }
     }
 
 

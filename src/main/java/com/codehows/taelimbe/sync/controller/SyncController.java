@@ -13,13 +13,13 @@ public class SyncController {
 
     private final SyncRecordService syncRecordService;
 
-    /** 동기화 실행 (버튼 클릭) */
+    // 동기화 실행 (버튼 클릭)
     @PostMapping("/now")
     public ResponseEntity<String> sync() {
         return ResponseEntity.ok(syncRecordService.executeSync());
     }
 
-    /** 동기화 시간 조회 */
+    // 마지막 동기화 시간 조회 (수동 동기화, 스케줄러)
     @GetMapping("/last")
     public ResponseEntity<SyncRecordDTO> getLastSyncTime() {
         return ResponseEntity.ok(syncRecordService.getLastSyncTime());
