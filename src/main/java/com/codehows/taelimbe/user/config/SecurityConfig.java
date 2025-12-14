@@ -34,6 +34,7 @@ public class SecurityConfig {
                         ((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login").permitAll()
+                        .requestMatchers("/api/ai/report/stream/**").authenticated() // SSE 허용
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .exceptionHandling((ex) -> ex.authenticationEntryPoint(authEntryPoint));

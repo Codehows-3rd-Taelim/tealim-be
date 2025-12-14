@@ -1,16 +1,20 @@
 package com.codehows.taelimbe.langchain.config;
 
+import com.codehows.taelimbe.ai.agent.ReportAgent;
 import com.codehows.taelimbe.langchain.converters.LocalDateTimeAdapter;
+import com.codehows.taelimbe.langchain.tools.ReportTools;
 import com.google.genai.Client;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
+import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.rag.content.retriever.ContentRetriever;
 import dev.langchain4j.rag.content.retriever.EmbeddingStoreContentRetriever;
+import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.milvus.MilvusEmbeddingStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;

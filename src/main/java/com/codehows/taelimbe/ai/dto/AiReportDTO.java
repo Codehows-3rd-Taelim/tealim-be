@@ -6,6 +6,7 @@ import com.codehows.taelimbe.ai.repository.AiReportMetaProjection;
 
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Builder
@@ -17,8 +18,8 @@ public class AiReportDTO {
 
     private Long aiReportId;
     private String conversationId;
-    private LocalDateTime startTime;
-    private LocalDateTime endTime;
+    private LocalDate startTime;
+    private LocalDate endTime;
     private LocalDateTime createdAt;
     private String rawReport;
     private String rawMessage;
@@ -46,8 +47,8 @@ public class AiReportDTO {
         return AiReportDTO.builder()
                 .aiReportId(projection.getAiReportId())
                 .conversationId(projection.getConversationId())
-                .startTime(projection.getStartTime())
-                .endTime(projection.getEndTime())
+                .startTime(projection.getStartTime().toLocalDate())
+                .endTime(projection.getEndTime().toLocalDate())
                 .createdAt(projection.getCreatedAt())
                 .rawMessage(projection.getRawMessage())
                 .name(projection.getName())
