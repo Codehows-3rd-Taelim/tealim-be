@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.ai.service;
 
 import com.codehows.taelimbe.ai.agent.ReportAgent;
+import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.dto.ReportResult;
@@ -59,7 +60,7 @@ public class AiReportService {
 
         // 입력 검증
         if (message == null || message.isBlank()) {
-            sseService.sendEvent(conversationId, "error", "⚠️ 기간을 명확히 입력해주세요.");
+            sseService.sendEvent(conversationId, "error", "다시 시도해 주세요.");
             sseService.complete(conversationId);
             return; // DB 저장하지 않고 종료
         }
@@ -74,7 +75,6 @@ public class AiReportService {
 
             // AI Agent가 알아서 날짜를 판단하고 Tool을 호출하도록 함
             StringBuilder aiResult = new StringBuilder();
-            StringBuilder extractedDates = new StringBuilder();
 
             reportAgent.report(message, currentDate, generatedDate)
                     .onNext(token -> {
@@ -84,11 +84,8 @@ public class AiReportService {
                     .onComplete(res -> {
                         // AI가 사용한 날짜를 추출 (Tool 호출 로그에서)
                         // 기본값으로 오늘 날짜 사용
-                        String startDate = LocalDate.now().toString();
-                        String endDate = LocalDate.now().toString();
-
-                        // TODO: AI가 실제로 사용한 날짜를 추출하는 로직 추가 가능
-                        // 현재는 기본값으로 저장
+                        String startDate = ToolArgsContextHolder.getToolArgs("startDate");
+                        String endDate = ToolArgsContextHolder.getToolArgs("endDate");
 
                         AiReport saved = saveReport(user, conversationId, message,
                                 aiResult.toString(), startDate, endDate);
@@ -142,6 +139,7 @@ public class AiReportService {
                 .findById(principal.userId())
                 .orElseThrow();
 
+        //TODO: 유저별 자신이 생성한 데이터만 조회
         if (user.getRole() == Role.ADMIN) {
             return aiReportRepository.findAllByOrderByCreatedAtDesc()
                     .stream()
