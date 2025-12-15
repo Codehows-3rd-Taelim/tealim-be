@@ -151,8 +151,8 @@ public class LangChainConfig {
         return EmbeddingStoreContentRetriever.builder()
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
-                .maxResults(langChainRagMaxResults) // 최대 2개의 관련성 높은 결과를 검색합니다.
-                .minScore(langChainRagMinScore) // 최소 유사도 점수가 0.5 이상인 결과만 반환합니다.
+                .maxResults(langChainRagMaxResults) // 최대 5개의 관련성 높은 결과를 검색합니다.
+                .minScore(langChainRagMinScore) // 최소 유사도 점수가 0.3 이상인 결과만 반환합니다.
                 .build();
     }
 
