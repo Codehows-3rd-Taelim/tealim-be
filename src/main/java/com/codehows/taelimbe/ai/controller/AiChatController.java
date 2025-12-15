@@ -16,7 +16,7 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping("")
+@RequestMapping
 @RequiredArgsConstructor
 public class AiChatController {
 
@@ -24,8 +24,8 @@ public class AiChatController {
 
     // 사용자의 대화 목록 조회 (사이드바에서 사용)
     @GetMapping("/chat/history")
-    public ResponseEntity<List<AiChatDTO>> getChatHistory() {
-        List<AiChatDTO> chatList = aiChatService.getUserChatList();
+    public ResponseEntity<List<AiChatDTO>> getChatHistory(Authentication authentication) {
+        List<AiChatDTO> chatList = aiChatService.getUserChatList(authentication);
         return ResponseEntity.ok(chatList);
     }
 
@@ -41,14 +41,8 @@ public class AiChatController {
 
     // 새 채팅
     @PostMapping("/new/chat")
-    public ResponseEntity<?> startNewChat() {
-
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-
-        Long userId = (Long) authentication.getDetails();
-        String conversationId = aiChatService.startNewChat(userId);
-
+    public ResponseEntity<?> startNewChat(Authentication authentication) {
+        String conversationId = aiChatService.startNewChat(authentication);
         return ResponseEntity.ok(Map.of("conversationId", conversationId));
     }
 }

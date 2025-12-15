@@ -6,6 +6,7 @@ import com.codehows.taelimbe.ai.entity.AiChat;
 import com.codehows.taelimbe.ai.repository.AiChatRepository;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.repository.UserRepository;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
@@ -13,7 +14,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -38,21 +38,20 @@ public class AiChatService {
     }
 
 
+    public String startNewChat(Authentication authentication) {
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = principal.userId();
 
-
-    public String startNewChat(Long userId) {
         String id = UUID.randomUUID().toString();
 
         AiChat chat = AiChat.builder()
                 .conversationId(id)
-                .user(userRepository.findById(userId).orElseThrow())
-                // 메시지는 넣지 않음!!
+                .user(userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found")))
                 .build();
 
-
+        aiChatRepository.save(chat);
         return id;
     }
-
 
 
     @Transactional(readOnly = true)
@@ -66,11 +65,12 @@ public class AiChatService {
 
     // 사용자의 대화 목록 조회 각 대화의 첫 번째 메시지를 대화 제목으로 사용
     @Transactional(readOnly = true)
-    public List<AiChatDTO> getUserChatList() {
-        User user = getCurrentUser();
-        List<String> conversationIds = aiChatRepository.findConversationIdsByUserId(user.getUserId());
+    public List<AiChatDTO> getUserChatList(Authentication authentication) {
+        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+        Long userId = principal.userId();
 
-        // 대화 자체가 하나도 없으면 빈 배열 반환
+        List<String> conversationIds = aiChatRepository.findConversationIdsByUserId(userId);
+
         if (conversationIds == null || conversationIds.isEmpty()) {
             return Collections.emptyList();
         }
@@ -78,16 +78,12 @@ public class AiChatService {
         return conversationIds.stream()
                 .map(convId -> {
                     List<AiChat> messages = aiChatRepository.findByConversationIdOrderByMessageIndex(convId);
-
-                    // 메시지가 하나도 없으면 null 결과 대신 skip
-                    if (messages == null || messages.isEmpty()) {
-                        return null; // 이 뒤에 filter로 걸러짐
-                    }
+                    if (messages == null || messages.isEmpty()) return null;
 
                     AiChat firstMessage = messages.stream()
                             .filter(msg -> msg.getSenderType() == SenderType.USER)
                             .findFirst()
-                            .orElse(messages.get(0)); // 이제 안전함 (messages가 empty 아닌 상태로 들어오기 때문)
+                            .orElse(messages.get(0));
 
                     return AiChatDTO.from(firstMessage);
                 })
