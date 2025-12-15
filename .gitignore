@@ -29,6 +29,7 @@ Dockerfile
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+DataInitializer.java
 
 ### NetBeans ###
 /nbproject/private/
