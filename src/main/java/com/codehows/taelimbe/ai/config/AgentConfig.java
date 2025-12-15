@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.ai.config;
 
+import com.codehows.taelimbe.ai.agent.ReportAgent;
 import com.codehows.taelimbe.langchain.Agent;
 import com.codehows.taelimbe.langchain.tools.ChatTools;
 import com.codehows.taelimbe.langchain.tools.ReportTools;
@@ -10,6 +11,7 @@ import dev.langchain4j.service.AiServices;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 
 @Configuration
 @RequiredArgsConstructor
@@ -25,13 +27,15 @@ public class AgentConfig {
      * @param contentRetriever RAG 콘텐츠 검색기 (이전에 정의된 빈을 주입받음)
      * @return LangChain4j에 의해 동적으로 생성된 `Agent` 인터페이스의 구현체
      */
+
     @Bean
-    public Agent reportAgent(StreamingChatLanguageModel streamingChatLanguageModel, ReportTools tools, ChatMemoryProvider chatMemoryProvider, ContentRetriever contentRetriever) {
-        return AiServices.builder(Agent.class)
-                .streamingChatLanguageModel(streamingChatLanguageModel)
-                .tools(tools) // AI가 사용할 수 있는 도구들을 등록합니다.
-                .chatMemoryProvider(chatMemoryProvider) // 대화 메모리 제공자를 등록합니다.
-//                .contentRetriever(contentRetriever) // RAG를 위한 콘텐츠 검색기를 등록합니다.
+    public ReportAgent reportAgent(StreamingChatLanguageModel model, ReportTools reportTools) {
+        ChatMemoryProvider dummyChatMemoryProvider = (memoryId) -> MessageWindowChatMemory.builder().maxMessages(10).build();
+
+        return AiServices.builder(ReportAgent.class)
+                .streamingChatLanguageModel(model)
+                .tools(reportTools)
+                .chatMemoryProvider(dummyChatMemoryProvider)
                 .build();
     }
 

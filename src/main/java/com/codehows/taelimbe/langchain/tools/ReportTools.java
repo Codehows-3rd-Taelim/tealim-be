@@ -1,13 +1,15 @@
 package com.codehows.taelimbe.langchain.tools;
 
+import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.context.SecurityContextHolder;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -17,7 +19,7 @@ import java.util.List;
  */
 @Component
 @RequiredArgsConstructor
-
+@Slf4j
 public class ReportTools {
 
     // CleaningDataService를 주입받아 청소 보고서 관련 비즈니스 로직을 수행합니다.
@@ -25,28 +27,43 @@ public class ReportTools {
     // LangChainConfig에서 빈으로 등록된 Gson 인스턴스를 주입받습니다.
     private final Gson gson;
 
-    /**
-     * 지정된 날짜 범위 내의 청소 데이터를 페이징하여 조회하고 요약 보고서를 생성합니다.
-     * 이 메서드는 AI 에이전트에 의해 '날짜별 청소 보고서 조회'와 같은 자연어 요청이 있을 때 호출될 수 있습니다.
-     *
-     * `@Tool` 어노테이션은 이 메서드가 AI 에이전트가 호출할 수 있는 도구임을 LangChain4j에 알립니다.
-     * 어노테이션의 값은 도구의 설명을 제공하며, 이는 AI 모델이 도구를 언제, 어떻게 사용해야 할지 결정하는 데 도움을 줍니다.
-     *
-     * @param startDate 조회 시작 날짜 (YYYY-MM-DD 형식)
-     * @param endDate   조회 종료 날짜 (YYYY-MM-DD 형식)
-     * @return 페이징된 청소 데이터 요약 보고서 문자열 (JSON 형식)
-     */
-    //@Tool 메서드는 직접 호출되지 않고, LangChain4j가 런타임에 리플렉션으로 동적 호출하기 때문에 사용위치가 지금 당장은 안뜬다.
-    @Tool("지정된 기간 동안의 청소 데이터를 페이징하여 가져옵니다.")
-    public String getReport(String startDate, String endDate) {
-        String username = SecurityContextHolder.getContext().getAuthentication().getName();
-        System.out.println("Current user: " + username); // 사용자 이름을 콘솔에 출력 (디버깅용)
+    @Tool("""
+    사용자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
+    
+    ⚠️ 날짜 규칙:
+    - "어제" → 어제 날짜.
+    - "오늘" → 오늘 날짜.
+    - "지난주" → 지난주 월~일.
+    - "저번주" → 지난주 월~일.
+    - "이번주" → 이번주 월~일.
+    - "이번달" → 이번 달 1일~말일.
+    - 연도가 없는 경우:
+        - "n월" → **올해 n월** 데이터 조회 (예: "12월" → 2025-12-01 ~ 2025-12-31)
+    - 연도 + 월이 있는 경우:
+        - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
+    - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
+    
+    날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
+    """)
+    public ReportResult getReport(String startDate, String endDate) {
 
-        // CleaningDataService를 통해 지정된 기간의 페이징된 청소 데이터를 조회합니다.
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        if (startDate == null || endDate == null) {
+            log.warn("[AI TOOL CALL] 기간 미입력: startDate={}, endDate={}", startDate, endDate);
+            throw new IllegalArgumentException("⚠️ 기간을 명확히 입력해주세요.");
+        }
+
+        log.info("[AI TOOL CALL] getReport({}, {})", startDate, endDate);
+
         List<PuduReportDTO> reportData = puduReportService.getReport(startDate, endDate);
-        
-        // 조회된 청소 데이터 페이지를 JSON 문자열로 변환하여 반환합니다。
-        // 이 JSON에는 데이터 목록뿐만 아니라 총 페이지 수, 전체 항목 수 등의 페이징 정보가 포함됩니다.
-        return gson.toJson(reportData);
+
+        if (reportData == null || reportData.isEmpty()) {
+            log.warn("[AI TOOL CALL] 결과 없음: {} ~ {}", startDate, endDate);
+        }
+
+        String json = gson.toJson(reportData);
+
+        return new ReportResult(json, startDate, endDate);
     }
 }

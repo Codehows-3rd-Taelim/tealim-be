@@ -58,26 +58,19 @@ public class JwtService {
     }
 
 
-
-
     // JWT를 받아서 id(ID)를 반환
-    public String parseToken(HttpServletRequest request) {
-        // 요청 헤더에서 Authorization 헤더값을 가져옴
-        // 예) header = Bearer <토큰값>
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-        if (header != null && header.startsWith(PREFIX)) {
+    public String parseToken(String authHeader) {
+        if (authHeader != null && authHeader.startsWith(PREFIX)) {
             try {
                 JwtParser parser = Jwts.parserBuilder()
                         .setSigningKey(signingKey)
                         .build();
 
-                String id = parser.parseClaimsJws(header.replace(PREFIX, ""))
+                String token = authHeader.replace(PREFIX, "");
+                return parser.parseClaimsJws(token)
                         .getBody()
                         .getSubject();
-
-                return id;
             } catch (Exception e) {
-                // 토큰 파싱 실패 시 null 반환
                 return null;
             }
         }
