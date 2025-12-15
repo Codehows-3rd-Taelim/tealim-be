@@ -26,7 +26,6 @@ import java.util.Collections;
 public class JwtFilter extends OncePerRequestFilter
 {
     private final JwtService jwtService;
-    private final Servlet servlet;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)

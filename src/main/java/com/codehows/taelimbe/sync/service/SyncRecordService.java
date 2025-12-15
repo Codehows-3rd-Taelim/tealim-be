@@ -67,11 +67,14 @@ public class SyncRecordService {
     }
 
     /** 버튼 눌렀을 때 실행되는 공통 sync */
-    public String executeSync() {
+    public String executeSync(Long userId) {
 
-        User user = getCurrentUser();
-        Role role = user.getRole();
-        Long storeId = user.getStore().getStoreId();
+        // userId 기반으로 유저 조회
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Unauthenticated"));
+
+        var role = user.getRole();
+        var storeId = user.getStore().getStoreId();
 
         LocalDateTime end = LocalDateTime.now();
         LocalDateTime start = end.minusHours(3);
@@ -92,7 +95,6 @@ public class SyncRecordService {
 
     /** 관리자 전체 sync */
     private String executeAdminSync(LocalDateTime syncStart, TimeRangeSyncRequestDTO syncReq) {
-
         int storeCnt = storeService.syncAllStores();
         int robotCnt = robotService.syncAllStoresRobots();
         int reportCnt = puduReportService.syncAllStoresByTimeRange(syncReq);
@@ -104,7 +106,7 @@ public class SyncRecordService {
             updateGlobalSyncTime(sid, syncStart);
         }
 
-        return "Store:" + storeCnt + "개 /" + " Robot:" + robotCnt + "개 /" + " Report:" + reportCnt + "개 " + " 추가 되었습니다!";
+        return "Store:" + storeCnt + "개 /" + " Robot:" + robotCnt + "개 /" + " Report:" + reportCnt + "개 추가 되었습니다!";
     }
 
     /** 단일 매장 sync */
@@ -128,9 +130,11 @@ public class SyncRecordService {
     }
 
     /** 프론트 조회용 DTO */
-    public SyncRecordDTO getLastSyncTime() {
+    public SyncRecordDTO getLastSyncTime(Long userId) {
 
-        User user = getCurrentUser();
+        var user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("Unauthenticated"));
+
         Long storeId = user.getStore().getStoreId();
 
         SyncRecord record = syncRecordRepository.findByStore_StoreId(storeId)
