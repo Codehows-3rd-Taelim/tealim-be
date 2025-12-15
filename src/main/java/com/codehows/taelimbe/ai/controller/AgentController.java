@@ -5,6 +5,7 @@ import com.codehows.taelimbe.ai.dto.EmbeddingRequest;
 import com.codehows.taelimbe.ai.service.AgentService;
 import com.codehows.taelimbe.ai.service.SseService;
 import com.codehows.taelimbe.ai.service.EmbeddingService;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,14 +37,16 @@ public class AgentController {
             Authentication authentication
     ) {
 
-        Long userId = (Long) authentication.getDetails();
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
 
         String conversationId = req.getConversationId();
 
         if (conversationId == null || conversationId.isBlank()) {
             conversationId = UUID.randomUUID().toString();
         }
-        agentService.process(conversationId, req.getMessage(), userId);
+        agentService.process(conversationId, req.getMessage(), user.userId());
 
         return ResponseEntity.ok(conversationId);
     }
