@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 public class AgentService {
     private final SseService sseService;
     private final AiChatService aiChatService;
+    private final NotificationService notificationService;
 
     @Qualifier("chatAgent")
     private final Agent chatAgent;
@@ -39,9 +40,14 @@ public class AgentService {
                 })
                 .onComplete(finalResponse -> {
                     aiChatService.saveAiMessage(conversationId, userId, aiBuilder.toString());
+                    sseService.complete(conversationId);
+
+
+                    notificationService.notifyAiChatDone(userId, conversationId);
                 })
                 .onError(e -> {
                     log.error("AI 스트림 오류", e);
+                    sseService.completeWithError(conversationId, e);
                 })
                 .start();  
     }

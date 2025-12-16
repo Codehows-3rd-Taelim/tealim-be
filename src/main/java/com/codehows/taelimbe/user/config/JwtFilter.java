@@ -31,11 +31,21 @@ public class JwtFilter extends OncePerRequestFilter
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        // SSE 알림 연결은 JWT 필터 제외
+        String uri = request.getRequestURI();
+
+        if (uri.startsWith("/events/notifications")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+
         // OPTIONS 요청(Preflight)은 JWT 검증 없이 바로 통과
         if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
             filterChain.doFilter(request, response);
             return;
         }
+
 
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
