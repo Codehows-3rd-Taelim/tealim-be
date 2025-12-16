@@ -31,31 +31,23 @@ public class AgentController {
     private final EmbeddingService embeddingService;
 
 
+    // SSE 연결, AI 응답 받아옴
     @PostMapping("/agent/chat")
-    public ResponseEntity<String> chat(
-            @RequestBody ChatPromptRequest req,
-            Authentication authentication
-    ) {
+    public SseEmitter chat(@RequestBody ChatPromptRequest req, Authentication authentication) {
 
-        UserPrincipal user =
-                (UserPrincipal) authentication.getPrincipal();
-
+        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
 
         String conversationId = req.getConversationId();
-
         if (conversationId == null || conversationId.isBlank()) {
             conversationId = UUID.randomUUID().toString();
         }
+
+        SseEmitter emitter = sseService.createEmitter(conversationId);
+
         agentService.process(conversationId, req.getMessage(), user.userId());
-
-        return ResponseEntity.ok(conversationId);
+        return emitter;
     }
 
-    // SSE 연결
-    @GetMapping(value = "/agent/stream/{conversationId}", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter connect(@PathVariable String conversationId) {
-        return sseService.createEmitter(conversationId);
-    }
 
     /**
      * ------------------------------------------------------------

@@ -38,11 +38,14 @@ public class AiReportService {
     private final AiReportRepository aiReportRepository;
     private final UserRepository userRepository;
     private final ReportTools reportTools;
+    private final NotificationService notificationService;
 
-    // 1. 보고서 생성 시작 (SSE 연결X)
+
+    // 1. 보고서 생성 시작
     public String startGenerateReport(ChatPromptRequest req, UserPrincipal user) {
 
         String conversationId = UUID.randomUUID().toString();
+
 
         // 비동기로 AI 실행
         generateAsync(conversationId, req.getMessage(), user);
@@ -52,7 +55,7 @@ public class AiReportService {
 
     // 2. SSE 연결
     public SseEmitter connectSse(String conversationId) {
-        return sseService.createEmitter(conversationId);
+       return sseService.createEmitter(conversationId);
     }
 
     // 3. 실제 AI 보고서 생성 (비동기)
@@ -63,6 +66,8 @@ public class AiReportService {
         if (message == null || message.isBlank()) {
             sseService.sendEvent(conversationId, "error", "다시 시도해 주세요.");
             sseService.complete(conversationId);
+
+            notificationService.notifyAiReportFailed(user.userId(), "보고서 요청 내용이 비어 있습니다.");
             return; // DB 저장하지 않고 종료
         }
 
@@ -95,6 +100,9 @@ public class AiReportService {
                         sseService.sendEvent(conversationId, "done", "done");
                         sseService.complete(conversationId);
 
+                        notificationService.notifyAiReportDone(user.userId(), conversationId);
+
+
                         log.info("[AI Report] 보고서 생성 완료 - ID: {}", saved.getAiReportId());
                     })
                     .onError(e -> {
@@ -107,16 +115,27 @@ public class AiReportService {
                                 )
                         );
                         sseService.completeWithError(conversationId, e);
+
+                        // 실패 알림
+                        notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성에 실패했습니다.");
                     })
                     .start();
         } catch (IllegalArgumentException e) {
             // 기간이 명확하지 않은 경우
             sseService.sendEvent(conversationId, "error", e.getMessage());
             sseService.complete(conversationId);
+
+            notificationService.notifyAiReportFailed(user.userId(), e.getMessage()
+            );
+
         } catch (Exception e) {
             log.error("AI Report Exception", e);
             sseService.sendEvent(conversationId, "error", "보고서 생성 중 예외 발생");
             sseService.completeWithError(conversationId, e);
+
+            notificationService.notifyAiReportFailed(user.userId(), e.getMessage());
+
+
         }
     }
 

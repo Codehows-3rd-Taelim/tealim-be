@@ -37,6 +37,7 @@ public class JwtFilter extends OncePerRequestFilter
             return;
         }
 
+
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         // Authorization 헤더가 없으면 query parameter에서 토큰 확인 (SSE용)

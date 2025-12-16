@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -11,48 +12,45 @@ import java.util.concurrent.ConcurrentHashMap;
 @Slf4j
 public class SseService {
 
-    // conversationId → emitter 매핑
+    // conversationId → emitter
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
-
-    // SSE 연결 생성
+    // SSE 연결 생성 중복 생성 방지)
     public SseEmitter createEmitter(String conversationId) {
-        SseEmitter emitter = new SseEmitter(0L); // 타임아웃 없음
-        emitters.put(conversationId, emitter);
+        return emitters.computeIfAbsent(conversationId, id -> {
+            SseEmitter emitter = new SseEmitter(0L); // timeout 없음
 
-        emitter.onCompletion(() -> emitters.remove(conversationId));
-        emitter.onTimeout(() -> {
-            log.warn("SSE Emitter Timeout: {}", conversationId);
-            emitter.complete(); // 타임아웃 시 명시적 종료
-            emitters.remove(conversationId);
-        });
-        // 에러 발생 시 Emitter 제거
-        emitter.onError((e) -> {
-            log.error("SSE Emitter Error: {}", conversationId, e);
-            emitters.remove(conversationId);
-        });
+            emitter.onCompletion(() -> {
+                emitters.remove(id);
+                log.debug("SSE completed: {}", id);
+            });
 
-        return emitter;
+            emitter.onTimeout(() -> {
+                emitters.remove(id);
+                log.warn("SSE timeout: {}", id);
+            });
+
+            emitter.onError(e -> {
+                emitters.remove(id);
+                log.warn("SSE error: {}", id, e);
+            });
+
+            return emitter;
+        });
     }
 
-
-    // SSE 메시지 전송
+    // 토큰 스트리밍 전송 ( event name : message) */
     public void send(String conversationId, String data) {
-        SseEmitter emitter = emitters.get(conversationId);
-        if (emitter == null) return;
-
-        try {
-            // LangChain4j의 응답 토큰을 'message' 이벤트로 전송
-            emitter.send(SseEmitter.event().data(data));
-        } catch (Exception e) {
-            log.error("SSE 데이터 전송 중 오류 발생: {}", conversationId, e);
-            emitters.remove(conversationId);
-        }
+        sendEvent(conversationId, "message", data);
     }
 
+    // named event 전송
     public void sendEvent(String conversationId, String event, Object data) {
         SseEmitter emitter = emitters.get(conversationId);
-        if (emitter == null) return;
+        if (emitter == null) {
+            log.debug("SSE emitter not found. conversationId={}, event={}", conversationId, event);
+            return;
+        }
 
         try {
             emitter.send(
@@ -60,27 +58,37 @@ public class SseService {
                             .name(event)
                             .data(data)
             );
-        } catch (Exception e) {
-            log.error("SSE event send error", e);
+        } catch (IOException e) {
+            // 연결 끊김 / 네트워크 오류가 대부분
             emitters.remove(conversationId);
+            log.warn("SSE send failed (IO). conversationId={}, event={}", conversationId, event, e);
+        } catch (IllegalStateException e) {
+            // 이미 complete 된 emitter에 send 시도할 때
+            emitters.remove(conversationId);
+            log.warn("SSE send failed (state). conversationId={}, event={}", conversationId, event, e);
+        } catch (Exception e) {
+            emitters.remove(conversationId);
+            log.error("SSE send failed. conversationId={}, event={}", conversationId, event, e);
         }
     }
 
-
-    // SSE 연결을 명시적으로 종료
+    // SSE 정상 종료
     public void complete(String conversationId) {
-        SseEmitter emitter = emitters.get(conversationId);
+        SseEmitter emitter = emitters.remove(conversationId);
         if (emitter != null) {
-            emitter.complete();
+            try {
+                emitter.complete();
+            } catch (Exception ignored) {}
         }
     }
 
-    // SSE 연결을 오류와 함께 종료
+    // SSE 에러 종료
     public void completeWithError(String conversationId, Throwable error) {
-        SseEmitter emitter = emitters.get(conversationId);
+        SseEmitter emitter = emitters.remove(conversationId);
         if (emitter != null) {
-            emitter.completeWithError(error);
-            // onError 핸들러에 의해 emitters 맵에서 제거됩니다.
+            try {
+                emitter.completeWithError(error);
+            } catch (Exception ignored) {}
         }
     }
 }
