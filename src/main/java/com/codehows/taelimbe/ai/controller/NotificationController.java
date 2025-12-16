@@ -19,15 +19,16 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class NotificationController {
 
     private final NotificationService notificationService;
-    private final JwtService jwtService;
 
     @GetMapping(value = "/events/notifications", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter subscribe(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
-        Long userId = jwtService.extractUserId(authorization);
+    public SseEmitter subscribe(Authentication authentication) {
 
-        if (userId == null) {
-            throw new RuntimeException("Invalid JWT token");
+        if (authentication == null ||
+                !(authentication.getPrincipal() instanceof UserPrincipal user)) {
+            return null;
         }
+
+        Long userId = user.userId();
 
         log.info("Notification SSE connected. userId={}", userId);
         return notificationService.connect(userId);
