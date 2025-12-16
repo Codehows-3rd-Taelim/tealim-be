@@ -117,10 +117,10 @@ public class LangChainConfig {
      * @param llmFactory LLMFactory (이전에 정의된 빈을 주입받음)
      * @return `EmbeddingModel` 인스턴스
      */
-    @Bean
-    public EmbeddingModel embeddingModel(LLMFactory llmFactory) {
-        return llmFactory.createEmbeddingModel();
-    }
+//    @Bean
+//    public EmbeddingModel embeddingModel(LLMFactory llmFactory) {
+//        return llmFactory.createEmbeddingModel();
+//    }
 
     /**
      * Milvus 임베딩 저장소를 Bean으로 등록합니다.

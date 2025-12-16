@@ -108,4 +108,23 @@ public class AgentController {
                     return ResponseEntity.internalServerError().body("CSV 파일 처리 실패: " + ex.getMessage());
                 });
     }
+
+    @PostMapping("/embeddings/upload-pdf")
+    public CompletableFuture<ResponseEntity<String>> embedPdf(
+            @RequestParam("file") MultipartFile file
+    ) {
+        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
+            return CompletableFuture.completedFuture(
+                    ResponseEntity.badRequest().body("PDF 파일을 선택해주세요.")
+            );
+        }
+
+        return embeddingService.embedAndStorePdf(file)
+                .thenApply(v -> ResponseEntity.ok("PDF 병렬 임베딩 시작됨"))
+                .exceptionally(ex -> {
+                    log.error("PDF embed error", ex);
+                    return ResponseEntity.internalServerError().body(ex.getMessage());
+                });
+    }
+
 }

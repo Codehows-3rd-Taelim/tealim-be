@@ -298,9 +298,6 @@ public class RobotService {
         return null;
     }
 
-
-
-
     private JsonNode fetchRobotStatusV2(String sn) {
         try {
             String url = UriComponentsBuilder.fromHttpUrl(puduAPIClient.getBaseUrl())

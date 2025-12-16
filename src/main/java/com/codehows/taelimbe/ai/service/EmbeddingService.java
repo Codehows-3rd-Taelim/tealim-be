@@ -12,7 +12,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.input.BOMInputStream;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,6 +23,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -47,6 +51,22 @@ public class EmbeddingService {
     // 비동기 작업을 위한 스레드 풀을 주입받습니다.
     @Qualifier("taskExecutor")
     private final TaskExecutor taskExecutor;
+
+    // 병렬 임베딩 모델 (CSV / PDF 전용)
+    @Qualifier("parallelEmbeddingModel")
+    private final EmbeddingModel parallelEmbeddingModel;
+
+    // csv, pdf 임베딩 각 배치사이즈 값 받아오기
+    @Value("${embedding.csv.batch.size}")
+    private int embeddingCsvBatchSize;
+    @Value("${embedding.pdf.batch.size}")
+    private int embeddingPdfBatchSize;
+    
+    // 임베딩 batch 실패 시 재시도 설정값 받아오기
+    @Value("${embedding.retry.max-attempts}")
+    private int maxRetryAttempts;
+    @Value("${embedding.retry.initial-delay-ms}")
+    private long initialRetryDelayMs;
 
     /**
      * 주어진 텍스트를 임베딩하여 벡터 저장소에 추가합니다.
@@ -121,39 +141,136 @@ public class EmbeddingService {
      */
     public CompletableFuture<Void> embedAndStoreCsv(MultipartFile file) {
         return CompletableFuture.runAsync(() -> {
-            log.info("CSV 파일 임베딩 및 저장 시작: {}", file.getOriginalFilename());
 
-            // 🌟 BOMInputStream을 사용하여 BOM 문제를 해결하도록 로직 수정
+            log.info("CSV 병렬 임베딩 시작 (batchSize={}): {}",
+                    embeddingCsvBatchSize, file.getOriginalFilename());
+
             try (BOMInputStream bomIn = new BOMInputStream(file.getInputStream());
-                 Reader reader = new InputStreamReader(bomIn, StandardCharsets.UTF_8)) { // UTF-8로 지정
+                 Reader reader = new InputStreamReader(bomIn, StandardCharsets.UTF_8)) {
 
-                // 1. CSV 파일 파싱 (여기서는 Apache Commons CSV를 가정)
-                // BOMInputStream 덕분에 헤더 파싱 시 BOM 문자가 제거됩니다.
-                Iterable<CSVRecord> records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
+                Iterable<CSVRecord> records =
+                        CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
+
+                List<TextSegment> buffer = new ArrayList<>(embeddingCsvBatchSize);
 
                 for (CSVRecord record : records) {
-                    // 2. 임베딩할 텍스트 추출/결합
-                    // (이 부분은 파일의 실제 헤더 이름이 'column1', 'column2'라고 가정합니다.)
-                    // 오류 로그에서 "expected one of [﻿column1, column2]"라고 했으므로
-                    // BOM이 제거되면 순수하게 "column1"과 "column2"를 찾을 수 있습니다.
-                    String documentText = String.format("제목: %s, 내용: %s",
+
+                    String documentText = String.format(
+                            "제목: %s\n내용: %s",
                             record.get("column1"),
-                            record.get("column2"));
+                            record.get("column2")
+                    );
 
-                    // 3. 텍스트 분할 및 임베딩 로직 실행
-                    List<TextSegment> segments = textSplitterStrategy.split(documentText).stream().map(TextSegment::from).toList();
+                    List<TextSegment> segments =
+                            textSplitterStrategy.split(documentText)
+                                    .stream()
+                                    .map(TextSegment::from)
+                                    .toList();
 
-                    Response<List<Embedding>> embedding = embeddingModel.embedAll(segments);
+                    for (TextSegment segment : segments) {
+                        buffer.add(segment);
 
-                    embeddingStore.addAll(embedding.content(), segments);
+                        if (buffer.size() >= embeddingCsvBatchSize) {
+                            flushBatch(buffer);
+                        }
+                    }
                 }
 
-                log.info("CSV 파일 임베딩 및 저장 완료.");
+                // 남은 batch 처리
+                if (!buffer.isEmpty()) {
+                    flushBatch(buffer);
+                }
+
+                log.info("CSV 병렬 임베딩 완료");
+
             } catch (Exception e) {
-                log.error("CSV 파일 처리 중 오류 발생", e);
-                // 오류가 CompletableFuture 밖으로 전파되도록 처리
-                throw new RuntimeException("CSV 파일 처리 및 임베딩 실패", e);
+                log.error("CSV 병렬 임베딩 실패", e);
+                throw new RuntimeException(e);
             }
+
         }, taskExecutor);
     }
+
+    public CompletableFuture<Void> embedAndStorePdf(MultipartFile file) {
+        return CompletableFuture.runAsync(() -> {
+
+            log.info("PDF 병렬 임베딩 시작 (batchSize={}): {}",
+                    embeddingPdfBatchSize, file.getOriginalFilename());
+
+            try (PDDocument document = PDDocument.load(file.getInputStream())) {
+
+                PDFTextStripper stripper = new PDFTextStripper();
+                String text = stripper.getText(document);
+
+                List<TextSegment> segments =
+                        textSplitterStrategy.split(text)
+                                .stream()
+                                .map(TextSegment::from)
+                                .toList();
+
+                List<TextSegment> buffer = new ArrayList<>(embeddingPdfBatchSize);
+
+                for (TextSegment segment : segments) {
+                    buffer.add(segment);
+
+                    if (buffer.size() >= embeddingPdfBatchSize) {
+                        flushBatch(buffer);
+                    }
+                }
+
+                if (!buffer.isEmpty()) {
+                    flushBatch(buffer);
+                }
+
+                log.info("PDF 병렬 임베딩 완료");
+
+            } catch (Exception e) {
+                log.error("PDF 임베딩 실패", e);
+                throw new RuntimeException(e);
+            }
+
+        }, taskExecutor);
+    }
+
+    private void flushBatch(List<TextSegment> batch) {
+
+        int attempt = 0;
+        long delay = initialRetryDelayMs;
+
+        while (true) {
+            try {
+                log.info("Embedding batch flush size={}, attempt={}", batch.size(), attempt + 1);
+
+                Response<List<Embedding>> embeddings =
+                        parallelEmbeddingModel.embedAll(batch);
+
+                embeddingStore.addAll(embeddings.content(), batch);
+                batch.clear();
+                return;
+
+            } catch (Exception e) {
+                attempt++;
+
+                if (attempt >= maxRetryAttempts) {
+                    log.error("❌ Embedding batch failed after {} attempts. Skip batch.", attempt, e);
+                    batch.clear();
+                    return;
+                }
+
+                log.warn("⚠ Embedding batch failed. Retry in {} ms (attempt {}/{})",
+                        delay, attempt, maxRetryAttempts);
+
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    batch.clear();
+                    return;
+                }
+
+                delay *= 2; // exponential backoff
+            }
+        }
+    }
+
 }

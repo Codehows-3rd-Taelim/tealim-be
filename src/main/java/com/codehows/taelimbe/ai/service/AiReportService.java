@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -98,7 +99,13 @@ public class AiReportService {
                     })
                     .onError(e -> {
                         log.error("AI Report Error", e);
-                        sseService.sendEvent(conversationId, "error", "보고서 생성 중 오류 발생: " + e.getMessage());
+                        sseService.sendEvent(
+                                conversationId,
+                                "error",
+                                Map.of("messege","보고서 생성 중 오류 발생: " + e.getMessage(),
+                                "type","AI_REPORT_ERROR"
+                                )
+                        );
                         sseService.completeWithError(conversationId, e);
                     })
                     .start();
@@ -133,23 +140,9 @@ public class AiReportService {
     }
 
     // 보고서 목록 조회
-    public List<AiReportDTO> getAllReports(UserPrincipal principal) {
+    public List<AiReportDTO> getAllReports(UserPrincipal user) {
 
-        User user = userRepository
-                .findById(principal.userId())
-                .orElseThrow();
-
-        //TODO: 유저별 자신이 생성한 데이터만 조회
-        if (user.getRole() == Role.ADMIN) {
-            return aiReportRepository.findAllByOrderByCreatedAtDesc()
-                    .stream()
-                    .map(AiReportDTO::from)
-                    .toList();
-        }
-
-        Long storeId = user.getStore().getStoreId();
-
-        return aiReportRepository.findByStoreIdOrderByCreatedAtDesc(storeId)
+        return aiReportRepository.findAllByUser_UserIdOrderByCreatedAtDesc(user.userId())
                 .stream()
                 .map(AiReportDTO::from)
                 .toList();
