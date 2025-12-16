@@ -4,12 +4,11 @@ import com.codehows.taelimbe.ai.agent.ReportAgent;
 import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
-import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.ai.repository.AiReportRepository;
 import com.codehows.taelimbe.ai.repository.RawReportProjection;
 import com.codehows.taelimbe.langchain.tools.ReportTools;
-import com.codehows.taelimbe.user.constant.Role;
+import com.codehows.taelimbe.notification.service.NotificationService;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.repository.UserRepository;
 import com.codehows.taelimbe.user.security.UserPrincipal;
@@ -67,7 +66,6 @@ public class AiReportService {
             sseService.sendEvent(conversationId, "error", "다시 시도해 주세요.");
             sseService.complete(conversationId);
 
-            notificationService.notifyAiReportFailed(user.userId(), "보고서 요청 내용이 비어 있습니다.");
             return; // DB 저장하지 않고 종료
         }
 
@@ -100,7 +98,8 @@ public class AiReportService {
                         sseService.sendEvent(conversationId, "done", "done");
                         sseService.complete(conversationId);
 
-                        notificationService.notifyAiReportDone(user.userId(), conversationId);
+                        notificationService.notifyAiReportDone(user.userId());
+
 
 
                         log.info("[AI Report] 보고서 생성 완료 - ID: {}", saved.getAiReportId());
@@ -117,7 +116,8 @@ public class AiReportService {
                         sseService.completeWithError(conversationId, e);
 
                         // 실패 알림
-                        notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성에 실패했습니다.");
+                        notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
+
                     })
                     .start();
         } catch (IllegalArgumentException e) {
@@ -125,15 +125,17 @@ public class AiReportService {
             sseService.sendEvent(conversationId, "error", e.getMessage());
             sseService.complete(conversationId);
 
-            notificationService.notifyAiReportFailed(user.userId(), e.getMessage()
-            );
+            notificationService.notifyAiReportFailed(user.userId(), "기간 정보를 이해하지 못했어요. 날짜를 조금 더 명확히 입력해 주세요.");
+
+
+
 
         } catch (Exception e) {
             log.error("AI Report Exception", e);
             sseService.sendEvent(conversationId, "error", "보고서 생성 중 예외 발생");
             sseService.completeWithError(conversationId, e);
 
-            notificationService.notifyAiReportFailed(user.userId(), e.getMessage());
+            notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
 
 
         }

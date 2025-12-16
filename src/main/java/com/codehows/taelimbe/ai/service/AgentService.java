@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.ai.service;
 
 import com.codehows.taelimbe.langchain.Agent;
+import com.codehows.taelimbe.notification.service.NotificationService;
 import dev.langchain4j.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,8 +43,9 @@ public class AgentService {
                     aiChatService.saveAiMessage(conversationId, userId, aiBuilder.toString());
                     sseService.complete(conversationId);
 
+                    notificationService.notifyAiChatDone(userId);
 
-                    notificationService.notifyAiChatDone(userId, conversationId);
+
                 })
                 .onError(e -> {
                     log.error("AI 스트림 오류", e);
