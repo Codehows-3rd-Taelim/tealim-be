@@ -34,7 +34,7 @@ public class SecurityConfig {
                         ((session) -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login").permitAll()
-                        .requestMatchers("/events/notifications").permitAll()
+                        .requestMatchers("/events/notifications").authenticated()
                         .requestMatchers("/sync/**").authenticated()
                         .requestMatchers("/api/ai/report/stream/**").authenticated() // SSE 허용
                         .anyRequest().authenticated())
