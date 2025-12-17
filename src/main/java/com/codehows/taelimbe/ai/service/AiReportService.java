@@ -37,7 +37,6 @@ public class AiReportService {
     private final ReportAgent reportAgent;
     private final AiReportRepository aiReportRepository;
     private final UserRepository userRepository;
-    private final ReportTools reportTools;
     private final NotificationService notificationService;
 
 
@@ -46,7 +45,9 @@ public class AiReportService {
 
         String conversationId = UUID.randomUUID().toString();
 
+        sseService.createEmitter(conversationId);
 
+        log.info("🚀 보고서 생성 시작 - conversationId: {}", conversationId);
         // 비동기로 AI 실행
         generateAsync(conversationId, req.getMessage(), user);
 
@@ -54,17 +55,17 @@ public class AiReportService {
     }
 
     // 2. SSE 연결
-    public SseEmitter connectSse(String conversationId) {
-       return sseService.createEmitter(conversationId);
+    public SseEmitter connectSse(String conversationId, UserPrincipal user) {
+        return sseService.createEmitter(conversationId);
     }
 
     // 3. 실제 AI 보고서 생성 (비동기)
     @Async
-    protected void generateAsync(String conversationId, String message, UserPrincipal user) {
+    public void generateAsync(String conversationId, String message, UserPrincipal user) {
 
         // 입력 검증
         if (message == null || message.isBlank()) {
-            sseService.sendEvent(conversationId, "error", "다시 시도해 주세요.");
+            sseService.sendEvent(conversationId, "error", "보고서 요청 내용이 비어 있습니다.");
             sseService.complete(conversationId);
 
             notificationService.notifyAiReportFailed(user.userId(), "보고서 요청 내용이 비어 있습니다.");
@@ -83,12 +84,13 @@ public class AiReportService {
             StringBuilder aiResult = new StringBuilder();
 
             reportAgent.report(message, currentDate, generatedDate)
+                    // 1. 토큰 단위 스트리밍
                     .onNext(token -> {
                         aiResult.append(token);
-//                        sseService.send(conversationId, token);
-                        sseService.sendEvent(conversationId, "token", token);
+                        sseService.sendEvent(conversationId, "token", token); //실시간 전송
                     })
-                    .onComplete(res -> {  // res는 Response<AiMessage>
+                    // 2. 완료 시점 처리
+                    .onComplete(res -> { // res는 Response<AiMessage>
                         // Tool 호출에서 설정한 startDate, endDate 가져오기
                         String startDate = ToolArgsContextHolder.getToolArgs("startDate");
                         String endDate = ToolArgsContextHolder.getToolArgs("endDate");
@@ -99,35 +101,31 @@ public class AiReportService {
                         AiReport saved = saveReport(user, conversationId, message,
                                 result.rawReport(), result.startDate(), result.endDate());
 
-                        sseService.sendEvent(conversationId, "savedReport", AiReportDTO.from(saved));
+                        // 3. 최종 보고서 SSE 전송
+                        sseService.sendEvent(
+                                conversationId,
+                                "savedReport",
+                                AiReportDTO.from(saved)
+                        );
+
+                        //4. 완료 이벤트
                         sseService.sendEvent(conversationId, "done", "done");
                         sseService.complete(conversationId);
-
                         notificationService.notifyAiReportDone(user.userId(), conversationId);
                         log.info("[AI Report] 보고서 생성 완료 - ID: {}", saved.getAiReportId());
                     })
                     .onError(e -> {
                         log.error("AI Report Error", e);
-                        sseService.sendEvent(
-                                conversationId,
-                                "error",
-                                Map.of("messege","보고서 생성 중 오류 발생: " + e.getMessage(),
-                                "type","AI_REPORT_ERROR"
-                                )
-                        );
+                        sseService.sendEvent(conversationId, "error", Map.of(
+                                "message", "보고서 생성 중 오류 발생: " + e.getMessage(),
+                                "type", "AI_REPORT_ERROR"
+                        ));
                         sseService.completeWithError(conversationId, e);
 
                         // 실패 알림
                         notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성에 실패했습니다.");
                     })
                     .start();
-        } catch (IllegalArgumentException e) {
-            // 기간이 명확하지 않은 경우
-            sseService.sendEvent(conversationId, "error", e.getMessage());
-            sseService.complete(conversationId);
-
-            notificationService.notifyAiReportFailed(user.userId(), e.getMessage()
-            );
 
         } catch (Exception e) {
             log.error("AI Report Exception", e);
@@ -135,8 +133,6 @@ public class AiReportService {
             sseService.completeWithError(conversationId, e);
 
             notificationService.notifyAiReportFailed(user.userId(), e.getMessage());
-
-
         }
     }
 

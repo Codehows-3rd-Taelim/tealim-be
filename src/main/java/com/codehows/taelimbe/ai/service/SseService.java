@@ -53,6 +53,7 @@ public class SseService {
         }
 
         try {
+            log.info("📤 Sending SSE event: {} -> {}", conversationId, event);
             emitter.send(
                     SseEmitter.event()
                             .name(event)
