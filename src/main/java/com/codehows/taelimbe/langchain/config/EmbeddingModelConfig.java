@@ -21,12 +21,9 @@ public class EmbeddingModelConfig {
     /**
      * 기본 직렬 임베딩 (Chat / AI Report / RAG)
      */
-    @Bean
-    public EmbeddingModel embeddingModel(Client geminiClient) {
-        return new GeminiEmbeddingModel(
-                geminiClient,
-                embeddingModelName
-        );
+    @Bean("lcEmbeddingModel")
+    public EmbeddingModel llmFactoryEmbeddingModel(Client geminiClient) {
+        return new GeminiEmbeddingModel(geminiClient, embeddingModelName);
     }
 
     /**

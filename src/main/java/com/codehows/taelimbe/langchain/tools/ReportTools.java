@@ -48,8 +48,6 @@ public class ReportTools {
     """)
     public ReportResult getReport(String startDate, String endDate) {
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
         if (startDate == null || endDate == null) {
             log.warn("[AI TOOL CALL] 기간 미입력: startDate={}, endDate={}", startDate, endDate);
             throw new IllegalArgumentException("⚠️ 기간을 명확히 입력해주세요.");

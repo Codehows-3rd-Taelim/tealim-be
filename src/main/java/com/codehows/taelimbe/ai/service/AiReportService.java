@@ -85,24 +85,25 @@ public class AiReportService {
             reportAgent.report(message, currentDate, generatedDate)
                     .onNext(token -> {
                         aiResult.append(token);
-                        sseService.send(conversationId, token);
+//                        sseService.send(conversationId, token);
+                        sseService.sendEvent(conversationId, "token", token);
                     })
-                    .onComplete(res -> {
-                        // AI가 사용한 날짜를 추출 (Tool 호출 로그에서)
-                        // 기본값으로 오늘 날짜 사용
+                    .onComplete(res -> {  // res는 Response<AiMessage>
+                        // Tool 호출에서 설정한 startDate, endDate 가져오기
                         String startDate = ToolArgsContextHolder.getToolArgs("startDate");
                         String endDate = ToolArgsContextHolder.getToolArgs("endDate");
 
+                        // ReportResult 직접 생성
+                        ReportResult result = new ReportResult(aiResult.toString(), startDate, endDate);
+
                         AiReport saved = saveReport(user, conversationId, message,
-                                aiResult.toString(), startDate, endDate);
+                                result.rawReport(), result.startDate(), result.endDate());
 
                         sseService.sendEvent(conversationId, "savedReport", AiReportDTO.from(saved));
                         sseService.sendEvent(conversationId, "done", "done");
                         sseService.complete(conversationId);
 
                         notificationService.notifyAiReportDone(user.userId(), conversationId);
-
-
                         log.info("[AI Report] 보고서 생성 완료 - ID: {}", saved.getAiReportId());
                     })
                     .onError(e -> {

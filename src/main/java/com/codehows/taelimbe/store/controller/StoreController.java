@@ -32,31 +32,37 @@ public class StoreController {
      * @return 조회된 Store 엔티티 목록 (JSON)
      */
     @GetMapping("/list")
-    @ResponseBody
     public ResponseEntity<List<Store>> getStore(
             @RequestParam(value = "storeId", required = false) Long storeId) {
 
-        // 비즈니스 로직을 서비스 계층으로 위임합니다.
-        List<Store> stores = storeService.findStores(storeId);
+        List<Store> stores;
 
-        // HTTP 200 OK와 함께 조회된 매장 목록을 JSON으로 반환
+        if (storeId != null) {
+            stores = storeService.findStoreById(storeId);
+        } else {
+            stores = storeService.findAllStores();
+        }
+
         return ResponseEntity.ok(stores);
     }
 
     // 매장 직원 불러오기
     @GetMapping("/user")
-    @ResponseBody
     public ResponseEntity<List<UserResponseDTO>> getStoreUser(
             @RequestParam(value = "storeId", required = false) Long storeId) {
 
-        List<User> users = storeService.findUsers(storeId);
+        List<User> users;
 
-        // 💡 User 엔티티 목록을 UserResponseDTO 목록으로 변환
+        if (storeId != null) {
+            users = storeService.findUsersByStore(storeId);
+        } else {
+            users = storeService.findAllUsers();
+        }
+
         List<UserResponseDTO> userDTOs = users.stream()
-                .map(UserResponseDTO::fromEntity) // DTO의 fromEntity 메서드 사용
-                .collect(Collectors.toList());
+                .map(UserResponseDTO::fromEntity)
+                .toList();
 
-        // HTTP 200 OK와 함께 DTO 목록을 JSON으로 반환
         return ResponseEntity.ok(userDTOs);
     }
 

@@ -31,31 +31,26 @@ public class StoreService {
     private final ObjectMapper mapper;
     private final PuduAPIClient puduAPIClient;
 
-    /**
-     * storeId 유무에 따라 매장 목록 전체 또는 특정 매장을 조회합니다.
-     *
-     * @param storeId 선택적 매장 ID
-     * @return 조회된 Store 엔티티 목록
-     */
-    public List<Store> findStores(Long storeId) {
-        if (storeId != null) {
-            // 1. storeId가 있는 경우: 해당 storeId만 조회
-            Optional<Store> storeOptional = storeRepository.findById(storeId);
-
-            // 조회 결과가 있으면 해당 매장만 리스트에 담아 반환하고, 없으면 빈 리스트 반환
-            return storeOptional.map(List::of).orElse(List.of());
-        } else {
-            // 2. storeId가 없는 경우: 모든 매장 조회
-            return storeRepository.findAll();
-        }
+    // storeId가 있는 경우
+    public List<Store> findStoreById(Long storeId) {
+        return storeRepository.findByStoreId(storeId)
+                .map(List::of)
+                .orElse(List.of());
     }
 
-    public List<User> findUsers(Long storeId) {
-        if (storeId != null) {
-            return userRepository.findByStore_StoreId(storeId);
-        } else {
-            return userRepository.findAll();
-        }
+    // storeId가 없는 경우
+    public List<Store> findAllStores() {
+        return storeRepository.findAll();
+    }
+
+    // userId가 있는 경우
+    public List<User> findUsersByStore(Long storeId) {
+        return userRepository.findByStore_StoreId(storeId);
+    }
+
+    // userId가 없는 경우
+    public List<User> findAllUsers() {
+        return userRepository.findAll();
     }
 
     @Transactional // 트랜잭션 처리
@@ -192,10 +187,6 @@ public class StoreService {
 
         System.out.println("New Stores Created: " + newCount + "\n");
         return newCount;
-    }
-
-    public List<Store> findAllStores() {
-        return storeRepository.findAll();
     }
 
 }

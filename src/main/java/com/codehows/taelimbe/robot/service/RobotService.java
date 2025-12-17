@@ -98,15 +98,22 @@ public class RobotService {
         return newTotal;
     }
 
-    /**
-     * DB에서 특정 매장의 로봇 목록을 조회
-     * @param storeId 매장 ID
-     * @return 해당 매장에 속한 로봇 목록
-     */
-    public List<RobotDTO> getRobotListFromDB(Long storeId) {
+    // 매장별 CC1/MT1 로봇 조회
+    public List<RobotDTO> getRobotsByStore(Long storeId) {
+        List<Robot> robots = robotRepository.findAllByStoreAndCc1OrMt1(storeId);
+        return robots.stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
 
-        return robotRepository.findAllByStore_StoreId(storeId)
+    // 전체 매장의 CC1/MT1 로봇 조회
+    public List<RobotDTO> getAllRobotsWithCc1OrMt1() {
+        List<Robot> robots = robotRepository.findAll()
                 .stream()
+                .filter(r -> "CC1".equals(r.getProductCode()) || "MT1".equals(r.getProductCode()))
+                .toList();
+
+        return robots.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
