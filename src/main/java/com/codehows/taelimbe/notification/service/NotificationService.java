@@ -1,10 +1,12 @@
 package com.codehows.taelimbe.notification.service;
 
+import com.codehows.taelimbe.notification.constant.NotificationType;
 import com.codehows.taelimbe.notification.entity.Notification;
 import com.codehows.taelimbe.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.time.LocalDateTime;
@@ -18,7 +20,6 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
 
-    // userId → SseEmitter
     private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     /* ===== SSE 연결 ===== */
@@ -33,58 +34,42 @@ public class NotificationService {
         return emitter;
     }
 
-    private void notifyInternal(Long userId, String type, String message) {
+    /* ===== 알림 생성  ===== */
+    public void notify(Long userId, NotificationType type, String message) {
 
-        log.info("🔥 NOTIFY TRY userId={}", userId);
+        // 1️ DB 저장
         notificationRepository.save(
                 Notification.builder()
                         .userId(userId)
                         .type(type)
                         .message(message)
-                        .isRead(false)
                         .createdAt(LocalDateTime.now())
                         .build()
         );
 
+        // 2⃣ SSE는 신호만
         SseEmitter emitter = emitters.get(userId);
-        log.info("🔥 EMITTER EXISTS = {}", emitter != null);
         if (emitter == null) return;
 
         try {
             emitter.send(
-                    SseEmitter.event().name("NOTIFICATION")   // ⭐ 이거 하나로 통일
+                    SseEmitter.event()
+                            .name("NOTIFICATION")
+                            .data("ping")
             );
-
-            log.info("🔥 SSE SENT userId={}", userId);
         } catch (Exception e) {
             emitters.remove(userId);
         }
     }
 
-
-    /* ===== 외부에서 쓰는 메서드들 ===== */
-
-    public void notifyAiChatDone(Long userId) {
-        notifyInternal(
-                userId,
-                "AI_CHAT_DONE",
-                "AI 챗봇 답변이 도착했습니다"
-        );
-    }
-
-    public void notifyAiReportDone(Long userId) {
-        notifyInternal(
-                userId,
-                "AI_REPORT_DONE",
-                "AI 보고서 생성이 완료되었습니다"
-        );
-    }
-
-    public void notifyAiReportFailed(Long userId, String reasonMessage) {
-        notifyInternal(
-                userId,
-                "AI_REPORT_FAILED",
-                reasonMessage
-        );
+    /* ===== 토스트 노출 완료 ===== */
+    @Transactional
+    public void markDelivered(Long notificationId) {
+        notificationRepository.findById(notificationId)
+                .ifPresent(n -> {
+                    if (n.getDeliveredAt() == null) {
+                        n.setDeliveredAt(LocalDateTime.now());
+                    }
+                });
     }
 }

@@ -5,8 +5,9 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface NotificationRepository extends JpaRepository<Notification, Long> {
+public interface NotificationRepository
+        extends JpaRepository<Notification, Long> {
 
-    List<Notification> findByUserIdAndIsReadFalseOrderByCreatedAtDesc(Long userId);
-
+    //  아직 토스트 안 뜬 것
+    List<Notification> findByUserIdAndDeliveredAtIsNull(Long userId);
 }

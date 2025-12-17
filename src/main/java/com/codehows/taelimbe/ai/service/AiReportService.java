@@ -8,6 +8,7 @@ import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.ai.repository.AiReportRepository;
 import com.codehows.taelimbe.ai.repository.RawReportProjection;
 import com.codehows.taelimbe.langchain.tools.ReportTools;
+import com.codehows.taelimbe.notification.constant.NotificationType;
 import com.codehows.taelimbe.notification.service.NotificationService;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.repository.UserRepository;
@@ -98,7 +99,7 @@ public class AiReportService {
                         sseService.sendEvent(conversationId, "done", "done");
                         sseService.complete(conversationId);
 
-                        notificationService.notifyAiReportDone(user.userId());
+                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_SUCCESS, "AI 보고서 생성이 완료되었습니다");
 
 
 
@@ -116,7 +117,7 @@ public class AiReportService {
                         sseService.completeWithError(conversationId, e);
 
                         // 실패 알림
-                        notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
+                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
 
                     })
                     .start();
@@ -125,8 +126,7 @@ public class AiReportService {
             sseService.sendEvent(conversationId, "error", e.getMessage());
             sseService.complete(conversationId);
 
-            notificationService.notifyAiReportFailed(user.userId(), "기간 정보를 이해하지 못했어요. 날짜를 조금 더 명확히 입력해 주세요.");
-
+            notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "기간 정보를 이해하지 못했어요. 날짜를 조금 더 명확히 입력해 주세요.");
 
 
 
@@ -135,7 +135,8 @@ public class AiReportService {
             sseService.sendEvent(conversationId, "error", "보고서 생성 중 예외 발생");
             sseService.completeWithError(conversationId, e);
 
-            notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
+            notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요."
+            );
 
 
         }

@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.ai.service;
 
 import com.codehows.taelimbe.langchain.Agent;
+import com.codehows.taelimbe.notification.constant.NotificationType;
 import com.codehows.taelimbe.notification.service.NotificationService;
 import dev.langchain4j.service.*;
 import lombok.RequiredArgsConstructor;
@@ -43,7 +44,7 @@ public class AgentService {
                     aiChatService.saveAiMessage(conversationId, userId, aiBuilder.toString());
                     sseService.complete(conversationId);
 
-                    notificationService.notifyAiChatDone(userId);
+                    notificationService.notify(userId, NotificationType.AI_CHAT_SUCCESS, "AI 챗봇 답변이 도착했습니다");
 
 
                 })

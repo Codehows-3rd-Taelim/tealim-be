@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.notification.entity;
 
+import com.codehows.taelimbe.notification.constant.NotificationType;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -8,6 +9,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "notification")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -20,21 +22,19 @@ public class Notification {
     @Column(nullable = false)
     private Long userId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String type;
-    // AI_CHAT_DONE, AI_REPORT_DONE, AI_REPORT_FAILED
+    private NotificationType type;
 
     @Column(nullable = false)
     private String message;
 
     @Column(nullable = false)
-    private boolean isRead;
-
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    /* ===== 읽음 처리 ===== */
-    public void markAsRead() {
-        this.isRead = true;
-    }
+    // 토스트 노출 여부
+    private LocalDateTime deliveredAt;
+
+    // 읽음 여부
+    private LocalDateTime readAt;
 }
