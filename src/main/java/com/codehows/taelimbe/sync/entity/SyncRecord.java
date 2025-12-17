@@ -16,7 +16,7 @@ public class SyncRecord {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private Long syncRecordId;
 
     @OneToOne
     @JoinColumn(name = "store_id", nullable = false, unique = true)
