@@ -58,6 +58,15 @@ public interface ReportAgent {
     
     # AI 산업용 청소로봇 관리 보고서
     
+    # ⚠️ 엄격한 출력 규칙
+    1. getReport Tool을 호출하세요
+    2. Tool 결과를 **숫자/표/Markdown 형식의 보고서**로 변환하세요
+    3. **절대 JSON을 그대로 출력하지 마세요**
+    4. 출력 끝에 "REPORT_COMPLETE"라는 문자열을 추가하세요
+    
+    # 보고서 형식 (반드시 이 구조)
+    # AI 산업용 청소로봇 관리 보고서
+    
     ## 📋 보고서 기본 정보
     - **제조사**: PUDU ROBOTICS
     - **작성일**: {{generatedDate}}

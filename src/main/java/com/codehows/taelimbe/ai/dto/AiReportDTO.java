@@ -41,18 +41,4 @@ public class AiReportDTO {
                 .build();
     }
 
-    // from으로 가져오면 rawReport까지 get 해야해서 용량이 너무 많아진다 rawReport는 따로 관리
-    // 목록 조회 최적화하기 위해 AiReportMetaProjection 라는걸 따로 만들어서 DTO에서 빼오는겨
-    public static AiReportDTO fromProjection(AiReportMetaProjection projection) {
-        return AiReportDTO.builder()
-                .aiReportId(projection.getAiReportId())
-                .conversationId(projection.getConversationId())
-                .startTime(projection.getStartTime().toLocalDate())
-                .endTime(projection.getEndTime().toLocalDate())
-                .createdAt(projection.getCreatedAt())
-                .rawMessage(projection.getRawMessage())
-                .name(projection.getName())
-                .build();
-    }
-
 }

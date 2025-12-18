@@ -41,19 +41,17 @@ public class AiReportController {
 
     // 1단계: 보고서 생성 시작
     @PostMapping
-    public ResponseEntity<Map<String, String>> createReport(
+    public ResponseEntity<Void> createReport(
+            @RequestParam String conversationId,
             @RequestBody ChatPromptRequest req,
             Authentication authentication
     ) {
         UserPrincipal user =
                 (UserPrincipal) authentication.getPrincipal();
 
-        String conversationId =
-                aiReportService.startGenerateReport(req, user);
+        aiReportService.startGenerateReport(conversationId, req, user);
 
-        return ResponseEntity.ok(
-                Map.of("conversationId", conversationId)
-        );
+        return ResponseEntity.ok().build();
     }
 
 //    @PostMapping(
@@ -91,10 +89,7 @@ public class AiReportController {
             @PathVariable String conversationId,
             Authentication authentication
     ) {
-        UserPrincipal user =
-                (UserPrincipal) authentication.getPrincipal();
-
-        return aiReportService.connectSse(conversationId, user);
+        return sseService.createEmitter(conversationId);
     }
 
     /**

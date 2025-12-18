@@ -1,10 +1,12 @@
 package com.codehows.taelimbe.ai.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -17,26 +19,29 @@ public class SseService {
 
     // SSE 연결 생성 중복 생성 방지)
     public SseEmitter createEmitter(String conversationId) {
-        return emitters.computeIfAbsent(conversationId, id -> {
-            SseEmitter emitter = new SseEmitter(0L); // timeout 없음
+        SseEmitter emitter = new SseEmitter(0L); // timeout 없음
 
-            emitter.onCompletion(() -> {
-                emitters.remove(id);
-                log.debug("SSE completed: {}", id);
-            });
+        emitters.put(conversationId, emitter);
 
-            emitter.onTimeout(() -> {
-                emitters.remove(id);
-                log.warn("SSE timeout: {}", id);
-            });
+        log.info("SSE emitter created. conversationId={}, emitter={}",
+                conversationId, System.identityHashCode(emitter));
 
-            emitter.onError(e -> {
-                emitters.remove(id);
-                log.warn("SSE error: {}", id, e);
-            });
-
-            return emitter;
+        emitter.onCompletion(() -> {
+            emitters.remove(conversationId);
+            log.info("SSE completed. conversationId={}", conversationId);
         });
+
+        emitter.onTimeout(() -> {
+            emitters.remove(conversationId);
+            log.warn("SSE timeout. conversationId={}", conversationId);
+        });
+
+        emitter.onError(e -> {
+            emitters.remove(conversationId);
+            log.warn("SSE error. conversationId={}", conversationId, e);
+        });
+
+        return emitter;
     }
 
     // 토큰 스트리밍 전송 ( event name : message) */
@@ -47,6 +52,7 @@ public class SseService {
     // named event 전송
     public void sendEvent(String conversationId, String event, Object data) {
         SseEmitter emitter = emitters.get(conversationId);
+
         if (emitter == null) {
             log.debug("SSE emitter not found. conversationId={}, event={}", conversationId, event);
             return;
@@ -92,4 +98,34 @@ public class SseService {
             } catch (Exception ignored) {}
         }
     }
+
+    public void sendOnceAndComplete(
+            String conversationId,
+            String event,
+            Object data
+    ) {
+        sendEvent(conversationId, event, data);
+        complete(conversationId);
+    }
+
+    @Scheduled(fixedDelay = 30000) // 30초
+    public void sendHeartbeat() {
+        Iterator<Map.Entry<String, SseEmitter>> iterator = emitters.entrySet().iterator();
+
+        while (iterator.hasNext()) {
+            Map.Entry<String, SseEmitter> entry = iterator.next();
+            try {
+                entry.getValue().send(
+                        SseEmitter.event()
+                                .name("heartbeat")
+                                .data("ping")
+                );
+            } catch (Exception e) {
+                iterator.remove();
+                log.info("Heartbeat failed, emitter removed. conversationId={}",
+                        entry.getKey());
+            }
+        }
+    }
+
 }
