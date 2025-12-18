@@ -1,6 +1,8 @@
 package com.codehows.taelimbe.pudureport.repository;
 
 import com.codehows.taelimbe.pudureport.entity.PuduReport;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
@@ -10,15 +12,30 @@ import java.util.Optional;
 public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
     List<PuduReport> findByRobot_Sn(String sn);
 
-    List<PuduReport> findByStartTimeBetween(LocalDateTime start, LocalDateTime end);
-
+    List<PuduReport> findByStartTimeBetween(
+            LocalDateTime start,
+            LocalDateTime end
+    );
     Optional<PuduReport> findByReportId(Long reportId);
 
     List<PuduReport> findAllByRobot_RobotIdIn(List<Long> robotIds);
 
     List<PuduReport> findAllByRobot_RobotIdInAndStartTimeBetween(
-                                                            List<Long> robotIds,
-                                                            LocalDateTime start,
-                                                            LocalDateTime end
-                                                    );
+            List<Long> robotIds,
+            LocalDateTime start,
+            LocalDateTime end
+    );
+
+    Page<PuduReport> findByStartTimeBetween(
+            LocalDateTime start,
+            LocalDateTime end,
+            Pageable pageable
+    );
+
+    Page<PuduReport> findAllByRobot_RobotIdInAndStartTimeBetween(
+            List<Long> robotIds,
+            LocalDateTime start,
+            LocalDateTime end,
+            Pageable pageable
+    );
 }

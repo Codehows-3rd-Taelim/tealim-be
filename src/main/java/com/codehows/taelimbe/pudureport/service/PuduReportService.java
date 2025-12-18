@@ -13,6 +13,10 @@ import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
@@ -223,6 +227,44 @@ public class PuduReportService {
         return puduReports.stream()
                 .map(PuduReportResponseDTO::createReportResponseDTO)
                 .toList();
+    }
+
+    public Page<PuduReportResponseDTO> getReportPage(
+            Long storeId,
+            LocalDateTime start,
+            LocalDateTime end,
+            int page,
+            int size,
+            String sortKey,
+            String sortOrder
+    ) {
+        Sort sort = Sort.by(
+                "desc".equalsIgnoreCase(sortOrder)
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC,
+                sortKey
+        );
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<PuduReport> result;
+
+        if (storeId != null) {
+            List<Long> robotIds = robotRepository
+                    .findAllByStore_StoreId(storeId)
+                    .stream()
+                    .map(Robot::getRobotId)
+                    .toList();
+
+            result = puduReportRepository
+                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+                            robotIds, start, end, pageable
+                    );
+        } else {
+            result = puduReportRepository
+                    .findByStartTimeBetween(start, end, pageable);
+        }
+        return result.map(PuduReportResponseDTO::createReportResponseDTO);
     }
 
 }
