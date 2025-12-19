@@ -62,7 +62,7 @@ public class AiReportService {
         if (message == null || message.isBlank()) {
             sseService.sendOnceAndComplete(
                     conversationId,
-                    "error",
+                    "fail",
                     Map.of("message", "보고서 요청 내용이 비어 있습니다.")
             );
             notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "보고서 요청 내용이 비어 있습니다.");
@@ -76,7 +76,6 @@ public class AiReportService {
             String currentDate = LocalDate.now().toString();
 
             StringBuilder aiResult = new StringBuilder();
-            StringBuilder extractedDates = new StringBuilder();
 
             reportAgent.report(message, currentDate, generatedDate)
                     .onNext(token -> {
@@ -86,6 +85,30 @@ public class AiReportService {
                     })
                     .onComplete(res -> {
 
+                        String fullText = aiResult.toString();
+
+                        // FAIL 판단
+                        if (isFailResponse(fullText)) {
+                            String failMessage = normalizeFailMessage(fullText);
+
+                            log.warn("AI report fail detected. conversationId={}, message={}",
+                                    conversationId, failMessage);
+
+                            sseService.sendOnceAndComplete(
+                                    conversationId,
+                                    "fail",
+                                    Map.of("message", failMessage)
+                            );
+
+                            notificationService.notify(
+                                    user.userId(),
+                                    NotificationType.AI_REPORT_FAILED,
+                                    "AI가 보고서를 생성할 수 없어요. 입력을 다시 확인해 주세요."
+                            );
+                            return;
+                        }
+
+                        // 정상 플로우
                         String startDate = ToolArgsContextHolder.getToolArgs("startDate");
                         String endDate = ToolArgsContextHolder.getToolArgs("endDate");
 
@@ -112,7 +135,7 @@ public class AiReportService {
 
                         sseService.sendOnceAndComplete(
                                 conversationId,
-                                "error",
+                                "fail",
                                 Map.of(
                                         "message", "보고서 생성 중 오류 발생",
                                         "detail", e.getMessage()
@@ -130,7 +153,7 @@ public class AiReportService {
 
             sseService.sendOnceAndComplete(
                     conversationId,
-                    "error",
+                    "fail",
                     "보고서 생성 중 예외 발생"
             );
         }
@@ -155,6 +178,22 @@ public class AiReportService {
         );
     }
 
+    // fail 판단
+    private boolean isFailResponse(String text) {
+        return text.contains("할 수 없습니다")
+                || text.contains("현재 사용 가능한 도구")
+                || text.contains("대신")
+                || text.contains("할까요?")
+                || text.endsWith("?");
+    }
+
+    private String normalizeFailMessage(String text) {
+        return text
+                .replace("\n", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+    }
+
     // 보고서 목록 조회
     public List<AiReportDTO> getAllReports(UserPrincipal user) {
 
@@ -167,5 +206,17 @@ public class AiReportService {
     public RawReportProjection getRawReport(Long reportId) {
         return aiReportRepository.findRawReportById(reportId)
                 .orElseThrow(() -> new RuntimeException("보고서 없음"));
+    }
+
+    public void deleteReport(Long reportId, UserPrincipal user) {
+        AiReport report = aiReportRepository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("보고서 없음"));
+
+        // 본인 보고서만 삭제 가능
+        if (!report.getUser().getUserId().equals(user.userId())) {
+            throw new RuntimeException("삭제 권한 없음");
+        }
+
+        aiReportRepository.delete(report);
     }
 }

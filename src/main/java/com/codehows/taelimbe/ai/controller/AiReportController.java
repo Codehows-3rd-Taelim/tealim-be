@@ -53,32 +53,6 @@ public class AiReportController {
         return ResponseEntity.ok().build();
     }
 
-//    @PostMapping(
-////            value = "/stream",
-//            produces = MediaType.TEXT_EVENT_STREAM_VALUE
-//    )
-//    public SseEmitter generateReport(
-//            @RequestBody ChatPromptRequest req,
-//            Authentication authentication
-//    ) {
-//        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
-//
-//        String conversationId = UUID.randomUUID().toString();
-//
-//        // 1️⃣ SSE 연결 생성
-//        SseEmitter emitter = sseService.createEmitter(conversationId);
-//
-//        // 2️⃣ 비동기 보고서 생성 시작
-//        aiReportService.generateAsync(
-//                conversationId,
-//                req.getMessage(),
-//                user
-//        );
-//
-//        // 3️⃣ 즉시 emitter 반환
-//        return emitter;
-//    }
-
     // 2단계: SSE 스트림 구독
     @GetMapping(
             value = "/stream/{conversationId}",
@@ -95,6 +69,16 @@ public class AiReportController {
     @GetMapping("/{reportId}/rawReport")
     public ResponseEntity<RawReportProjection> getRawReport(@PathVariable Long reportId) {
         return ResponseEntity.ok(aiReportService.getRawReport(reportId));
+    }
+
+    @DeleteMapping("/{reportId}")
+    public ResponseEntity<Void> deleteReport(
+            @PathVariable Long reportId,
+            Authentication authentication
+    ) {
+        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
+        aiReportService.deleteReport(reportId, user);
+        return ResponseEntity.ok().build();
     }
 
 //    // 권한 기반 페이지네이션
