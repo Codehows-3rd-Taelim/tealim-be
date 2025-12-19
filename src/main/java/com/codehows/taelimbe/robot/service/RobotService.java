@@ -105,8 +105,15 @@ public class RobotService {
      */
     public List<RobotDTO> getRobotListFromDB(Long storeId) {
 
-        return robotRepository.findAllByStore_StoreId(storeId)
-                .stream()
+        List<Robot> robots;
+
+        if (storeId == null) {
+            robots = robotRepository.findAll();
+        } else {
+            robots = robotRepository.findAllByStore_StoreId(storeId);
+        }
+
+        return robots.stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }

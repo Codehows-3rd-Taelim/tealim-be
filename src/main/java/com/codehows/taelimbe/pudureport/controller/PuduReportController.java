@@ -4,8 +4,13 @@ import com.codehows.taelimbe.pudureport.dto.*;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @RestController
@@ -68,5 +73,25 @@ public class PuduReportController {
     @GetMapping("/list/robot/{sn}")
     public ResponseEntity<List<PuduReportDTO>> getReportsByRobotSn(@PathVariable String sn) {
         return ResponseEntity.ok(puduReportService.getReportsByRobotSn(sn));
+    }
+
+    @GetMapping("/page")
+    public ResponseEntity<Page<PuduReportResponseDTO>> getReportPage(
+            @RequestParam int page,
+            @RequestParam int size,
+            @RequestParam(required = false) Long storeId,
+            @RequestParam String startDate,
+            @RequestParam String endDate,
+            @RequestParam(defaultValue = "startTime") String sortKey,
+            @RequestParam(defaultValue = "desc") String sortOrder
+    ) {
+        LocalDateTime s = LocalDate.parse(startDate).atStartOfDay();
+        LocalDateTime e = LocalDate.parse(endDate).atTime(LocalTime.MAX);
+
+        return ResponseEntity.ok(
+                puduReportService.getReportPage(
+                        storeId, s, e, page, size, sortKey, sortOrder
+                )
+        );
     }
 }

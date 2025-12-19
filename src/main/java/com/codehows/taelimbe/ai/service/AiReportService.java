@@ -80,6 +80,7 @@ public class AiReportService {
 
             // AI Agent가 알아서 날짜를 판단하고 Tool을 호출하도록 함
             StringBuilder aiResult = new StringBuilder();
+            StringBuilder extractedDates = new StringBuilder();
 
             reportAgent.report(message, currentDate, generatedDate)
                     .onNext(token -> {

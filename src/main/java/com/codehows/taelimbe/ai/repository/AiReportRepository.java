@@ -1,6 +1,5 @@
 package com.codehows.taelimbe.ai.repository;
 
-
 import com.codehows.taelimbe.ai.entity.AiReport;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
