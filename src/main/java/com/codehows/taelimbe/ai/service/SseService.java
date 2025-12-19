@@ -108,24 +108,24 @@ public class SseService {
         complete(conversationId);
     }
 
-    @Scheduled(fixedDelay = 30000) // 30초
-    public void sendHeartbeat() {
-        Iterator<Map.Entry<String, SseEmitter>> iterator = emitters.entrySet().iterator();
-
-        while (iterator.hasNext()) {
-            Map.Entry<String, SseEmitter> entry = iterator.next();
-            try {
-                entry.getValue().send(
-                        SseEmitter.event()
-                                .name("heartbeat")
-                                .data("ping")
-                );
-            } catch (Exception e) {
-                iterator.remove();
-                log.info("Heartbeat failed, emitter removed. conversationId={}",
-                        entry.getKey());
-            }
-        }
-    }
+//    @Scheduled(fixedDelay = 30000) // 30초
+//    public void sendHeartbeat() {
+//        Iterator<Map.Entry<String, SseEmitter>> iterator = emitters.entrySet().iterator();
+//
+//        while (iterator.hasNext()) {
+//            Map.Entry<String, SseEmitter> entry = iterator.next();
+//            try {
+//                entry.getValue().send(
+//                        SseEmitter.event()
+//                                .name("heartbeat")
+//                                .data("ping")
+//                );
+//            } catch (Exception e) {
+//                iterator.remove();
+//                log.info("Heartbeat failed, emitter removed. conversationId={}",
+//                        entry.getKey());
+//            }
+//        }
+//    }
 
 }
