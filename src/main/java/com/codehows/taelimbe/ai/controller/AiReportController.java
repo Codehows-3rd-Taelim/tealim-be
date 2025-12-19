@@ -15,9 +15,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
-import java.time.LocalDate;
-import java.util.Map;
-import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -26,6 +24,19 @@ public class AiReportController {
 
     private final AiReportService aiReportService;
     private final SseService sseService;
+
+    // 보고서 목록 조회
+    @GetMapping
+    public ResponseEntity<List<AiReportDTO>> getAllReports(
+            Authentication authentication
+    ) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        return ResponseEntity.ok(
+                aiReportService.getAllReports(user)
+        );
+    }
 
     // 보고서 생성 시작
     @PostMapping
