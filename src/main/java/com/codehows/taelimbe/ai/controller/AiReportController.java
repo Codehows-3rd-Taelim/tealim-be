@@ -86,19 +86,19 @@ public class AiReportController {
         return ResponseEntity.ok(aiReportService.getRawReport(reportId));
     }
 
-    // 권한 기반 페이지네이션
-    @GetMapping
-    public ResponseEntity<Page<AiReportDTO>> getReportPage(
-            Authentication authentication,
-            @RequestParam int page,
-            @RequestParam int size,
-            @RequestParam(required = false) String searchText,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
-    ) {
-        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
-        String keyword = (searchText == null || searchText.isBlank()) ? null : searchText;
-        Page<AiReportDTO> reportPage = aiReportService.getReportPage(user, page, size, keyword, startDate, endDate);
-        return ResponseEntity.ok(reportPage);
-    }
+//    // 권한 기반 페이지네이션
+//    @GetMapping
+//    public ResponseEntity<Page<AiReportDTO>> getReportPage(
+//            Authentication authentication,
+//            @RequestParam int page,
+//            @RequestParam int size,
+//            @RequestParam(required = false) String searchText,
+//            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+//            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+//    ) {
+//        UserPrincipal user = (UserPrincipal) authentication.getPrincipal();
+//        String keyword = (searchText == null || searchText.isBlank()) ? null : searchText;
+//        Page<AiReportDTO> reportPage = aiReportService.getReportPage(user, page, size, keyword, startDate, endDate);
+//        return ResponseEntity.ok(reportPage);
+//    }
 }

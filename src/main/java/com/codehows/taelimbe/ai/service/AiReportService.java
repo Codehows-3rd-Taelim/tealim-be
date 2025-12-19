@@ -65,7 +65,7 @@ public class AiReportService {
                     "error",
                     Map.of("message", "보고서 요청 내용이 비어 있습니다.")
             );
-            notificationService.notifyAiReportFailed(user.userId(), "보고서 요청 내용이 비어 있습니다.");
+            notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "보고서 요청 내용이 비어 있습니다.");
             return;
         }
 
@@ -105,7 +105,7 @@ public class AiReportService {
                                 AiReportDTO.from(saved)
                         );
 
-                        notificationService.notifyAiReportDone(user.userId(), conversationId);
+                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_SUCCESS, "AI 보고서 생성이 완료되었습니다");
                     })
                     .onError(e -> {
                         log.error("AI Report Error", e);
@@ -119,7 +119,9 @@ public class AiReportService {
                                 )
                         );
 
-                        notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성 실패");
+                        // 실패 알림
+                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
+
                     })
                     .start();
 
