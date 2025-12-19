@@ -46,7 +46,15 @@ public class RobotController {
 
     // 매장별 로봇 목록 조회
     @GetMapping("/list")
-    public ResponseEntity<List<RobotDTO>> getAllRobots(@RequestParam(value = "storeId", required = false) Long storeId) {
-        return ResponseEntity.ok(robotService.getRobotListFromDB(storeId));
+    public ResponseEntity<List<RobotDTO>> getAllRobots(
+            @RequestParam(value = "storeId", required = false) Long storeId) {
+
+        if (storeId != null) {
+            // storeId가 있는 경우 → 매장별 조회(사용자)
+            return ResponseEntity.ok(robotService.getRobotsByStore(storeId));
+        } else {
+            // storeId가 없는 경우 → 전체 매장 조회(관리자)
+            return ResponseEntity.ok(robotService.getAllRobotsWithCc1OrMt1());
+        }
     }
 }

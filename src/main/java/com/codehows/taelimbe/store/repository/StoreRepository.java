@@ -12,5 +12,4 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     // StoreRepository
     Optional<Store> findByShopId(Long shopId);
 
-
 }

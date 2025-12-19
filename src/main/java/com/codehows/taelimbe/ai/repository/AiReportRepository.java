@@ -17,6 +17,8 @@ public interface AiReportRepository extends JpaRepository<AiReport, Long> {
     // 본인 작성 보고서 조회
     List<AiReport> findAllByUser_UserIdOrderByCreatedAtDesc(Long userId);
 
+    Optional<AiReport> findByConversationId(String conversationId);
+
     /* =========== Raw Report 조회 =========== */
 
     @Query("SELECT a.rawReport as rawReport FROM AiReport a WHERE a.aiReportId = :reportId")

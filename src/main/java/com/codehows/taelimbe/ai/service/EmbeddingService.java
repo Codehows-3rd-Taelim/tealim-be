@@ -35,12 +35,13 @@ import java.util.concurrent.CompletableFuture;
  * `@Slf4j`는 Lombok 어노테이션으로, 로깅을 위한 `log` 객체를 자동으로 생성합니다.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmbeddingService {
 
     // 텍스트를 임베딩 벡터로 변환하는 모델을 주입받습니다.
     private final EmbeddingModel embeddingModel;
+    // 병렬 임베딩 모델 (CSV / PDF 전용)
+    private final EmbeddingModel parallelEmbeddingModel;
     // 생성된 임베딩 벡터를 저장하고 검색하는 스토어를 주입받습니다.
     private final EmbeddingStore<TextSegment> embeddingStore;
     // 임베딩 스토어의 초기화 및 관리 기능을 제공하는 매니저를 주입받습니다.
@@ -52,9 +53,21 @@ public class EmbeddingService {
     @Qualifier("taskExecutor")
     private final TaskExecutor taskExecutor;
 
-    // 병렬 임베딩 모델 (CSV / PDF 전용)
-    @Qualifier("parallelEmbeddingModel")
-    private final EmbeddingModel parallelEmbeddingModel;
+    public EmbeddingService(
+            @Qualifier("lcEmbeddingModel") EmbeddingModel embeddingModel,
+            @Qualifier("parallelEmbeddingModel") EmbeddingModel parallelEmbeddingModel,
+            EmbeddingStore<TextSegment> embeddingStore,
+            EmbeddingStoreManager embeddingStoreManager,
+            TextSplitterStrategy textSplitterStrategy,
+            @Qualifier("taskExecutor") TaskExecutor taskExecutor
+    ) {
+        this.embeddingModel = embeddingModel;
+        this.parallelEmbeddingModel = parallelEmbeddingModel;
+        this.embeddingStore = embeddingStore;
+        this.embeddingStoreManager = embeddingStoreManager;
+        this.textSplitterStrategy = textSplitterStrategy;
+        this.taskExecutor = taskExecutor;
+    }
 
     // csv, pdf 임베딩 각 배치사이즈 값 받아오기
     @Value("${embedding.csv.batch.size}")

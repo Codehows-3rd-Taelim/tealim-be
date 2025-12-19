@@ -1,10 +1,8 @@
 package com.codehows.taelimbe.user.config;
 
-import com.codehows.taelimbe.user.constant.Role;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.codehows.taelimbe.user.service.JwtService;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -12,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -37,12 +34,7 @@ public class JwtFilter extends OncePerRequestFilter
             return;
         }
 
-
-
-
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
-
-
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             try {

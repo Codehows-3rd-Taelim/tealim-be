@@ -55,12 +55,22 @@ public class PuduReportController {
     @GetMapping("/list")
     public ResponseEntity<List<PuduReportResponseDTO>> getReports(
             @RequestParam(value = "storeId", required = false) Long storeId,
-            @RequestParam(value = "startDate", required = false) String startDate,
-            @RequestParam(value = "endDate", required = false) String endDate) {
+            @RequestParam(value = "startDate") String startDate,
+            @RequestParam(value = "endDate") String endDate) {
 
-        List<PuduReportResponseDTO> reports = puduReportService.getReports(storeId, startDate, endDate);
+        List<PuduReportResponseDTO> reports;
+
+        if (storeId != null) {
+            // storeId가 있는 경우 → 매장별 조회
+            reports = puduReportService.getReportsByStore(storeId, startDate, endDate);
+        } else {
+            // storeId가 없는 경우 → 전체 매장 조회
+            reports = puduReportService.getReportsAllStores(startDate, endDate);
+        }
+
         return ResponseEntity.ok(reports);
     }
+
 
     // id로 보고서 가져오기
     @GetMapping("/detail/{id}")

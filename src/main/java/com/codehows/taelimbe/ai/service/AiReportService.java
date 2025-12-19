@@ -37,37 +37,36 @@ public class AiReportService {
     private final ReportAgent reportAgent;
     private final AiReportRepository aiReportRepository;
     private final UserRepository userRepository;
-    private final ReportTools reportTools;
     private final NotificationService notificationService;
 
 
     // 1. 보고서 생성 시작
-    public String startGenerateReport(ChatPromptRequest req, UserPrincipal user) {
-
-        String conversationId = UUID.randomUUID().toString();
-
-
-        // 비동기로 AI 실행
+    public void startGenerateReport(
+            String conversationId,
+            ChatPromptRequest req,
+            UserPrincipal user
+    ) {
+        log.info("🚀 보고서 생성 시작 - conversationId: {}", conversationId);
         generateAsync(conversationId, req.getMessage(), user);
-
-        return conversationId;
     }
 
     // 2. SSE 연결
-    public SseEmitter connectSse(String conversationId) {
-       return sseService.createEmitter(conversationId);
+    public SseEmitter connectSse(String conversationId, UserPrincipal user) {
+        return sseService.createEmitter(conversationId);
     }
 
     // 3. 실제 AI 보고서 생성 (비동기)
     @Async
-    protected void generateAsync(String conversationId, String message, UserPrincipal user) {
+    public void generateAsync(String conversationId, String message, UserPrincipal user) {
 
-        // 입력 검증
         if (message == null || message.isBlank()) {
-            sseService.sendEvent(conversationId, "error", "다시 시도해 주세요.");
-            sseService.complete(conversationId);
-
-            return; // DB 저장하지 않고 종료
+            sseService.sendOnceAndComplete(
+                    conversationId,
+                    "error",
+                    Map.of("message", "보고서 요청 내용이 비어 있습니다.")
+            );
+            notificationService.notifyAiReportFailed(user.userId(), "보고서 요청 내용이 비어 있습니다.");
+            return;
         }
 
         try {
@@ -76,70 +75,62 @@ public class AiReportService {
 
             String currentDate = LocalDate.now().toString();
 
-            log.info("[AI Report] 보고서 생성 시작 - 사용자 요청: {}", message);
-
-            // AI Agent가 알아서 날짜를 판단하고 Tool을 호출하도록 함
             StringBuilder aiResult = new StringBuilder();
             StringBuilder extractedDates = new StringBuilder();
 
             reportAgent.report(message, currentDate, generatedDate)
                     .onNext(token -> {
                         aiResult.append(token);
-                        sseService.send(conversationId, token);
+//                        // 토큰 스트리밍 유지 (UI에서 안 쓰면 무시)
+//                        sseService.sendEvent(conversationId, "token", token);
                     })
                     .onComplete(res -> {
-                        // AI가 사용한 날짜를 추출 (Tool 호출 로그에서)
-                        // 기본값으로 오늘 날짜 사용
+
                         String startDate = ToolArgsContextHolder.getToolArgs("startDate");
                         String endDate = ToolArgsContextHolder.getToolArgs("endDate");
 
-                        AiReport saved = saveReport(user, conversationId, message,
-                                aiResult.toString(), startDate, endDate);
+                        AiReport saved = saveReport(
+                                user,
+                                conversationId,
+                                message,
+                                aiResult.toString(),
+                                startDate,
+                                endDate
+                        );
 
-                        sseService.sendEvent(conversationId, "savedReport", AiReportDTO.from(saved));
-                        sseService.sendEvent(conversationId, "done", "done");
-                        sseService.complete(conversationId);
+                        // 여기서 한 번만 보내고 종료
+                        sseService.sendOnceAndComplete(
+                                conversationId,
+                                "savedReport",
+                                AiReportDTO.from(saved)
+                        );
 
-                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_SUCCESS, "AI 보고서 생성이 완료되었습니다");
-
-
-
-                        log.info("[AI Report] 보고서 생성 완료 - ID: {}", saved.getAiReportId());
+                        notificationService.notifyAiReportDone(user.userId(), conversationId);
                     })
                     .onError(e -> {
                         log.error("AI Report Error", e);
-                        sseService.sendEvent(
+
+                        sseService.sendOnceAndComplete(
                                 conversationId,
                                 "error",
-                                Map.of("messege","보고서 생성 중 오류 발생: " + e.getMessage(),
-                                "type","AI_REPORT_ERROR"
+                                Map.of(
+                                        "message", "보고서 생성 중 오류 발생",
+                                        "detail", e.getMessage()
                                 )
                         );
-                        sseService.completeWithError(conversationId, e);
 
-                        // 실패 알림
-                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
-
+                        notificationService.notifyAiReportFailed(user.userId(), "AI 보고서 생성 실패");
                     })
                     .start();
-        } catch (IllegalArgumentException e) {
-            // 기간이 명확하지 않은 경우
-            sseService.sendEvent(conversationId, "error", e.getMessage());
-            sseService.complete(conversationId);
-
-            notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "기간 정보를 이해하지 못했어요. 날짜를 조금 더 명확히 입력해 주세요.");
-
-
 
         } catch (Exception e) {
             log.error("AI Report Exception", e);
-            sseService.sendEvent(conversationId, "error", "보고서 생성 중 예외 발생");
-            sseService.completeWithError(conversationId, e);
 
-            notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요."
+            sseService.sendOnceAndComplete(
+                    conversationId,
+                    "error",
+                    "보고서 생성 중 예외 발생"
             );
-
-
         }
     }
 
