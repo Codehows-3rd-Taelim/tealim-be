@@ -7,7 +7,6 @@ import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.ai.repository.AiReportRepository;
 import com.codehows.taelimbe.ai.repository.RawReportProjection;
-import com.codehows.taelimbe.langchain.tools.ReportTools;
 import com.codehows.taelimbe.notification.constant.NotificationType;
 import com.codehows.taelimbe.notification.service.NotificationService;
 import com.codehows.taelimbe.user.entity.User;
@@ -44,10 +43,43 @@ public class AiReportService {
     public void startGenerateReport(
             String conversationId,
             ChatPromptRequest req,
-            UserPrincipal user
+            UserPrincipal principal
     ) {
         log.info("🚀 보고서 생성 시작 - conversationId: {}", conversationId);
-        generateAsync(conversationId, req.getMessage(), user);
+
+        User user = userRepository.findById(principal.userId())
+                .orElseThrow();
+
+        // role 판단
+        boolean isAdmin = user.getRole().equals("ADMIN");
+        ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(isAdmin));
+
+        String originalMessage = req.getMessage(); // DB저장용
+        String aiMessage = originalMessage; // AI 전달용
+        String shopName = null;
+        String scope;
+
+        // USER / MANAGER는 본인 매장만
+        if (!isAdmin) {
+            shopName = user.getStore().getShopName();
+            scope = shopName;
+
+            ToolArgsContextHolder.setToolArgs("fixedShopName", shopName);
+
+            aiMessage = String.format(
+                    "%s 매장에 대한 보고서를 생성하세요.\n\n사용자 요청: %s",
+                    shopName,
+                    originalMessage
+            );
+
+            log.info("USER 요청 → 매장명 강제 주입: {}", shopName);
+        } else {
+            scope = "전매장";
+        }
+
+        ToolArgsContextHolder.setToolArgs("scope", scope);
+
+        generateAsync(conversationId, originalMessage, aiMessage, principal);
     }
 
     // 2. SSE 연결
@@ -57,9 +89,9 @@ public class AiReportService {
 
     // 3. 실제 AI 보고서 생성 (비동기)
     @Async
-    public void generateAsync(String conversationId, String message, UserPrincipal user) {
+    public void generateAsync(String conversationId, String originalMessage, String aiMessage, UserPrincipal user) {
 
-        if (message == null || message.isBlank()) {
+        if (aiMessage == null || aiMessage.isBlank()) {
             sseService.sendOnceAndComplete(
                     conversationId,
                     "fail",
@@ -72,12 +104,17 @@ public class AiReportService {
         try {
             String generatedDate = LocalDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
-
             String currentDate = LocalDate.now().toString();
+
+            String scope = ToolArgsContextHolder.getToolArgs("scope");
+            String shopName = ToolArgsContextHolder.getToolArgs("fixedShopName");
+            if (shopName == null && !"전매장".equals(scope)) {
+                shopName = scope;
+            }
 
             StringBuilder aiResult = new StringBuilder();
 
-            reportAgent.report(message, currentDate, generatedDate)
+            reportAgent.report(aiMessage, currentDate, generatedDate, scope, shopName)
                     .onNext(token -> {
                         aiResult.append(token);
 //                        // 토큰 스트리밍 유지 (UI에서 안 쓰면 무시)
@@ -115,7 +152,7 @@ public class AiReportService {
                         AiReport saved = saveReport(
                                 user,
                                 conversationId,
-                                message,
+                                originalMessage,
                                 aiResult.toString(),
                                 startDate,
                                 endDate

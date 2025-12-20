@@ -8,9 +8,15 @@ import com.codehows.taelimbe.pudureport.entity.PuduReport;
 import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.robot.repository.RobotRepository;
+import com.codehows.taelimbe.store.constant.DeleteStatus;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.StoreRepository;
+import com.codehows.taelimbe.user.constant.Role;
+import com.codehows.taelimbe.user.entity.User;
+import com.codehows.taelimbe.user.repository.UserRepository;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,6 +41,7 @@ public class PuduReportService {
     private final PuduReportRepository puduReportRepository;
     private final StoreRepository storeRepository;
     private final RobotRepository robotRepository;
+    private final UserRepository userRepository;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -162,6 +169,7 @@ public class PuduReportService {
                 .toList();
     }
 
+
     // storeId가 있는 경우
     @Transactional(readOnly = true)
     public List<PuduReportResponseDTO> getReportsByStore(Long storeId, String startDate, String endDate) {
@@ -230,6 +238,70 @@ public class PuduReportService {
                     .findByStartTimeBetween(start, end, pageable);
         }
         return result.map(PuduReportResponseDTO::createReportResponseDTO);
+    }
+
+    // ai report에서 사용
+    @Transactional(readOnly = true)
+    public List<PuduReportDTO> getReportByStore(
+            String startDate,
+            String endDate,
+            String shopName,
+            UserPrincipal principal
+    ) {
+        User user = userRepository.findById(principal.userId())
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+
+        Store targetStore;
+
+        // ================= ADMIN =================
+        if (user.getRole() == Role.ADMIN) {
+
+            if (shopName == null || shopName.isBlank()) {
+                throw new IllegalArgumentException("매장명이 필요합니다.");
+            }
+
+            targetStore = storeRepository
+                    .findByShopNameContainingAndDelYn(shopName, DeleteStatus.N)
+                    .orElseThrow(() -> new IllegalArgumentException("매장을 찾을 수 없습니다."));
+
+        }
+        // ================= USER / MANAGER =================
+        else {
+            Store userStore = user.getStore();
+
+            if (userStore == null) {
+                throw new IllegalStateException("사용자 매장 정보가 없습니다.");
+            }
+
+            // 다른 매장 요청 차단
+            if (shopName != null && !userStore.getShopName().contains(shopName)) {
+                throw new AccessDeniedException("⛔ 매장 접근 권한이 없습니다.");
+            }
+
+            targetStore = userStore;
+        }
+
+        // ================= store → robot → report =================
+
+        LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
+        LocalDateTime end   = LocalDate.parse(endDate).atTime(LocalTime.MAX);
+
+        List<Robot> robots =
+                robotRepository.findAllByStore_StoreId(targetStore.getStoreId());
+
+        if (robots.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> robotIds = robots.stream()
+                .map(Robot::getRobotId)
+                .toList();
+
+        return puduReportRepository
+                .findAllByRobot_RobotIdInAndStartTimeBetween(robotIds, start, end)
+                .stream()
+                .map(PuduReportDTO::createReportDTO)
+                .toList();
     }
 
 }

@@ -4,6 +4,8 @@ import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
+import com.codehows.taelimbe.user.security.SecurityUtils;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +31,8 @@ public class ReportTools {
     private final Gson gson;
 
     @Tool("""
-    사용자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
+    (ADMIN 전용)
+    관리자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
     
     ⚠️ 날짜 규칙:
     - "어제" → 어제 날짜.
@@ -52,6 +55,15 @@ public class ReportTools {
             log.warn("[AI TOOL CALL] 기간 미입력: startDate={}, endDate={}", startDate, endDate);
             throw new IllegalArgumentException("⚠️ 기간을 명확히 입력해주세요.");
         }
+
+        boolean isAdmin = Boolean.parseBoolean(
+                ToolArgsContextHolder.getToolArgs("isAdmin")
+        );
+
+        if (!isAdmin) {
+            throw new SecurityException("전매장 보고서는 관리자만 조회 가능합니다.");
+        }
+
         ToolArgsContextHolder.setToolArgs("startDate", startDate);
         ToolArgsContextHolder.setToolArgs("endDate", endDate);
 
@@ -63,8 +75,37 @@ public class ReportTools {
             log.warn("[AI TOOL CALL] 결과 없음: {} ~ {}", startDate, endDate);
         }
 
-        String json = gson.toJson(reportData);
+        return new ReportResult(gson.toJson(reportData), startDate, endDate);
+    }
 
-        return new ReportResult(json, startDate, endDate);
+    @Tool("""
+    매장 단위 청소 로봇 보고서 데이터를 조회합니다.
+    
+    - ADMIN: shopName 기반 전체 매장 조회 가능
+    - USER: 본인 storeId만 조회 가능
+    """)
+    public ReportResult getStoreReport(
+            String startDate,
+            String endDate,
+            String shopName
+    ) {
+        ToolArgsContextHolder.setToolArgs("startDate", startDate);
+        ToolArgsContextHolder.setToolArgs("endDate", endDate);
+
+        boolean isAdmin = Boolean.parseBoolean(
+                ToolArgsContextHolder.getToolArgs("isAdmin")
+        );
+
+        // USER / MANAGER → 매장명 강제
+        if (!isAdmin) {
+            shopName = ToolArgsContextHolder.getToolArgs("fixedShopName");
+        }
+
+        UserPrincipal principal = SecurityUtils.getPrincipal();
+
+        List<PuduReportDTO> reports =
+                puduReportService.getReportByStore(startDate, endDate, shopName, principal);
+
+        return new ReportResult(gson.toJson(reports), startDate, endDate);
     }
 }
