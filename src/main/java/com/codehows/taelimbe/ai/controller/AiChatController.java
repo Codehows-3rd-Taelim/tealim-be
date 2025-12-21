@@ -13,7 +13,6 @@ import java.util.Map;
 
 @Slf4j
 @RestController
-@RequestMapping
 @RequiredArgsConstructor
 public class AiChatController {
 
