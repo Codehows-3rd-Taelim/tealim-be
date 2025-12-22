@@ -126,7 +126,7 @@ public class AiReportService {
 
             String scope = ToolArgsContextHolder.getToolArgs("scope");
             String shopName = ToolArgsContextHolder.getToolArgs("fixedShopName");
-            if (shopName == null && !"전매장".equals(scope)) {
+            if (shopName.isEmpty() && !"전매장".equals(scope)) {
                 shopName = scope;
             }
 
@@ -234,14 +234,14 @@ public class AiReportService {
     }
 
     private String extractShopName(String message) {
-        if (message == null) return null;
+        if (message == null) return "";
 
         // 지금은 DB에 있는 정확한 매장명 기준으로만 처리
         if (message.contains("효성중공업 1공장")) {
             return "효성중공업 1공장";
         }
 
-        return null;
+        return "";
     }
 
     // fail 판단
