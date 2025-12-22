@@ -51,7 +51,7 @@ public class AiReportService {
                 .orElseThrow();
 
         // role 판단
-        boolean isAdmin = user.getRole().equals("ADMIN");
+        boolean isAdmin = principal.isAdmin();
         ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(isAdmin));
 
         String originalMessage = req.getMessage(); // DB저장용
@@ -74,7 +74,25 @@ public class AiReportService {
 
             log.info("USER 요청 → 매장명 강제 주입: {}", shopName);
         } else {
-            scope = "전매장";
+            // 관리자 요청에서 매장명이 메시지에 포함된 경우 추출
+            String extractedShopName = extractShopName(originalMessage);
+
+            if (extractedShopName != null) {
+                shopName = extractedShopName;
+                scope = shopName;
+
+                ToolArgsContextHolder.setToolArgs("fixedShopName", shopName);
+
+                aiMessage = String.format(
+                        "%s 매장에 대한 보고서를 생성하세요.\n\n사용자 요청: %s",
+                        shopName,
+                        originalMessage
+                );
+
+                log.info("ADMIN 요청 → 매장명 강제 주입: {}", shopName);
+            } else {
+                scope = "전매장";
+            }
         }
 
         ToolArgsContextHolder.setToolArgs("scope", scope);
@@ -215,12 +233,24 @@ public class AiReportService {
         );
     }
 
+    private String extractShopName(String message) {
+        if (message == null) return null;
+
+        // 지금은 DB에 있는 정확한 매장명 기준으로만 처리
+        if (message.contains("효성중공업 1공장")) {
+            return "효성중공업 1공장";
+        }
+
+        return null;
+    }
+
     // fail 판단
     private boolean isFailResponse(String text) {
         return text.contains("할 수 없습니다")
                 || text.contains("현재 사용 가능한 도구")
                 || text.contains("대신")
                 || text.contains("할까요?")
+                || text.contains("찾을 수")
                 || text.endsWith("?");
     }
 

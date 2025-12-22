@@ -241,67 +241,18 @@ public class PuduReportService {
     }
 
     // ai report에서 사용
-    @Transactional(readOnly = true)
-    public List<PuduReportDTO> getReportByStore(
+    public List<PuduReportDTO> getReportByStoreId(
             String startDate,
             String endDate,
-            String shopName,
-            UserPrincipal principal
+            Long storeId
     ) {
-        User user = userRepository.findById(principal.userId())
-                .orElseThrow(() -> new IllegalStateException("User not found"));
-
-        Store targetStore;
-
-        // ================= ADMIN =================
-        if (user.getRole() == Role.ADMIN) {
-
-            if (shopName == null || shopName.isBlank()) {
-                throw new IllegalArgumentException("매장명이 필요합니다.");
-            }
-
-            targetStore = storeRepository
-                    .findByShopNameContainingAndDelYn(shopName, DeleteStatus.N)
-                    .orElseThrow(() -> new IllegalArgumentException("매장을 찾을 수 없습니다."));
-
-        }
-        // ================= USER / MANAGER =================
-        else {
-            Store userStore = user.getStore();
-
-            if (userStore == null) {
-                throw new IllegalStateException("사용자 매장 정보가 없습니다.");
-            }
-
-            // 다른 매장 요청 차단
-            if (shopName != null && !userStore.getShopName().contains(shopName)) {
-                throw new AccessDeniedException("⛔ 매장 접근 권한이 없습니다.");
-            }
-
-            targetStore = userStore;
-        }
-
-        // ================= store → robot → report =================
-
         LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
-        LocalDateTime end   = LocalDate.parse(endDate).atTime(LocalTime.MAX);
-
-        List<Robot> robots =
-                robotRepository.findAllByStore_StoreId(targetStore.getStoreId());
-
-        if (robots.isEmpty()) {
-            return List.of();
-        }
-
-        List<Long> robotIds = robots.stream()
-                .map(Robot::getRobotId)
-                .toList();
+        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
 
         return puduReportRepository
-                .findAllByRobot_RobotIdInAndStartTimeBetween(robotIds, start, end)
+                .findByStoreIdAndPeriod(storeId, start, end)
                 .stream()
                 .map(PuduReportDTO::createReportDTO)
                 .toList();
     }
-
 }

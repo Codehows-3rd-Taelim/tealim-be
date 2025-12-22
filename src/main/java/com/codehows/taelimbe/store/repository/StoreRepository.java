@@ -13,7 +13,7 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     // StoreRepository
     Optional<Store> findByShopId(Long shopId);
 
-    Optional<Store> findByShopNameContainingAndDelYn(
+    Optional<Store> findByShopNameAndDelYn(
             String shopName,
             DeleteStatus delYn
     );

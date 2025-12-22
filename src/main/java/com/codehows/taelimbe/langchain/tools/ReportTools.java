@@ -4,6 +4,9 @@ import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
+import com.codehows.taelimbe.store.constant.DeleteStatus;
+import com.codehows.taelimbe.store.entity.Store;
+import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.codehows.taelimbe.user.security.SecurityUtils;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.google.gson.*;
@@ -25,6 +28,7 @@ import java.util.List;
 @Slf4j
 public class ReportTools {
 
+    private final StoreRepository storeRepository;
     // CleaningDataService를 주입받아 청소 보고서 관련 비즈니스 로직을 수행합니다.
     private final PuduReportService puduReportService;
     // LangChainConfig에서 빈으로 등록된 Gson 인스턴스를 주입받습니다.
@@ -92,19 +96,32 @@ public class ReportTools {
         ToolArgsContextHolder.setToolArgs("startDate", startDate);
         ToolArgsContextHolder.setToolArgs("endDate", endDate);
 
-        boolean isAdmin = Boolean.parseBoolean(
-                ToolArgsContextHolder.getToolArgs("isAdmin")
-        );
-
-        // USER / MANAGER → 매장명 강제
-        if (!isAdmin) {
-            shopName = ToolArgsContextHolder.getToolArgs("fixedShopName");
-        }
-
         UserPrincipal principal = SecurityUtils.getPrincipal();
 
+        Long resolvedStoreId;
+
+        if (principal.isAdmin() && shopName == null) {
+            throw new IllegalArgumentException("관리자는 매장명을 지정하거나 전체 조회를 선택해야 합니다.");
+        }
+
+        if (principal.isAdmin()) {
+            // 관리자: shopName → storeId 고정
+            Store store = storeRepository.findByShopNameAndDelYn(shopName, DeleteStatus.N)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 매장입니다."));
+
+            resolvedStoreId = store.getStoreId();
+        } else {
+            resolvedStoreId = principal.storeId();
+        }
+
+        ToolArgsContextHolder.setToolArgs("targetStoreId", resolvedStoreId.toString());
+
         List<PuduReportDTO> reports =
-                puduReportService.getReportByStore(startDate, endDate, shopName, principal);
+                puduReportService.getReportByStoreId(
+                        startDate,
+                        endDate,
+                        resolvedStoreId
+                );
 
         return new ReportResult(gson.toJson(reports), startDate, endDate);
     }
