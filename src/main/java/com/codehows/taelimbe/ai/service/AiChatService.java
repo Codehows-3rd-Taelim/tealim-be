@@ -29,13 +29,6 @@ public class AiChatService {
     private final AiChatRepository aiChatRepository;
     private final UserRepository userRepository;
 
-    // 현재 로그인한 사용자 정보 가져오기
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        return userRepository.findById(username)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + username));
-    }
 
 
 

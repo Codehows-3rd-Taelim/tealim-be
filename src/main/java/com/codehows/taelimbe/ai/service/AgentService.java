@@ -61,13 +61,15 @@ public class AgentService {
                     sseService.send(conversationId, token);
                 })
                 .onComplete(finalResponse -> {
-                    String answer = aiBuilder.toString();
+                    String rawAnswer = aiBuilder.toString();
+                    String normalizedAnswer = normalizeForChat(rawAnswer);
 
-                    aiChatService.saveAiMessage(conversationId, userId, answer);
+
+                    aiChatService.saveAiMessage(conversationId, userId, normalizedAnswer);
                     sseService.complete(conversationId);
 
                     // 답변 불가인 정보 미답 질문에 저장
-                    if ("답변드릴 수 없는 정보입니다.".equals(answer)) {
+                    if ("답변드릴 수 없는 정보입니다.".equals(rawAnswer)) {
                         questionService.record(message);
                     }
 
@@ -81,5 +83,45 @@ public class AgentService {
                 })
                 .start();  
     }
+
+    private String normalizeForChat(String text) {
+        if (text == null) return null;
+
+        // 마크다운/기호 제거
+        String t = text
+                .replace("**", "")
+                .replace("*", "")
+                .replaceAll("(?m)^#+\\s*", "")
+                .replaceAll("(?m)^-+\\s*", "");
+
+        // 줄 단위 처리
+        String[] lines = t.split("\\r?\\n");
+        StringBuilder result = new StringBuilder();
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].trim();
+            if (line.isEmpty()) continue;
+
+            // 값 없는 헤더 제거 (":"로 끝나고 다음 줄이 또 라벨:값 형태)
+            if (line.endsWith(":") &&
+                    i + 1 < lines.length &&
+                    lines[i + 1].contains(":")) {
+                continue;
+            }
+
+            if (result.length() > 0) {
+                result.append(" ");
+            }
+            result.append(line);
+        }
+
+        // 공백 정리
+        return result.toString()
+                .replaceAll("\\s{2,}", " ")
+                .trim();
+    }
+
+
+
 
 }
