@@ -30,18 +30,22 @@ public class LoginController {
             Authentication authentication =
                     authenticationManager.authenticate(token);
 
-            // ↓↓↓ 기존 코드 그대로 ↓↓↓
-
+            // 권한 처리
             String roleName = authentication.getAuthorities().stream()
                     .map(a -> a.getAuthority().replace("ROLE_", ""))
                     .findFirst()
                     .orElse("USER");
 
-            int roleLevel = Role.valueOf(roleName).getLevel();
+            Role role = Role.valueOf(roleName);
+            int roleLevel = role.getLevel();
 
-            Long storeId = null, userId = null;
+            boolean isAdmin = role == Role.ADMIN;
+
+            // user/store 정보 추출
+            Long userId = null;
+            Long storeId = null;
+
             Object principal = authentication.getPrincipal();
-
             if (principal instanceof User user) {
                 userId = user.getUserId();
                 if (user.getStore() != null) {
@@ -49,7 +53,15 @@ public class LoginController {
                 }
             }
 
-            String jwtToken = jwtService.generateToken(authentication.getName(), userId);
+            // jwt 생성
+            String jwtToken = jwtService.generateToken(
+                    authentication.getName(), // username
+                    userId,
+                    isAdmin,
+                    storeId
+            );
+
+            // 응답 DTO
             LoginResponseDTO response =
                     new LoginResponseDTO(jwtToken, roleLevel, storeId != null ? storeId : 0L, userId);
 

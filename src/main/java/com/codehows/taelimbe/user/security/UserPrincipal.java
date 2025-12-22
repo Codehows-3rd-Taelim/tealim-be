@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 public record UserPrincipal(
         Long userId,
-        String username
+        String username,
+        boolean isAdmin,
+        Long storeId
 ) implements Serializable {
 }
