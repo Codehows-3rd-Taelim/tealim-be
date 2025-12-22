@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.store.controller;
 
+import com.codehows.taelimbe.store.dto.PaginationDTO;
 import com.codehows.taelimbe.store.dto.StoreDTO;
 import com.codehows.taelimbe.store.entity.Industry;
 import com.codehows.taelimbe.store.repository.IndustryRepository;
@@ -8,10 +9,11 @@ import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.store.service.StoreService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.data.domain.PageRequest;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,20 +34,22 @@ public class StoreController {
      * @return 조회된 Store 엔티티 목록 (JSON)
      */
     @GetMapping("/list")
-    public ResponseEntity<List<Store>> getStore(
-            @RequestParam(value = "storeId", required = false) Long storeId) {
+    @ResponseBody
+    public ResponseEntity<PaginationDTO<StoreDTO>> getStore(
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
 
-        List<Store> stores;
+        Page<StoreDTO> storePage = storeService.findStoresPage(page - 1, size);
 
-        if (storeId != null) {
-            stores = storeService.findStoreById(storeId);
-        } else {
-            stores = storeService.findAllStores();
-        }
+        PaginationDTO<StoreDTO> response = new PaginationDTO<>();
+        response.setContent(storePage.getContent());
+        response.setPage(storePage.getNumber() + 1);
+        response.setSize(storePage.getSize());
+        response.setTotalPages(storePage.getTotalPages());
+        response.setTotalElements(storePage.getTotalElements());
 
-        return ResponseEntity.ok(stores);
+        return ResponseEntity.ok(response);
     }
-
     // 매장 직원 불러오기
     @GetMapping("/user")
     public ResponseEntity<List<UserResponseDTO>> getStoreUser(

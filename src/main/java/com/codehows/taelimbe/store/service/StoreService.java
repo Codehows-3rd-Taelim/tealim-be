@@ -11,6 +11,9 @@ import com.codehows.taelimbe.user.repository.UserRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -189,4 +192,8 @@ public class StoreService {
         return newCount;
     }
 
+    public Page<StoreDTO> findStoresPage(int page, int size) {
+        Page<Store> storePage = storeRepository.findAll(PageRequest.of(page, size, Sort.by("storeId").ascending()));
+        return storePage.map(StoreDTO::fromEntity);
+    }
 }

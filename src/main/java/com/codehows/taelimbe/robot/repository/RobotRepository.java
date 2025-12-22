@@ -22,4 +22,11 @@ public interface RobotRepository extends JpaRepository<Robot, Long> {
     """)
     List<Robot> findAllByStoreAndCc1OrMt1(@Param("storeId") Long storeId);
 
+
+    @Query("""
+    select r.robotId
+    from Robot r
+    where r.store.storeId = :storeId
+""")
+    List<Long> findRobotIdsByStoreId(@Param("storeId") Long storeId);
 }
