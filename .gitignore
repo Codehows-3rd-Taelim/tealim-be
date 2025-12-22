@@ -20,6 +20,7 @@ bin/
 ### IntelliJ IDEA ###
 application.properties
 docker-compose.yml
+DataInitializer.java
 Jenkinsfile
 Dockerfile
 .idea
@@ -29,6 +30,7 @@ Dockerfile
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
+DataInitializer.java
 
 ### NetBeans ###
 /nbproject/private/

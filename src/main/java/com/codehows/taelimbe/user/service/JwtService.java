@@ -33,10 +33,12 @@ public class JwtService {
     }
 
     // loginId(ID)를 받아서 JWT 생성
-    public String generateToken(String username, Long userId) {
+    public String generateToken(String username, Long userId, boolean isAdmin, Long storeId) {
         return Jwts.builder()
                 .setSubject(username)
                 .claim("userId", userId)
+                .claim("isAdmin", isAdmin)
+                .claim("storeId", storeId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime)) // ← 수정
                 .signWith(signingKey, SignatureAlgorithm.HS256) // ← 수정
@@ -49,7 +51,7 @@ public class JwtService {
                     .setSigningKey(signingKey)
                     .build();
 
-            return parser.parseClaimsJws(token.replace("Bearer ", ""))
+            return parser.parseClaimsJws(token)
                     .getBody()
                     .get("userId", Long.class);
         } catch (Exception e) {
@@ -57,23 +59,45 @@ public class JwtService {
         }
     }
 
+    public Boolean extractIsAdmin(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(signingKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get("isAdmin", Boolean.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    public Long extractStoreId(String token) {
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(signingKey)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody()
+                    .get("storeId", Long.class);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     // JWT를 받아서 id(ID)를 반환
-    public String parseToken(String authHeader) {
-        if (authHeader != null && authHeader.startsWith(PREFIX)) {
-            try {
-                JwtParser parser = Jwts.parserBuilder()
-                        .setSigningKey(signingKey)
-                        .build();
+    public String parseToken(String token) {
+        try {
+            JwtParser parser = Jwts.parserBuilder()
+                    .setSigningKey(signingKey)
+                    .build();
 
-                String token = authHeader.replace(PREFIX, "");
-                return parser.parseClaimsJws(token)
-                        .getBody()
-                        .getSubject();
-            } catch (Exception e) {
-                return null;
-            }
+            return parser.parseClaimsJws(token)
+                    .getBody()
+                    .getSubject();
+        } catch (Exception e) {
+            return null;
         }
-        return null;
     }
+
 }

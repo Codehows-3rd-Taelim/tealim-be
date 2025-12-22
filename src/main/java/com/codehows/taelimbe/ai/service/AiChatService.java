@@ -29,28 +29,11 @@ public class AiChatService {
     private final AiChatRepository aiChatRepository;
     private final UserRepository userRepository;
 
-    // 현재 로그인한 사용자 정보 가져오기
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String username = authentication.getName();
-        return userRepository.findById(username)
-                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + username));
-    }
+
 
 
     public String startNewChat(Authentication authentication) {
-        UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
-        Long userId = principal.userId();
-
-        String id = UUID.randomUUID().toString();
-
-        AiChat chat = AiChat.builder()
-                .conversationId(id)
-                .user(userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found")))
-                .build();
-
-        aiChatRepository.save(chat);
-        return id;
+        return UUID.randomUUID().toString();
     }
 
 
@@ -94,12 +77,12 @@ public class AiChatService {
 
     // USER 메시지 저장
     public void saveUserMessage(String convId, Long userId, String msg) {
-        log.info("🔍 [saveUserMessage] START convId={}, userId={}, msg={}", convId, userId, msg);
+        log.info("[saveUserMessage] START convId={}, userId={}, msg={}", convId, userId, msg);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         long idx = aiChatRepository.countByConversationId(convId);
-        log.info("🔍 [saveUserMessage] nextIndex={}", idx);
+        log.info("[saveUserMessage] nextIndex={}", idx);
 
         AiChat chat = AiChat.builder()
                 .conversationId(convId)

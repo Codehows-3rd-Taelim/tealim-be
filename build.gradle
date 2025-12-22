@@ -106,6 +106,9 @@ dependencies {
     // csv 임베딩
     implementation 'org.apache.commons:commons-csv:1.10.0'
     implementation 'commons-io:commons-io:2.16.1'
+
+    // pdf 임베딩
+    implementation 'org.apache.pdfbox:pdfbox:2.0.30'
 }
 
 tasks.named('test') {

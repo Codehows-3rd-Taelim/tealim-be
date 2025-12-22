@@ -8,21 +8,29 @@ import com.codehows.taelimbe.pudureport.entity.PuduReport;
 import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.robot.repository.RobotRepository;
+import com.codehows.taelimbe.store.constant.DeleteStatus;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.StoreRepository;
+import com.codehows.taelimbe.user.constant.Role;
+import com.codehows.taelimbe.user.entity.User;
+import com.codehows.taelimbe.user.repository.UserRepository;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.transaction.Transactional;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 @Service
@@ -33,6 +41,9 @@ public class PuduReportService {
     private final PuduReportRepository puduReportRepository;
     private final StoreRepository storeRepository;
     private final RobotRepository robotRepository;
+    private final UserRepository userRepository;
+
+    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // 단일 매장 특정 기간 보고서 조회
     @Transactional
@@ -121,12 +132,12 @@ public class PuduReportService {
                 .sum();
     }
 
-    // db에서 상세 보고서 목록 가져오기
-    public List<PuduReportDTO> getAllReports(){
-        return puduReportRepository.findAll().stream()
-                .map(PuduReportDTO::createReportDTO)
-                .toList();
-    }
+//    // db에서 상세 보고서 목록 가져오기
+//    public List<PuduReportDTO> getAllReports(){
+//        return puduReportRepository.findAll().stream()
+//                .map(PuduReportDTO::createReportDTO)
+//                .toList();
+//    }
 
     // id로 보고서 가져오기
     public PuduReportDTO getReportById(Long id){
@@ -135,12 +146,12 @@ public class PuduReportService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: "+id));
     }
 
-    // sn으로 상세 보고서 목록 가져오기
-    public List<PuduReportDTO> getReportsByRobotSn(String sn){
-        return puduReportRepository.findByRobot_Sn(sn).stream()
-                .map(PuduReportDTO::createReportDTO)
-                .toList();
-    }
+//    // sn으로 상세 보고서 목록 가져오기
+//    public List<PuduReportDTO> getReportsByRobotSn(String sn){
+//        return puduReportRepository.findByRobot_Sn(sn).stream()
+//                .map(PuduReportDTO::createReportDTO)
+//                .toList();
+//    }
 
     public List<PuduReportDTO> getReport(String startDate, String endDate){
 
@@ -158,71 +169,204 @@ public class PuduReportService {
                 .toList();
     }
 
-    @Transactional
-    public List<PuduReportResponseDTO> getReports(Long storeId, String startDate, String endDate) {
-        List<PuduReport> puduReports;
 
-        // 날짜 범위 설정
-        LocalDateTime startDateTime = null;
-        LocalDateTime endDateTime = null;
+    // storeId가 있는 경우
+//    @Transactional(readOnly = true)
+//    public List<PuduReportResponseDTO> getReportsByStore(Long storeId, String startDate, String endDate) {
+//        LocalDateTime start = parseDate(startDate);
+//        LocalDateTime end = parseDate(endDate);
+//
+//        List<Robot> robots = robotRepository.findAllByStore_StoreId(storeId);
+//        if (robots.isEmpty()) {
+//            System.out.println("매장 ID " + storeId + "에 등록된 로봇이 없습니다.");
+//            return List.of();
+//        }
+//
+//        List<Long> robotIds = robots.stream().map(Robot::getRobotId).toList();
+//        List<PuduReport> reports = puduReportRepository.findAllByRobot_RobotIdInAndStartTimeBetween(robotIds, start, end);
+//
+//        return reports.stream().map(PuduReportResponseDTO::createReportResponseDTO).toList();
+//    }
 
-        // DateTimeFormatter 정의
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    // storeId가 없는 경우
+//    @Transactional(readOnly = true)
+//    public List<PuduReportResponseDTO> getReportsAllStores(String startDate, String endDate) {
+//        LocalDateTime start = parseDate(startDate);
+//        LocalDateTime end = parseDate(endDate);
+//
+//        List<PuduReport> reports = puduReportRepository.findByStartTimeBetween(start, end);
+//        return reports.stream().map(PuduReportResponseDTO::createReportResponseDTO).toList();
+//    }
+//
+//    private LocalDateTime parseDate(String dateStr) {
+//        return LocalDateTime.parse(dateStr, formatter);
+//    }
+//
+//    public Page<PuduReportResponseDTO> getReportPage(
+//            Long storeId,
+//            LocalDateTime start,
+//            LocalDateTime end,
+//            int page,
+//            int size,
+//            String sortKey,
+//            String sortOrder
+//    ) {
+//        Sort sort = Sort.by(
+//                "desc".equalsIgnoreCase(sortOrder)
+//                        ? Sort.Direction.DESC
+//                        : Sort.Direction.ASC,
+//                sortKey
+//        );
+//
+//        Pageable pageable = PageRequest.of(page, size, sort);
+//
+//        Page<PuduReport> result;
+//
+//        if (storeId != null) {
+//            List<Long> robotIds = robotRepository
+//                    .findAllByStore_StoreId(storeId)
+//                    .stream()
+//                    .map(Robot::getRobotId)
+//                    .toList();
+//
+//            result = puduReportRepository
+//                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+//                            robotIds, start, end, pageable
+//                    );
+//        } else {
+//            result = puduReportRepository
+//                    .findByStartTimeBetween(start, end, pageable);
+//        }
+//        return result.map(PuduReportResponseDTO::createReportResponseDTO);
+//    }
+    @Transactional(readOnly = true)
+    public List<PuduReportResponseDTO> getReports(
+            Long storeId,
+            Long filterStoreId,
+            String sn,
+            LocalDateTime start,
+            LocalDateTime end,
+            String sortKey,
+            String sortOrder
+    ) {
+        Sort sort = Sort.by(
+                "desc".equalsIgnoreCase(sortOrder)
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC,
+                sortKey
+        );
 
-        if (startDate != null && !startDate.isEmpty()) {
-            try {
-                startDateTime = LocalDateTime.parse(startDate, formatter);
-                System.out.println("시작 시간: " + startDateTime);
-            } catch (DateTimeParseException e) {
-                System.err.println("시작 날짜 파싱 오류: " + startDate);
-                e.printStackTrace();
-            }
-        }
-
-        if (endDate != null && !endDate.isEmpty()) {
-            try {
-                endDateTime = LocalDateTime.parse(endDate, formatter);
-                System.out.println("종료 시간: " + endDateTime);
-            } catch (DateTimeParseException e) {
-                System.err.println("종료 날짜 파싱 오류: " + endDate);
-                e.printStackTrace();
-            }
-        }
-
-        if (storeId != null) {
-            List<Robot> robots = robotRepository.findAllByStore_StoreId(storeId);
-
-            if (robots.isEmpty()) {
-                System.out.println("매장 ID " + storeId + "에 등록된 로봇이 없습니다.");
-                return List.of();
-            }
-
-            List<Long> robotIds = robots.stream()
-                    .map(Robot::getRobotId)
+        // 1. sn 우선
+        if (sn != null && !sn.isBlank()) {
+            return puduReportRepository
+                    .findByRobot_SnAndStartTimeBetween(sn, start, end, sort)
+                    .stream()
+                    .map(PuduReportResponseDTO::createReportResponseDTO)
                     .toList();
-
-            if (startDateTime != null && endDateTime != null) {
-                puduReports = puduReportRepository.findAllByRobot_RobotIdInAndStartTimeBetween(
-                        robotIds, startDateTime, endDateTime);
-                System.out.println("매장 + 날짜 필터링 조회: " + puduReports.size() + "개");
-            } else {
-                puduReports = puduReportRepository.findAllByRobot_RobotIdIn(robotIds);
-                System.out.println("매장 필터링만 조회: " + puduReports.size() + "개");
-            }
-
-        } else {
-            if (startDateTime != null && endDateTime != null) {
-                puduReports = puduReportRepository.findByStartTimeBetween(startDateTime, endDateTime);
-                System.out.println("날짜 필터링만 조회: " + puduReports.size() + "개");
-            } else {
-                puduReports = puduReportRepository.findAll();
-                System.out.println("전체 조회: " + puduReports.size() + "개");
-            }
         }
 
-        return puduReports.stream()
+        // 2. filterStoreId (관리자)
+        if (filterStoreId != null) {
+            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(filterStoreId);
+            if (robotIds.isEmpty()) return List.of();
+
+            return puduReportRepository
+                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+                            robotIds, start, end, sort
+                    )
+                    .stream()
+                    .map(PuduReportResponseDTO::createReportResponseDTO)
+                    .toList();
+        }
+
+        // 3. storeId (일반 유저)
+        if (storeId != null) {
+            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(storeId);
+            if (robotIds.isEmpty()) return List.of();
+
+            return puduReportRepository
+                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+                            robotIds, start, end, sort
+                    )
+                    .stream()
+                    .map(PuduReportResponseDTO::createReportResponseDTO)
+                    .toList();
+        }
+
+        // 4. 전체 (페이징 X)
+        return puduReportRepository
+                .findByStartTimeBetween(start, end, sort)
+                .stream()
                 .map(PuduReportResponseDTO::createReportResponseDTO)
                 .toList();
     }
 
+
+    @Transactional(readOnly = true)
+    public Page<PuduReportResponseDTO> getReportsPage(
+            Long storeId,
+            Long filterStoreId,
+            String sn,
+            LocalDateTime start,
+            LocalDateTime end,
+            int page,
+            int size,
+            String sortKey,
+            String sortOrder
+    ) {
+        Sort sort = Sort.by(
+                "desc".equalsIgnoreCase(sortOrder)
+                        ? Sort.Direction.DESC
+                        : Sort.Direction.ASC,
+                sortKey
+        );
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<PuduReport> result;
+
+        if (sn != null && !sn.isBlank()) {
+            result = puduReportRepository
+                    .findByRobot_SnAndStartTimeBetween(
+                            sn, start, end, pageable
+                    );
+        } else if (filterStoreId != null) {
+            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(filterStoreId);
+            if (robotIds.isEmpty()) return Page.empty(pageable);
+
+            result = puduReportRepository
+                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+                            robotIds, start, end, pageable
+                    );
+        } else if (storeId != null) {
+            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(storeId);
+            if (robotIds.isEmpty()) return Page.empty(pageable);
+
+            result = puduReportRepository
+                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+                            robotIds, start, end, pageable
+                    );
+        } else {
+            result = puduReportRepository
+                    .findByStartTimeBetween(start, end, pageable);
+        }
+
+        return result.map(PuduReportResponseDTO::createReportResponseDTO);
+    }
+
+    // ai report에서 사용
+    public List<PuduReportDTO> getReportByStoreId(
+            String startDate,
+            String endDate,
+            Long storeId
+    ) {
+        LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
+        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
+
+        return puduReportRepository
+                .findByStoreIdAndPeriod(storeId, start, end)
+                .stream()
+                .map(PuduReportDTO::createReportDTO)
+                .toList();
+    }
 }

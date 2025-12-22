@@ -33,6 +33,7 @@ public class PuduReportDTO {
     private String mapUrl;
 
     private Long robotId;
+    private String nickname;
 
     public static PuduReportDTO createReportDTO(PuduReport puduReport) {
         return PuduReportDTO.builder()
@@ -50,6 +51,7 @@ public class PuduReportDTO {
                 .mapName(puduReport.getMapName())
                 .mapUrl(puduReport.getMapUrl())
                 .robotId(puduReport.getRobot().getRobotId())
+                .nickname(puduReport.getRobot().getNickname())
                 .build();
     }
 }

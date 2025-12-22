@@ -4,6 +4,11 @@ import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
+import com.codehows.taelimbe.store.constant.DeleteStatus;
+import com.codehows.taelimbe.store.entity.Store;
+import com.codehows.taelimbe.store.repository.StoreRepository;
+import com.codehows.taelimbe.user.security.SecurityUtils;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
@@ -23,13 +28,15 @@ import java.util.List;
 @Slf4j
 public class ReportTools {
 
+    private final StoreRepository storeRepository;
     // CleaningDataService를 주입받아 청소 보고서 관련 비즈니스 로직을 수행합니다.
     private final PuduReportService puduReportService;
     // LangChainConfig에서 빈으로 등록된 Gson 인스턴스를 주입받습니다.
     private final Gson gson;
 
     @Tool("""
-    사용자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
+    (ADMIN 전용)
+    관리자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
     
     ⚠️ 날짜 규칙:
     - "어제" → 어제 날짜.
@@ -48,12 +55,19 @@ public class ReportTools {
     """)
     public ReportResult getReport(String startDate, String endDate) {
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
         if (startDate == null || endDate == null) {
             log.warn("[AI TOOL CALL] 기간 미입력: startDate={}, endDate={}", startDate, endDate);
             throw new IllegalArgumentException("⚠️ 기간을 명확히 입력해주세요.");
         }
+
+        boolean isAdmin = Boolean.parseBoolean(
+                ToolArgsContextHolder.getToolArgs("isAdmin")
+        );
+
+        if (!isAdmin) {
+            throw new SecurityException("전매장 보고서는 관리자만 조회 가능합니다.");
+        }
+
         ToolArgsContextHolder.setToolArgs("startDate", startDate);
         ToolArgsContextHolder.setToolArgs("endDate", endDate);
 
@@ -65,8 +79,50 @@ public class ReportTools {
             log.warn("[AI TOOL CALL] 결과 없음: {} ~ {}", startDate, endDate);
         }
 
-        String json = gson.toJson(reportData);
+        return new ReportResult(gson.toJson(reportData), startDate, endDate);
+    }
 
-        return new ReportResult(json, startDate, endDate);
+    @Tool("""
+    매장 단위 청소 로봇 보고서 데이터를 조회합니다.
+    
+    - ADMIN: shopName 기반 전체 매장 조회 가능
+    - USER: 본인 storeId만 조회 가능
+    """)
+    public ReportResult getStoreReport(
+            String startDate,
+            String endDate,
+            String shopName
+    ) {
+        ToolArgsContextHolder.setToolArgs("startDate", startDate);
+        ToolArgsContextHolder.setToolArgs("endDate", endDate);
+
+        UserPrincipal principal = SecurityUtils.getPrincipal();
+
+        Long resolvedStoreId;
+
+        if (principal.isAdmin() && shopName == null) {
+            throw new IllegalArgumentException("관리자는 매장명을 지정하거나 전체 조회를 선택해야 합니다.");
+        }
+
+        if (principal.isAdmin()) {
+            // 관리자: shopName → storeId 고정
+            Store store = storeRepository.findByShopNameAndDelYn(shopName, DeleteStatus.N)
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 매장입니다."));
+
+            resolvedStoreId = store.getStoreId();
+        } else {
+            resolvedStoreId = principal.storeId();
+        }
+
+        ToolArgsContextHolder.setToolArgs("targetStoreId", resolvedStoreId.toString());
+
+        List<PuduReportDTO> reports =
+                puduReportService.getReportByStoreId(
+                        startDate,
+                        endDate,
+                        resolvedStoreId
+                );
+
+        return new ReportResult(gson.toJson(reports), startDate, endDate);
     }
 }

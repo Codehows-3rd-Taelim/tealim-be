@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.store.controller;
 
+import com.codehows.taelimbe.store.dto.PaginationDTO;
 import com.codehows.taelimbe.store.dto.StoreDTO;
 import com.codehows.taelimbe.store.entity.Industry;
 import com.codehows.taelimbe.store.repository.IndustryRepository;
@@ -8,10 +9,11 @@ import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.store.service.StoreService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.data.domain.PageRequest;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,30 +35,38 @@ public class StoreController {
      */
     @GetMapping("/list")
     @ResponseBody
-    public ResponseEntity<List<Store>> getStore(
-            @RequestParam(value = "storeId", required = false) Long storeId) {
+    public ResponseEntity<PaginationDTO<StoreDTO>> getStore(
+            @RequestParam(value = "page", required = false, defaultValue = "1") int page,
+            @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
 
-        // 비즈니스 로직을 서비스 계층으로 위임합니다.
-        List<Store> stores = storeService.findStores(storeId);
+        Page<StoreDTO> storePage = storeService.findStoresPage(page - 1, size);
 
-        // HTTP 200 OK와 함께 조회된 매장 목록을 JSON으로 반환
-        return ResponseEntity.ok(stores);
+        PaginationDTO<StoreDTO> response = new PaginationDTO<>();
+        response.setContent(storePage.getContent());
+        response.setPage(storePage.getNumber() + 1);
+        response.setSize(storePage.getSize());
+        response.setTotalPages(storePage.getTotalPages());
+        response.setTotalElements(storePage.getTotalElements());
+
+        return ResponseEntity.ok(response);
     }
-
     // 매장 직원 불러오기
     @GetMapping("/user")
-    @ResponseBody
     public ResponseEntity<List<UserResponseDTO>> getStoreUser(
             @RequestParam(value = "storeId", required = false) Long storeId) {
 
-        List<User> users = storeService.findUsers(storeId);
+        List<User> users;
 
-        // 💡 User 엔티티 목록을 UserResponseDTO 목록으로 변환
+        if (storeId != null) {
+            users = storeService.findUsersByStore(storeId);
+        } else {
+            users = storeService.findAllUsers();
+        }
+
         List<UserResponseDTO> userDTOs = users.stream()
-                .map(UserResponseDTO::fromEntity) // DTO의 fromEntity 메서드 사용
-                .collect(Collectors.toList());
+                .map(UserResponseDTO::fromEntity)
+                .toList();
 
-        // HTTP 200 OK와 함께 DTO 목록을 JSON으로 반환
         return ResponseEntity.ok(userDTOs);
     }
 
