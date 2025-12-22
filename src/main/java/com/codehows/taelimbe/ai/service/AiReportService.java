@@ -49,12 +49,20 @@ public class AiReportService {
         log.info("🚀 보고서 생성 시작 - conversationId: {}", conversationId);
 
         User user = userRepository.findById(principal.userId()).orElseThrow();
-
         ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(principal.isAdmin()));
 
         if (!principal.isAdmin()) {
-            // USER는 본인 매장만 가능
-            ToolArgsContextHolder.setToolArgs("fixedStoreId", user.getStore().getStoreId().toString());
+            // USER는 본인 매장 정보 설정
+            Long storeId = user.getStore().getStoreId();
+            String storeName = user.getStore().getShopName();
+
+            ToolArgsContextHolder.setToolArgs("fixedStoreId", storeId.toString());
+            ToolArgsContextHolder.setToolArgs("storeName", storeName);
+
+            // 프롬프트에 매장명 추가
+            String modifiedMessage = req.getMessage() + "\n\n[매장명: " + storeName + "]";
+            generateAsync(conversationId, req.getMessage(), modifiedMessage, principal);
+            return;
         }
 
         generateAsync(conversationId, req.getMessage(), req.getMessage(), principal);
