@@ -1,6 +1,8 @@
 package com.codehows.taelimbe.ai.service;
 
+import com.codehows.taelimbe.ai.entity.Answer;
 import com.codehows.taelimbe.ai.entity.Embed;
+import com.codehows.taelimbe.ai.entity.Question;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import com.codehows.taelimbe.langchain.embaddings.TextSplitterStrategy;
@@ -9,7 +11,7 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import lombok.RequiredArgsConstructor;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
@@ -27,6 +29,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -74,6 +77,7 @@ public class EmbeddingService {
         this.taskExecutor = taskExecutor;
     }
 
+
     // csv, pdf 임베딩 각 배치사이즈 값 받아오기
     @Value("${embedding.csv.batch.size}")
     private int embeddingCsvBatchSize;
@@ -94,6 +98,10 @@ public class EmbeddingService {
      * @param text 임베딩하고 저장할 텍스트
      * @return 비동기 작업의 완료를 나타내는 `CompletableFuture<Void>`
      */
+
+
+
+
 
     public CompletableFuture<Void> embedAndStore(String text) {
         return CompletableFuture.runAsync(() -> {
@@ -204,6 +212,9 @@ public class EmbeddingService {
         }, taskExecutor);
     }
 
+    public void resetOnly() {
+        embeddingStoreManager.reset();
+    }
 
 
     /**
@@ -343,6 +354,110 @@ public class EmbeddingService {
                 delay *= 2; // exponential backoff
             }
         }
+    }
+
+    // QnA 임베딩
+    public CompletableFuture<Void> embedQna(String text, Long questionId) {
+        return CompletableFuture.runAsync(() -> {
+
+            String key = UUID.randomUUID().toString();
+
+            Embed embed = Embed.createText(
+                    key,
+                    text,
+                    questionId
+            );
+            embedRepository.save(embed);
+
+            List<TextSegment> segments =
+                    textSplitterStrategy.split(text)
+                            .stream()
+                            .map(TextSegment::from)
+                            .toList();
+
+            Response<List<Embedding>> embeddingResponse =
+                    embeddingModel.embedAll(segments);
+
+            List<String> ids = new ArrayList<>();
+            List<String> texts = new ArrayList<>();
+            List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
+            List<List<Float>> vectors = new ArrayList<>();
+
+            for (int i = 0; i < segments.size(); i++) {
+                ids.add(UUID.randomUUID().toString());
+                texts.add(segments.get(i).text());
+
+                com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
+                metadata.put("embedKey", key);
+                metadata.put("chunk", i + 1);
+
+                metadatas.add(metadata);
+                vectors.add(embeddingResponse.content().get(i).vectorAsList());
+            }
+
+            embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
+
+            log.info("QnA 임베딩 완료 (key={})", key);
+
+        }, taskExecutor);
+    }
+
+
+    @Transactional
+    public void overwrite(Long questionId, String embedSource) {
+
+        // 1) 기존 active Embed 조회
+        List<Embed> actives =
+                embedRepository.findBySourceQuestionIdAndActiveTrue(questionId);
+
+        // 2) Milvus에서 기존 벡터 삭제 + DB 비활성화
+        for (Embed e : actives) {
+            embeddingStoreManager.deleteDocuments(e.getEmbedKey());
+            e.deactivate();
+        }
+
+        // 3) 새 Embed 생성/저장 (DB)
+        String key = UUID.randomUUID().toString();
+        Embed newEmbed = Embed.createText(key, embedSource, questionId);
+        embedRepository.save(newEmbed);
+
+        // 4) key 기반으로 Milvus 저장
+        embedAndStoreWithKey(key, embedSource);
+    }
+
+    private void embedAndStoreWithKey(String key, String text) {
+
+        // 1) 텍스트 분할
+        List<TextSegment> segments =
+                textSplitterStrategy.split(text)
+                        .stream()
+                        .map(TextSegment::from)
+                        .toList();
+
+        // 2) 임베딩 계산
+        Response<List<Embedding>> embeddingResponse =
+                embeddingModel.embedAll(segments);
+
+        // 3) Milvus 저장 데이터 구성
+        List<String> ids = new ArrayList<>();
+        List<String> texts = new ArrayList<>();
+        List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
+        List<List<Float>> vectors = new ArrayList<>();
+
+        for (int i = 0; i < segments.size(); i++) {
+            ids.add(UUID.randomUUID().toString());
+            texts.add(segments.get(i).text());
+
+            com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
+            metadata.put("key", key);          // deleteDocuments가 찾는 키
+            metadata.put("chunk", i + 1);
+
+            metadatas.add(metadata);
+            vectors.add(embeddingResponse.content().get(i).vectorAsList());
+        }
+
+        // 4) Milvus 저장
+        embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
     }
 
 }

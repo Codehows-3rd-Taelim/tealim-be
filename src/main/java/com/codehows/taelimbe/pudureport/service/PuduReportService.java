@@ -8,9 +8,15 @@ import com.codehows.taelimbe.pudureport.entity.PuduReport;
 import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.robot.repository.RobotRepository;
+import com.codehows.taelimbe.store.constant.DeleteStatus;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.StoreRepository;
+import com.codehows.taelimbe.user.constant.Role;
+import com.codehows.taelimbe.user.entity.User;
+import com.codehows.taelimbe.user.repository.UserRepository;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -35,6 +41,7 @@ public class PuduReportService {
     private final PuduReportRepository puduReportRepository;
     private final StoreRepository storeRepository;
     private final RobotRepository robotRepository;
+    private final UserRepository userRepository;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
@@ -161,6 +168,7 @@ public class PuduReportService {
                 .map(PuduReportDTO::createReportDTO)
                 .toList();
     }
+
 
     // storeId가 있는 경우
 //    @Transactional(readOnly = true)
@@ -346,4 +354,19 @@ public class PuduReportService {
         return result.map(PuduReportResponseDTO::createReportResponseDTO);
     }
 
+    // ai report에서 사용
+    public List<PuduReportDTO> getReportByStoreId(
+            String startDate,
+            String endDate,
+            Long storeId
+    ) {
+        LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
+        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
+
+        return puduReportRepository
+                .findByStoreIdAndPeriod(storeId, start, end)
+                .stream()
+                .map(PuduReportDTO::createReportDTO)
+                .toList();
+    }
 }

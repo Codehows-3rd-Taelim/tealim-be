@@ -44,9 +44,16 @@ public class JwtFilter extends OncePerRequestFilter
                 // JwtService에는 순수 token만 넘김
                 String username = jwtService.parseToken(token);
                 Long userId = jwtService.extractUserId(token);
+                Boolean isAdmin = jwtService.extractIsAdmin(token);
+                Long storeId = jwtService.extractStoreId(token);
 
                 if (username != null && userId != null) {
-                    UserPrincipal principal = new UserPrincipal(userId, username);
+                    UserPrincipal principal = new UserPrincipal(
+                            userId,
+                            username,
+                            isAdmin != null && isAdmin,
+                            storeId
+                    );
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(

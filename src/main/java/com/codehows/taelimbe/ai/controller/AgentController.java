@@ -2,6 +2,7 @@ package com.codehows.taelimbe.ai.controller;
 
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.dto.EmbeddingRequest;
+import com.codehows.taelimbe.ai.dto.QnaEmbeddingRequest;
 import com.codehows.taelimbe.ai.service.AgentService;
 import com.codehows.taelimbe.ai.service.SseService;
 import com.codehows.taelimbe.ai.service.EmbeddingService;
@@ -149,6 +150,22 @@ public class AgentController {
                     log.error("PDF embed error", ex);
                     return ResponseEntity.internalServerError().body(ex.getMessage());
                 });
+    }
+
+    @PostMapping("/embeddings/reset-only")
+    public ResponseEntity<Void> resetOnly() {
+        embeddingService.resetOnly();
+        return ResponseEntity.ok().build();
+    }
+
+
+    @PostMapping("/qna")
+    public CompletableFuture<ResponseEntity<Void>> embedQna(@RequestBody QnaEmbeddingRequest req) {
+        String text = "Q: " + req.getQuestion() + "\n" + "A: " + req.getAnswer();
+
+        return embeddingService
+                .embedQna(text, req.getQuestionId())
+                .thenApply(v -> ResponseEntity.ok().build());
     }
 
 }
