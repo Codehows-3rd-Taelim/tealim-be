@@ -1,10 +1,8 @@
 package com.codehows.taelimbe.user.config;
 
-import com.codehows.taelimbe.user.constant.Role;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.codehows.taelimbe.user.service.JwtService;
 import jakarta.servlet.FilterChain;
-import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -12,7 +10,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -39,19 +36,14 @@ public class JwtFilter extends OncePerRequestFilter
 
         String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
 
-        // Authorization 헤더가 없으면 query parameter에서 토큰 확인 (SSE용)
-        if (authHeader == null) {
-            String tokenParam = request.getParameter("token");
-            if (tokenParam != null && !tokenParam.isEmpty()) {
-                authHeader = "Bearer " + tokenParam;
-                log.debug("JWT token found in query parameter for SSE connection");
-            }
-        }
-
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             try {
-                String username = jwtService.parseToken(authHeader);
-                Long userId = jwtService.extractUserId(authHeader);
+                // Bearer 제거
+                String token = authHeader.substring(7);
+
+                // JwtService에는 순수 token만 넘김
+                String username = jwtService.parseToken(token);
+                Long userId = jwtService.extractUserId(token);
 
                 if (username != null && userId != null) {
                     UserPrincipal principal = new UserPrincipal(userId, username);
@@ -64,17 +56,38 @@ public class JwtFilter extends OncePerRequestFilter
                             );
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
-                    log.debug("Authentication successful for user: {} (userId: {})", username, userId);
+                    log.debug(
+                            "Authentication successful for user: {} (userId: {})",
+                            username,
+                            userId
+                    );
                 } else {
-                    log.warn("Failed to parse JWT token - username or userId is null");
+                    if (request.getRequestURI().startsWith("/events/notifications")) {
+                        log.debug(
+                                "SSE JWT parse skipped, uri={}",
+                                request.getRequestURI()
+                        );
+                    } else {
+                        log.warn(
+                                "Failed to parse JWT token - username or userId is null, uri={}",
+                                request.getRequestURI()
+                        );
+                    }
+
                 }
             } catch (Exception e) {
-                log.error("JWT token validation failed: {}", e.getMessage());
+                log.warn(
+                        "JWT token validation failed, uri={}, msg={}",
+                        request.getRequestURI(),
+                        e.getMessage()
+                );
                 SecurityContextHolder.clearContext();
             }
         }
-
         // 다음 필터 체인 실행
         filterChain.doFilter(request, response);
     }
+
+
+
 }

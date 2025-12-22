@@ -49,7 +49,7 @@ public class JwtService {
                     .setSigningKey(signingKey)
                     .build();
 
-            return parser.parseClaimsJws(token.replace("Bearer ", ""))
+            return parser.parseClaimsJws(token)
                     .getBody()
                     .get("userId", Long.class);
         } catch (Exception e) {
@@ -58,22 +58,20 @@ public class JwtService {
     }
 
 
-    // JWT를 받아서 id(ID)를 반환
-    public String parseToken(String authHeader) {
-        if (authHeader != null && authHeader.startsWith(PREFIX)) {
-            try {
-                JwtParser parser = Jwts.parserBuilder()
-                        .setSigningKey(signingKey)
-                        .build();
 
-                String token = authHeader.replace(PREFIX, "");
-                return parser.parseClaimsJws(token)
-                        .getBody()
-                        .getSubject();
-            } catch (Exception e) {
-                return null;
-            }
+    // JWT를 받아서 id(ID)를 반환
+    public String parseToken(String token) {
+        try {
+            JwtParser parser = Jwts.parserBuilder()
+                    .setSigningKey(signingKey)
+                    .build();
+
+            return parser.parseClaimsJws(token)
+                    .getBody()
+                    .getSubject();
+        } catch (Exception e) {
+            return null;
         }
-        return null;
     }
+
 }

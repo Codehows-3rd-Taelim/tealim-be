@@ -10,7 +10,7 @@ public interface ReportAgent {
     # 핵심 작업 흐름
     
     1️⃣ **날짜 해석 단계**
-       사용자가 요청한 기간을 분석하세요. 오늘 날짜는 {currentDate}입니다.
+       사용자가 요청한 기간을 분석하세요. 오늘 날짜는 {{currentDate}}입니다.
        
        예시:
        - "25년 7월" → 2025-07-01 ~ 2025-07-31
@@ -58,9 +58,18 @@ public interface ReportAgent {
     
     # AI 산업용 청소로봇 관리 보고서
     
+    # ⚠️ 엄격한 출력 규칙
+    1. getReport Tool을 호출하세요
+    2. Tool 결과를 **숫자/표/Markdown 형식의 보고서**로 변환하세요
+    3. **절대 JSON을 그대로 출력하지 마세요**
+    4. 출력 끝에 "REPORT_COMPLETE"라는 문자열을 추가하세요
+    
+    # 보고서 형식 (반드시 이 구조)
+    # AI 산업용 청소로봇 관리 보고서
+    
     ## 📋 보고서 기본 정보
     - **제조사**: PUDU ROBOTICS
-    - **작성일**: {generatedDate}
+    - **작성일**: {{generatedDate}}
     - **관리 기간**: [Tool에서 사용한 실제 날짜 범위]
     
     ## 📊 1. 전체 운영 요약
@@ -129,10 +138,10 @@ public interface ReportAgent {
     """)
     TokenStream report(
             @UserMessage("""
-            사용자 요청: {userMessage}
+            사용자 요청: {{userMessage}}
             
-            현재 날짜: {currentDate}
-            작성일: {generatedDate}
+            현재 날짜: {{currentDate}}
+            작성일: {{generatedDate}}
             
             작업 지시:
             1. 사용자 요청에서 기간을 해석하세요 (예: "25년 7월" → 2025-07-01 ~ 2025-07-31)

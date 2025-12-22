@@ -18,9 +18,11 @@ import dev.langchain4j.service.AiServices;
 import dev.langchain4j.store.embedding.EmbeddingStore;
 import dev.langchain4j.store.embedding.milvus.MilvusEmbeddingStore;
 import dev.langchain4j.store.memory.chat.InMemoryChatMemoryStore;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 import java.time.LocalDateTime;
 
@@ -117,10 +119,11 @@ public class LangChainConfig {
      * @param llmFactory LLMFactory (이전에 정의된 빈을 주입받음)
      * @return `EmbeddingModel` 인스턴스
      */
-    @Bean
-    public EmbeddingModel embeddingModel(LLMFactory llmFactory) {
-        return llmFactory.createEmbeddingModel();
-    }
+//    @Bean("lcEmbeddingModel")
+//    @Primary
+//    public EmbeddingModel embeddingModel(LLMFactory llmFactory) {
+//        return llmFactory.createEmbeddingModel();
+//    }
 
     /**
      * Milvus 임베딩 저장소를 Bean으로 등록합니다.
@@ -147,12 +150,12 @@ public class LangChainConfig {
      * @return `ContentRetriever` 인스턴스
      */
     @Bean
-    public ContentRetriever contentRetriever(EmbeddingStore<TextSegment> embeddingStore, EmbeddingModel embeddingModel) {
+    public ContentRetriever contentRetriever(EmbeddingStore<TextSegment> embeddingStore,@Qualifier("lcEmbeddingModel") EmbeddingModel embeddingModel) {
         return EmbeddingStoreContentRetriever.builder()
                 .embeddingStore(embeddingStore)
                 .embeddingModel(embeddingModel)
-                .maxResults(langChainRagMaxResults) // 최대 2개의 관련성 높은 결과를 검색합니다.
-                .minScore(langChainRagMinScore) // 최소 유사도 점수가 0.5 이상인 결과만 반환합니다.
+                .maxResults(langChainRagMaxResults) // 최대 5개의 관련성 높은 결과를 검색합니다.
+                .minScore(langChainRagMinScore) // 최소 유사도 점수가 0.3 이상인 결과만 반환합니다.
                 .build();
     }
 

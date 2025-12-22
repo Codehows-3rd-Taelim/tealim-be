@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.langchain.tools;
 
+import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
@@ -47,12 +48,12 @@ public class ReportTools {
     """)
     public ReportResult getReport(String startDate, String endDate) {
 
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
         if (startDate == null || endDate == null) {
             log.warn("[AI TOOL CALL] 기간 미입력: startDate={}, endDate={}", startDate, endDate);
             throw new IllegalArgumentException("⚠️ 기간을 명확히 입력해주세요.");
         }
+        ToolArgsContextHolder.setToolArgs("startDate", startDate);
+        ToolArgsContextHolder.setToolArgs("endDate", endDate);
 
         log.info("[AI TOOL CALL] getReport({}, {})", startDate, endDate);
 

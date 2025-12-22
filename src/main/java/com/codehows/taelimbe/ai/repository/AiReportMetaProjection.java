@@ -1,13 +1,17 @@
-package com.codehows.taelimbe.ai.repository; // Repository와 같은 패키지에 두는 것이 일반적입니다.
+package com.codehows.taelimbe.ai.repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 public interface AiReportMetaProjection {
+
     Long getAiReportId();
     String getConversationId();
-    LocalDateTime getStartTime();
-    LocalDateTime getEndTime();
+
+    LocalDate getStartTime();
+    LocalDate getEndTime();
+
     LocalDateTime getCreatedAt();
-    String getRawMessage(); // DTO와 동일하게 포함
+    String getRawMessage();
     String getName();
 }

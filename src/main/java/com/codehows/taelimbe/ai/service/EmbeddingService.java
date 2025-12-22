@@ -1,5 +1,9 @@
 package com.codehows.taelimbe.ai.service;
 
+import com.codehows.taelimbe.ai.entity.Answer;
+import com.codehows.taelimbe.ai.entity.Embed;
+import com.codehows.taelimbe.ai.entity.Question;
+import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import com.codehows.taelimbe.langchain.embaddings.TextSplitterStrategy;
 import dev.langchain4j.data.embedding.Embedding;
@@ -7,12 +11,15 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import lombok.RequiredArgsConstructor;
+import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
 import org.apache.commons.io.input.BOMInputStream;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -20,7 +27,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -31,12 +40,13 @@ import java.util.concurrent.CompletableFuture;
  * `@Slf4j`는 Lombok 어노테이션으로, 로깅을 위한 `log` 객체를 자동으로 생성합니다.
  */
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class EmbeddingService {
 
     // 텍스트를 임베딩 벡터로 변환하는 모델을 주입받습니다.
     private final EmbeddingModel embeddingModel;
+    // 병렬 임베딩 모델 (CSV / PDF 전용)
+    private final EmbeddingModel parallelEmbeddingModel;
     // 생성된 임베딩 벡터를 저장하고 검색하는 스토어를 주입받습니다.
     private final EmbeddingStore<TextSegment> embeddingStore;
     // 임베딩 스토어의 초기화 및 관리 기능을 제공하는 매니저를 주입받습니다.
@@ -44,9 +54,41 @@ public class EmbeddingService {
     // 텍스트 분할 전략을 주입받습니다.
     private final TextSplitterStrategy textSplitterStrategy;
 
+    private final EmbedRepository embedRepository;
+
     // 비동기 작업을 위한 스레드 풀을 주입받습니다.
     @Qualifier("taskExecutor")
     private final TaskExecutor taskExecutor;
+
+    public EmbeddingService(
+            @Qualifier("lcEmbeddingModel") EmbeddingModel embeddingModel,
+            @Qualifier("parallelEmbeddingModel") EmbeddingModel parallelEmbeddingModel,
+            EmbeddingStore<TextSegment> embeddingStore,
+            EmbeddingStoreManager embeddingStoreManager,
+            TextSplitterStrategy textSplitterStrategy, EmbedRepository embedRepository,
+            @Qualifier("taskExecutor") TaskExecutor taskExecutor
+    ) {
+        this.embeddingModel = embeddingModel;
+        this.parallelEmbeddingModel = parallelEmbeddingModel;
+        this.embeddingStore = embeddingStore;
+        this.embeddingStoreManager = embeddingStoreManager;
+        this.textSplitterStrategy = textSplitterStrategy;
+        this.embedRepository = embedRepository;
+        this.taskExecutor = taskExecutor;
+    }
+
+
+    // csv, pdf 임베딩 각 배치사이즈 값 받아오기
+    @Value("${embedding.csv.batch.size}")
+    private int embeddingCsvBatchSize;
+    @Value("${embedding.pdf.batch.size}")
+    private int embeddingPdfBatchSize;
+
+    // 임베딩 batch 실패 시 재시도 설정값 받아오기
+    @Value("${embedding.retry.max-attempts}")
+    private int maxRetryAttempts;
+    @Value("${embedding.retry.initial-delay-ms}")
+    private long initialRetryDelayMs;
 
     /**
      * 주어진 텍스트를 임베딩하여 벡터 저장소에 추가합니다.
@@ -57,38 +99,25 @@ public class EmbeddingService {
      * @return 비동기 작업의 완료를 나타내는 `CompletableFuture<Void>`
      */
 
+
+
+
+
     public CompletableFuture<Void> embedAndStore(String text) {
         return CompletableFuture.runAsync(() -> {
             log.info("텍스트 임베딩 및 저장 시작: '{}'", text);
 
-            try {
-                // 1. 텍스트 분할 전략을 사용하여 텍스트를 작은 `TextSegment`들로 분할합니다.
-                List<TextSegment> segments = textSplitterStrategy
-                        .split(text)
-                        .stream()
-                        .map(TextSegment::from)
-                        .toList();
+            // 1. 텍스트 분할 전략을 사용하여 텍스트를 작은 `TextSegment`들로 분할합니다.
+            List<TextSegment> segments = textSplitterStrategy.split(text).stream().map(TextSegment::from).toList();
 
-                log.info("Segments size = {}", segments.size());
-                if (segments.isEmpty()) {
-                    log.warn("⚠ 분할된 세그먼트가 없습니다. 처리 중단.");
-                    return;
-                }
+            // 2. `EmbeddingModel`을 사용하여 각 `TextSegment`를 임베딩 벡터로 변환합니다.
+            Response<List<Embedding>> embedding = embeddingModel.embedAll(segments);
 
-                // 2. `EmbeddingModel`을 사용하여 각 `TextSegment`를 임베딩 벡터로 변환합니다.
-                Response<List<Embedding>> embedding = embeddingModel.embedAll(segments);
-
-
-                // 3. 임베딩된 `TextSegment`와 해당 임베딩 벡터를 `EmbeddingStore`에 추가합니다.
-                embeddingStore.addAll(embedding.content(), segments);
-
-            } catch (Exception e) {
-                log.error("임베딩 중 오류 발생!", e);
-                throw new RuntimeException(e);
-            }
+            // 3. 임베딩된 `TextSegment`와 해당 임베딩 벡터를 `EmbeddingStore`에 추가합니다.
+            embeddingStore.addAll(embedding.content(), segments);
 
             log.info("텍스트 임베딩 및 저장 완료.");
-        }, taskExecutor);
+        }, taskExecutor); // 지정된 `taskExecutor` 스레드 풀에서 실행
     }
 
 
@@ -114,6 +143,80 @@ public class EmbeddingService {
         }, taskExecutor); // 지정된 `taskExecutor` 스레드 풀에서 실행
     }
 
+
+    ///
+    public CompletableFuture<Void> embedByValue(String text) {
+        return CompletableFuture.runAsync(() -> {
+
+            log.info("텍스트 임베딩 및 저장 시작 (단일 값)");
+
+            // 1. key 생성
+            String key = java.util.UUID.randomUUID().toString();
+
+            // 2. 텍스트 분할
+            List<TextSegment> segments =
+                    textSplitterStrategy.split(text)
+                            .stream()
+                            .map(TextSegment::from)
+                            .toList();
+
+            log.info("텍스트 분할 완료 ({}개 chunk)", segments.size());
+
+            // 3. 임베딩 계산
+            Response<List<Embedding>> embeddingResponse =
+                    embeddingModel.embedAll(segments);
+
+            List<Embedding> embeddings = embeddingResponse.content();
+
+            // 4. Milvus 저장용 데이터 구성
+            List<String> ids = new ArrayList<>();
+            List<String> texts = new ArrayList<>();
+            List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
+            List<List<Float>> vectors = new ArrayList<>();
+
+            for (int i = 0; i < segments.size(); i++) {
+                ids.add(java.util.UUID.randomUUID().toString());
+                texts.add(segments.get(i).text());
+
+                com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
+                metadata.put("key", key);
+                metadata.put("chunk_id", i + 1);
+
+                metadatas.add(metadata);
+                vectors.add(embeddings.get(i).vectorAsList());
+            }
+
+            log.info("Milvus 저장 데이터 구성 완료 ({}개 벡터)", vectors.size());
+
+            // 5. Milvus 저장
+            embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
+
+            // 6. RDB 저장
+            embedRepository.save(
+                    Embed.builder()
+                            .embedKey(key)
+                            .embedValue(text)
+                            .build()
+            );
+
+            log.info("텍스트 임베딩 및 저장 완료 (key={})", key);
+
+        }, taskExecutor);
+    }
+
+
+    public CompletableFuture<Void> deleteByKey(String key) {
+        return CompletableFuture.runAsync(() -> {
+            embeddingStoreManager.deleteDocuments(key);
+            embedRepository.deleteById(key);
+        }, taskExecutor);
+    }
+
+    public void resetOnly() {
+        embeddingStoreManager.reset();
+    }
+
+
     /**
      * CSV 파일을 받아 파싱하고 내용을 임베딩하여 벡터 저장소에 추가합니다.
      * @param file 임베딩할 데이터가 포함된 CSV 파일
@@ -121,39 +224,240 @@ public class EmbeddingService {
      */
     public CompletableFuture<Void> embedAndStoreCsv(MultipartFile file) {
         return CompletableFuture.runAsync(() -> {
-            log.info("CSV 파일 임베딩 및 저장 시작: {}", file.getOriginalFilename());
 
-            // 🌟 BOMInputStream을 사용하여 BOM 문제를 해결하도록 로직 수정
+            log.info("CSV 병렬 임베딩 시작 (batchSize={}): {}",
+                    embeddingCsvBatchSize, file.getOriginalFilename());
+
             try (BOMInputStream bomIn = new BOMInputStream(file.getInputStream());
-                 Reader reader = new InputStreamReader(bomIn, StandardCharsets.UTF_8)) { // UTF-8로 지정
+                 Reader reader = new InputStreamReader(bomIn, StandardCharsets.UTF_8)) {
 
-                // 1. CSV 파일 파싱 (여기서는 Apache Commons CSV를 가정)
-                // BOMInputStream 덕분에 헤더 파싱 시 BOM 문자가 제거됩니다.
-                Iterable<CSVRecord> records = CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
+                Iterable<CSVRecord> records =
+                        CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
+
+                List<TextSegment> buffer = new ArrayList<>(embeddingCsvBatchSize);
 
                 for (CSVRecord record : records) {
-                    // 2. 임베딩할 텍스트 추출/결합
-                    // (이 부분은 파일의 실제 헤더 이름이 'column1', 'column2'라고 가정합니다.)
-                    // 오류 로그에서 "expected one of [﻿column1, column2]"라고 했으므로
-                    // BOM이 제거되면 순수하게 "column1"과 "column2"를 찾을 수 있습니다.
-                    String documentText = String.format("제목: %s, 내용: %s",
+
+                    String documentText = String.format(
+                            "제목: %s\n내용: %s",
                             record.get("column1"),
-                            record.get("column2"));
+                            record.get("column2")
+                    );
 
-                    // 3. 텍스트 분할 및 임베딩 로직 실행
-                    List<TextSegment> segments = textSplitterStrategy.split(documentText).stream().map(TextSegment::from).toList();
+                    List<TextSegment> segments =
+                            textSplitterStrategy.split(documentText)
+                                    .stream()
+                                    .map(TextSegment::from)
+                                    .toList();
 
-                    Response<List<Embedding>> embedding = embeddingModel.embedAll(segments);
+                    for (TextSegment segment : segments) {
+                        buffer.add(segment);
 
-                    embeddingStore.addAll(embedding.content(), segments);
+                        if (buffer.size() >= embeddingCsvBatchSize) {
+                            flushBatch(buffer);
+                        }
+                    }
                 }
 
-                log.info("CSV 파일 임베딩 및 저장 완료.");
+                // 남은 batch 처리
+                if (!buffer.isEmpty()) {
+                    flushBatch(buffer);
+                }
+
+                log.info("CSV 병렬 임베딩 완료");
+
             } catch (Exception e) {
-                log.error("CSV 파일 처리 중 오류 발생", e);
-                // 오류가 CompletableFuture 밖으로 전파되도록 처리
-                throw new RuntimeException("CSV 파일 처리 및 임베딩 실패", e);
+                log.error("CSV 병렬 임베딩 실패", e);
+                throw new RuntimeException(e);
             }
+
         }, taskExecutor);
     }
+
+    public CompletableFuture<Void> embedAndStorePdf(MultipartFile file) {
+        return CompletableFuture.runAsync(() -> {
+
+            log.info("PDF 병렬 임베딩 시작 (batchSize={}): {}",
+                    embeddingPdfBatchSize, file.getOriginalFilename());
+
+            try (PDDocument document = PDDocument.load(file.getInputStream())) {
+
+                PDFTextStripper stripper = new PDFTextStripper();
+                String text = stripper.getText(document);
+
+                List<TextSegment> segments =
+                        textSplitterStrategy.split(text)
+                                .stream()
+                                .map(TextSegment::from)
+                                .toList();
+
+                List<TextSegment> buffer = new ArrayList<>(embeddingPdfBatchSize);
+
+                for (TextSegment segment : segments) {
+                    buffer.add(segment);
+
+                    if (buffer.size() >= embeddingPdfBatchSize) {
+                        flushBatch(buffer);
+                    }
+                }
+
+                if (!buffer.isEmpty()) {
+                    flushBatch(buffer);
+                }
+
+                log.info("PDF 병렬 임베딩 완료");
+
+            } catch (Exception e) {
+                log.error("PDF 임베딩 실패", e);
+                throw new RuntimeException(e);
+            }
+
+        }, taskExecutor);
+    }
+
+    private void flushBatch(List<TextSegment> batch) {
+
+        int attempt = 0;
+        long delay = initialRetryDelayMs;
+
+        while (true) {
+            try {
+                log.info("Embedding batch flush size={}, attempt={}", batch.size(), attempt + 1);
+
+                Response<List<Embedding>> embeddings =
+                        parallelEmbeddingModel.embedAll(batch);
+
+                embeddingStore.addAll(embeddings.content(), batch);
+                batch.clear();
+                return;
+
+            } catch (Exception e) {
+                attempt++;
+
+                if (attempt >= maxRetryAttempts) {
+                    log.error(" Embedding batch failed after {} attempts. Skip batch.", attempt, e);
+                    batch.clear();
+                    return;
+                }
+
+                log.warn("⚠ Embedding batch failed. Retry in {} ms (attempt {}/{})",
+                        delay, attempt, maxRetryAttempts);
+
+                try {
+                    Thread.sleep(delay);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    batch.clear();
+                    return;
+                }
+
+                delay *= 2; // exponential backoff
+            }
+        }
+    }
+
+    // QnA 임베딩
+    public CompletableFuture<Void> embedQna(String text, Long questionId) {
+        return CompletableFuture.runAsync(() -> {
+
+            String key = UUID.randomUUID().toString();
+
+            Embed embed = Embed.createText(
+                    key,
+                    text,
+                    questionId
+            );
+            embedRepository.save(embed);
+
+            List<TextSegment> segments =
+                    textSplitterStrategy.split(text)
+                            .stream()
+                            .map(TextSegment::from)
+                            .toList();
+
+            Response<List<Embedding>> embeddingResponse =
+                    embeddingModel.embedAll(segments);
+
+            List<String> ids = new ArrayList<>();
+            List<String> texts = new ArrayList<>();
+            List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
+            List<List<Float>> vectors = new ArrayList<>();
+
+            for (int i = 0; i < segments.size(); i++) {
+                ids.add(UUID.randomUUID().toString());
+                texts.add(segments.get(i).text());
+
+                com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
+                metadata.put("embedKey", key);
+                metadata.put("chunk", i + 1);
+
+                metadatas.add(metadata);
+                vectors.add(embeddingResponse.content().get(i).vectorAsList());
+            }
+
+            embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
+
+            log.info("QnA 임베딩 완료 (key={})", key);
+
+        }, taskExecutor);
+    }
+
+
+    @Transactional
+    public void overwrite(Long questionId, String embedSource) {
+
+        // 1) 기존 active Embed 조회
+        List<Embed> actives =
+                embedRepository.findBySourceQuestionIdAndActiveTrue(questionId);
+
+        // 2) Milvus에서 기존 벡터 삭제 + DB 비활성화
+        for (Embed e : actives) {
+            embeddingStoreManager.deleteDocuments(e.getEmbedKey());
+            e.deactivate();
+        }
+
+        // 3) 새 Embed 생성/저장 (DB)
+        String key = UUID.randomUUID().toString();
+        Embed newEmbed = Embed.createText(key, embedSource, questionId);
+        embedRepository.save(newEmbed);
+
+        // 4) key 기반으로 Milvus 저장
+        embedAndStoreWithKey(key, embedSource);
+    }
+
+    private void embedAndStoreWithKey(String key, String text) {
+
+        // 1) 텍스트 분할
+        List<TextSegment> segments =
+                textSplitterStrategy.split(text)
+                        .stream()
+                        .map(TextSegment::from)
+                        .toList();
+
+        // 2) 임베딩 계산
+        Response<List<Embedding>> embeddingResponse =
+                embeddingModel.embedAll(segments);
+
+        // 3) Milvus 저장 데이터 구성
+        List<String> ids = new ArrayList<>();
+        List<String> texts = new ArrayList<>();
+        List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
+        List<List<Float>> vectors = new ArrayList<>();
+
+        for (int i = 0; i < segments.size(); i++) {
+            ids.add(UUID.randomUUID().toString());
+            texts.add(segments.get(i).text());
+
+            com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
+            metadata.put("key", key);          // deleteDocuments가 찾는 키
+            metadata.put("chunk", i + 1);
+
+            metadatas.add(metadata);
+            vectors.add(embeddingResponse.content().get(i).vectorAsList());
+        }
+
+        // 4) Milvus 저장
+        embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
+    }
+
 }
