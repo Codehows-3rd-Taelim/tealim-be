@@ -2,6 +2,7 @@ package com.codehows.taelimbe.ai.controller;
 
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.dto.EmbeddingRequest;
+import com.codehows.taelimbe.ai.dto.QnaEmbeddingRequest;
 import com.codehows.taelimbe.ai.service.AgentService;
 import com.codehows.taelimbe.ai.service.SseService;
 import com.codehows.taelimbe.ai.service.EmbeddingService;
@@ -56,14 +57,16 @@ public class AgentController {
      * ------------------------------------------------------------
      */
     @PostMapping("/embeddings")
-    public CompletableFuture<ResponseEntity<String>> embed(
-            @RequestBody EmbeddingRequest request
-    ) {
+    public CompletableFuture<ResponseEntity<String>> embed(@RequestBody EmbeddingRequest request) { // @Valid 추가
         return embeddingService.embedAndStore(request.getText())
-                .thenApply(v -> ResponseEntity.ok("Embedding started"))
+                // 임베딩 및 저장 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+                .thenApply(v -> ResponseEntity.ok("Text embedding and storing process started successfully."))
+                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
                 .exceptionally(ex -> {
-                    log.error("embed error", ex);
-                    return ResponseEntity.internalServerError().body(ex.getMessage());
+                    log.error("embedAndStore 작업 실행 실패", ex);
+                    Throwable cause = ex.getCause();
+                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+                    return ResponseEntity.internalServerError().body("Failed to start embedding process: " + errorMessage);
                 });
     }
 
@@ -74,14 +77,44 @@ public class AgentController {
      * ------------------------------------------------------------
      */
     @PostMapping("/embeddings/reset")
-    public CompletableFuture<ResponseEntity<String>> resetAndEmbed(
-            @RequestBody EmbeddingRequest request
-    ) {
+    public CompletableFuture<ResponseEntity<String>> resetAndEmbed(@RequestBody EmbeddingRequest request) { // @Valid 추가
         return embeddingService.resetAndEmbed(request.getText())
-                .thenApply(v -> ResponseEntity.ok("Reset + embedding started"))
+                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+                .thenApply(v -> ResponseEntity.ok("Embedding store reset and new text embedding process started successfully."))
+                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
                 .exceptionally(ex -> {
-                    log.error("reset embed error", ex);
-                    return ResponseEntity.internalServerError().body(ex.getMessage());
+                    log.error("resetAndEmbed 작업 실행 실패", ex);
+                    Throwable cause = ex.getCause();
+                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
+                });
+    }
+
+    @PostMapping("/embeddings/add")
+    public CompletableFuture<ResponseEntity<String>> addEmbed(@RequestBody EmbeddingRequest request) {
+        return embeddingService.embedByValue(request.getText())
+                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+                .thenApply(v -> ResponseEntity.ok("success"))
+                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
+                .exceptionally(ex -> {
+                    log.error("resetAndEmbed 작업 실행 실패", ex);
+                    Throwable cause = ex.getCause();
+                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
+                });
+    }
+
+    @DeleteMapping("/embeddings/{key}")
+    public CompletableFuture<ResponseEntity<String>> deleteEmbed(@PathVariable String key) {
+        return embeddingService.deleteByKey(key)
+                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+                .thenApply(v -> ResponseEntity.ok("success"))
+                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
+                .exceptionally(ex -> {
+                    log.error("resetAndEmbed 작업 실행 실패", ex);
+                    Throwable cause = ex.getCause();
+                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
                 });
     }
 
@@ -117,6 +150,22 @@ public class AgentController {
                     log.error("PDF embed error", ex);
                     return ResponseEntity.internalServerError().body(ex.getMessage());
                 });
+    }
+
+    @PostMapping("/embeddings/reset-only")
+    public ResponseEntity<Void> resetOnly() {
+        embeddingService.resetOnly();
+        return ResponseEntity.ok().build();
+    }
+
+
+    @PostMapping("/qna")
+    public CompletableFuture<ResponseEntity<Void>> embedQna(@RequestBody QnaEmbeddingRequest req) {
+        String text = "Q: " + req.getQuestion() + "\n" + "A: " + req.getAnswer();
+
+        return embeddingService
+                .embedQna(text, req.getQuestionId())
+                .thenApply(v -> ResponseEntity.ok().build());
     }
 
 }
