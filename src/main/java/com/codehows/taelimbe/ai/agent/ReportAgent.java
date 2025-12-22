@@ -29,17 +29,23 @@ public interface ReportAgent {
        - "7월" → 올해 7월 (2025-07-01 ~ 2025-07-31)
        - "2024년 10월" → 2024-10-01 ~ 2024-10-31
        
-    2️⃣ 매장 해석 단계 (선택)
-    - 요청에 매장명이 포함되면 shopName으로 추출하세요.
-    - 예:
-      - "창원대 11월 보고서" → shopName="창원대"
-      - "인어스트리 10월 리포트" → shopName="인어스트리"
-      - ""
-    - 매장명이 없으면 **기간 보고서(전매장)**로 간주합니다.
+    2️⃣ 매장 판단 단계
+    - 사용자의 요청에서 매장으로 보이는 단어가 있는지 판단하세요.
+    - 매장명이 있다고 판단되면 resolveStore(shopNameCandidate)를 호출하세요.
+    - resolveStore가 storeId를 반환하면 해당 매장으로 판단합니다.
+    - resolveStore가 null이면 매장 지정 없음으로 간주합니다.
     
     3️⃣ **데이터 조회 단계**
-    - 매장명이 없으면 getReport(startDate, endDate) 호출
-    - 매장명이 있으면 getStoreReport(startDate, endDate, shopName) 호출
+    - USER:
+        - 매장명이 있든 없든
+          → 항상 getStoreReport(startDate, endDate, null) 호출
+          (storeId는 Tool에서 fixedStoreId 사용)
+    
+    - ADMIN:
+        - resolveStore 결과 storeId가 있으면
+          → getStoreReport(startDate, endDate, storeId)
+        - resolveStore 결과 storeId가 null이면
+          → getReport(startDate, endDate)
     
       Tool 호출 예시:
       - getReport("2025-07-01", "2025-07-31")
@@ -56,9 +62,9 @@ public interface ReportAgent {
     # 보고서 제목 규칙
     ==================================================
     
-    - scope가 "전매장"이면: # AI 산업용 청소로봇 관리 보고서 (전매장)
-    - scope가 매장명이면: # AI 산업용 청소로봇 관리 보고서 ({{shopName}})
-    ⚠️ 제목 이전에 어떤 텍스트도 출력하면 안 됩니다.
+    - getReport를 사용한 경우 scope는 "전매장"으로 설정하세요.
+    - getStoreReport를 사용한 경우 scope는 해당 매장의 이름으로 설정하세요.
+    - 제목 이전에 어떤 텍스트도 출력하면 안 됩니다.
     
     ==================================================
     # JSON 데이터 구조 이해
@@ -93,10 +99,22 @@ public interface ReportAgent {
     ❌ 보고서 제목 이전에 텍스트 출력
     
     ==================================================
+    # 🚫 절대 출력 금지 규칙
+    ==================================================
+    
+    - 보고서 본문에는 다음과 같은 내용을 절대 포함하지 마세요:
+      - 사용자 요청에 대한 설명
+      - 데이터를 불러왔다는 설명
+      - 보고서를 생성 중이라는 설명
+      - "The user asked...", "I have retrieved...", "I will now process..." 등의 문장
+    
+    - 보고서는 이미 완성된 공식 문서처럼 바로 본문부터 시작해야 합니다.
+    
+    ==================================================
     # 보고서 형식 (반드시 이 구조)
     ==================================================
     
-    # AI 산업용 청소로봇 관리 보고서 ({{scope}})
+    # AI 산업용 청소로봇 관리 보고서 
     
     ## 📋 보고서 기본 정보
     - **제조사**: PUDU ROBOTICS
@@ -184,8 +202,6 @@ public interface ReportAgent {
             """)
             @V("userMessage") String userMessage,
             @V("currentDate") String currentDate,
-            @V("generatedDate") String generatedDate,
-            @V("scope") String scope,
-            @V("shopName") String shopName
+            @V("generatedDate") String generatedDate
     );
 }
