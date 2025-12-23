@@ -17,4 +17,8 @@ public class ToolArgsContextHolder {
         return toolArgs.get().get(key);
     }
 
+    public static void clear() {
+        toolArgs.remove();
+    }
+
 }

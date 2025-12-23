@@ -1,5 +1,8 @@
 package com.codehows.taelimbe.ai.dto;
 
+import lombok.Getter;
+
+@Getter
 public class ReportResult {
     private final String rawReport;
     private final String startDate;
@@ -10,8 +13,4 @@ public class ReportResult {
         this.startDate = startDate;
         this.endDate = endDate;
     }
-
-    public String rawReport() { return rawReport; }
-    public String startDate() { return startDate; }
-    public String endDate() { return endDate; }
 }

@@ -4,6 +4,7 @@ import com.codehows.taelimbe.ai.agent.ReportAgent;
 import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
+import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.ai.repository.AiReportRepository;
 import com.codehows.taelimbe.ai.repository.RawReportProjection;
@@ -47,57 +48,24 @@ public class AiReportService {
     ) {
         log.info("🚀 보고서 생성 시작 - conversationId: {}", conversationId);
 
-        User user = userRepository.findById(principal.userId())
-                .orElseThrow();
+        User user = userRepository.findById(principal.userId()).orElseThrow();
+        ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(principal.isAdmin()));
 
-        // role 판단
-        boolean isAdmin = principal.isAdmin();
-        ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(isAdmin));
+        if (!principal.isAdmin()) {
+            // USER는 본인 매장 정보 설정
+            Long storeId = user.getStore().getStoreId();
+            String storeName = user.getStore().getShopName();
 
-        String originalMessage = req.getMessage(); // DB저장용
-        String aiMessage = originalMessage; // AI 전달용
-        String shopName = null;
-        String scope;
+            ToolArgsContextHolder.setToolArgs("fixedStoreId", storeId.toString());
+            ToolArgsContextHolder.setToolArgs("storeName", storeName);
 
-        // USER / MANAGER는 본인 매장만
-        if (!isAdmin) {
-            shopName = user.getStore().getShopName();
-            scope = shopName;
-
-            ToolArgsContextHolder.setToolArgs("fixedShopName", shopName);
-
-            aiMessage = String.format(
-                    "%s 매장에 대한 보고서를 생성하세요.\n\n사용자 요청: %s",
-                    shopName,
-                    originalMessage
-            );
-
-            log.info("USER 요청 → 매장명 강제 주입: {}", shopName);
-        } else {
-            // 관리자 요청에서 매장명이 메시지에 포함된 경우 추출
-            String extractedShopName = extractShopName(originalMessage);
-
-            if (extractedShopName != null) {
-                shopName = extractedShopName;
-                scope = shopName;
-
-                ToolArgsContextHolder.setToolArgs("fixedShopName", shopName);
-
-                aiMessage = String.format(
-                        "%s 매장에 대한 보고서를 생성하세요.\n\n사용자 요청: %s",
-                        shopName,
-                        originalMessage
-                );
-
-                log.info("ADMIN 요청 → 매장명 강제 주입: {}", shopName);
-            } else {
-                scope = "전매장";
-            }
+            // 프롬프트에 매장명 추가
+            String modifiedMessage = req.getMessage() + "\n\n[매장명: " + storeName + "]";
+            generateAsync(conversationId, req.getMessage(), modifiedMessage, principal);
+            return;
         }
 
-        ToolArgsContextHolder.setToolArgs("scope", scope);
-
-        generateAsync(conversationId, originalMessage, aiMessage, principal);
+        generateAsync(conversationId, req.getMessage(), req.getMessage(), principal);
     }
 
     // 2. SSE 연결
@@ -124,15 +92,9 @@ public class AiReportService {
                     .format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
             String currentDate = LocalDate.now().toString();
 
-            String scope = ToolArgsContextHolder.getToolArgs("scope");
-            String shopName = ToolArgsContextHolder.getToolArgs("fixedShopName");
-            if (shopName.isEmpty() && !"전매장".equals(scope)) {
-                shopName = scope;
-            }
-
             StringBuilder aiResult = new StringBuilder();
 
-            reportAgent.report(aiMessage, currentDate, generatedDate, scope, shopName)
+            reportAgent.report(aiMessage, currentDate, generatedDate)
                     .onNext(token -> {
                         aiResult.append(token);
 //                        // 토큰 스트리밍 유지 (UI에서 안 쓰면 무시)
@@ -144,6 +106,7 @@ public class AiReportService {
 
                         // FAIL 판단
                         if (isFailResponse(fullText)) {
+                            ToolArgsContextHolder.clear();
                             String failMessage = normalizeFailMessage(fullText);
 
                             log.warn("AI report fail detected. conversationId={}, message={}",
@@ -167,11 +130,15 @@ public class AiReportService {
                         String startDate = ToolArgsContextHolder.getToolArgs("startDate");
                         String endDate = ToolArgsContextHolder.getToolArgs("endDate");
 
+                        String finalReport = applyTitleScope(aiResult.toString());
+
+                        ToolArgsContextHolder.clear();
+
                         AiReport saved = saveReport(
                                 user,
                                 conversationId,
                                 originalMessage,
-                                aiResult.toString(),
+                                finalReport,
                                 startDate,
                                 endDate
                         );
@@ -233,25 +200,33 @@ public class AiReportService {
         );
     }
 
-    private String extractShopName(String message) {
-        if (message == null) return "";
+    private String applyTitleScope(String markdown) {
 
-        // 지금은 DB에 있는 정확한 매장명 기준으로만 처리
-        if (message.contains("효성중공업 1공장")) {
-            return "효성중공업 1공장";
+        String scope = ToolArgsContextHolder.getToolArgs("scope");
+        String storeName = ToolArgsContextHolder.getToolArgs("storeName");
+
+        String suffix;
+        if ("ALL".equals(scope)) {
+            suffix = "(전매장)";
+        } else if ("STORE".equals(scope) && storeName != null) {
+            suffix = "(" + storeName + ")";
+        } else {
+            suffix = "";
         }
 
-        return "";
+        return markdown.replaceFirst(
+                "(?m)^#+\\s*AI 산업용 청소로봇 관리 보고서.*$",
+                "# AI 산업용 청소로봇 관리 보고서 " + suffix
+        );
     }
+
 
     // fail 판단
     private boolean isFailResponse(String text) {
-        return text.contains("할 수 없습니다")
-                || text.contains("현재 사용 가능한 도구")
-                || text.contains("대신")
+        return text.contains("현재 사용 가능한 도구")
                 || text.contains("할까요?")
-                || text.contains("찾을 수")
-                || text.endsWith("?");
+                || text.contains("대신")
+                || text.contains("도움이 필요");
     }
 
     private String normalizeFailMessage(String text) {

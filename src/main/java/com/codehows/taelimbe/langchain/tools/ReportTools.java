@@ -52,13 +52,9 @@ public class ReportTools {
     - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
     
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
+    storeId가 null이면 전매장 데이터를 조회합니다.
     """)
     public ReportResult getReport(String startDate, String endDate) {
-
-        if (startDate == null || endDate == null) {
-            log.warn("[AI TOOL CALL] 기간 미입력: startDate={}, endDate={}", startDate, endDate);
-            throw new IllegalArgumentException("⚠️ 기간을 명확히 입력해주세요.");
-        }
 
         boolean isAdmin = Boolean.parseBoolean(
                 ToolArgsContextHolder.getToolArgs("isAdmin")
@@ -70,6 +66,8 @@ public class ReportTools {
 
         ToolArgsContextHolder.setToolArgs("startDate", startDate);
         ToolArgsContextHolder.setToolArgs("endDate", endDate);
+        ToolArgsContextHolder.setToolArgs("scope", "ALL");
+        ToolArgsContextHolder.setToolArgs("storeName", null);
 
         log.info("[AI TOOL CALL] getReport({}, {})", startDate, endDate);
 
@@ -85,13 +83,13 @@ public class ReportTools {
     @Tool("""
     매장 단위 청소 로봇 보고서 데이터를 조회합니다.
     
-    - ADMIN: shopName 기반 전체 매장 조회 가능
-    - USER: 본인 storeId만 조회 가능
+    - USER: fixedStoreId만 허용.
+    - ADMIN: resolveStore 결과 storeId 사용.
     """)
     public ReportResult getStoreReport(
             String startDate,
             String endDate,
-            String shopName
+            Long storeId
     ) {
         ToolArgsContextHolder.setToolArgs("startDate", startDate);
         ToolArgsContextHolder.setToolArgs("endDate", endDate);
@@ -100,21 +98,19 @@ public class ReportTools {
 
         Long resolvedStoreId;
 
-        if (principal.isAdmin() && shopName == null) {
-            throw new IllegalArgumentException("관리자는 매장명을 지정하거나 전체 조회를 선택해야 합니다.");
-        }
-
         if (principal.isAdmin()) {
-            // 관리자: shopName → storeId 고정
-            Store store = storeRepository.findByShopNameAndDelYn(shopName, DeleteStatus.N)
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 매장입니다."));
-
-            resolvedStoreId = store.getStoreId();
+            resolvedStoreId = storeId;
         } else {
-            resolvedStoreId = principal.storeId();
+            // USER는 무조건 본인 매장
+            resolvedStoreId = Long.valueOf(
+                    ToolArgsContextHolder.getToolArgs("fixedStoreId")
+            );
         }
 
-        ToolArgsContextHolder.setToolArgs("targetStoreId", resolvedStoreId.toString());
+        Store store = storeRepository.findById(resolvedStoreId).orElseThrow();
+
+        ToolArgsContextHolder.setToolArgs("scope", "STORE");
+        ToolArgsContextHolder.setToolArgs("storeName", store.getShopName());
 
         List<PuduReportDTO> reports =
                 puduReportService.getReportByStoreId(
@@ -124,5 +120,75 @@ public class ReportTools {
                 );
 
         return new ReportResult(gson.toJson(reports), startDate, endDate);
+    }
+
+    @Tool("""
+    사용자 입력에서 추출한 매장명 후보를
+    현재 등록된 매장 목록과 비교하여
+    가장 유사한 매장의 storeId를 반환합니다.
+    판단 불가 시 null 반환.
+    """)
+    public Long resolveStore(String shopNameCandidate) {
+
+        if (shopNameCandidate == null || shopNameCandidate.isBlank()) {
+            return null;
+        }
+
+        List<Store> stores = storeRepository.findAllByDelYn(DeleteStatus.N);
+
+        Store best = null;
+        int bestScore = 0;
+
+        for (Store store : stores) {
+            int score = similarityScore(shopNameCandidate, store.getShopName());
+            if (score > bestScore) {
+                bestScore = score;
+                best = store;
+            }
+        }
+
+        // 임계값: 30이면 웬만한 의미 일치 다 잡힘
+        if (bestScore < 30) return null; // 의미 있는 후보 없음
+
+        // 후보 다수일 경우 CC1 포함 우선
+        List<Store> candidates = stores.stream()
+                .filter(s -> similarityScore(shopNameCandidate, s.getShopName()) >= 30)
+                .toList();
+
+        for (Store s : candidates) {
+            if (s.getShopName().contains("CC1")) {
+                return s.getStoreId(); // CC1 포함 매장 우선 반환
+            }
+        }
+
+        return best.getStoreId(); // CC1 없는 경우 최고점 반환
+    }
+
+    private int similarityScore(String input, String target) {
+        if (input == null || target == null) return 0;
+
+        String a = normalize(input);
+        String b = normalize(target);
+
+        int score = 0;
+
+        // 완전 포함
+        if (b.contains(a)) score += 100;
+        if (a.contains(b)) score += 80;
+
+        // 토큰 단위 비교
+        for (String token : a.split(" ")) {
+            if (token.length() < 2) continue;
+            if (b.contains(token)) score += 20;
+        }
+
+        return score;
+    }
+
+    private String normalize(String s) {
+        return s
+                .toLowerCase()
+                .replaceAll("(주식회사|병원|공장|센터)", "") // 접미어 제거
+                .replaceAll("\\s+", "");
     }
 }

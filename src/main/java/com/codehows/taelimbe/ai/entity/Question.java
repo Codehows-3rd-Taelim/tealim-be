@@ -19,6 +19,7 @@ public class Question {
     @Column(columnDefinition = "TEXT")
     private String userQuestionText;
 
+    @Column(columnDefinition = "TEXT")
     private String normalizedText;
 
     // false = 미응답, true = 답변 완료
