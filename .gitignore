@@ -19,10 +19,6 @@ bin/
 
 ### IntelliJ IDEA ###
 application.properties
-docker-compose.yml
-DataInitializer.java
-Jenkinsfile
-Dockerfile
 .idea
 *.iws
 *.iml
