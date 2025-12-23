@@ -132,26 +132,12 @@ public class PuduReportService {
                 .sum();
     }
 
-//    // db에서 상세 보고서 목록 가져오기
-//    public List<PuduReportDTO> getAllReports(){
-//        return puduReportRepository.findAll().stream()
-//                .map(PuduReportDTO::createReportDTO)
-//                .toList();
-//    }
-
     // id로 보고서 가져오기
     public PuduReportDTO getReportById(Long id){
         return puduReportRepository.findById(id)
                 .map(PuduReportDTO::createReportDTO)
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: "+id));
     }
-
-//    // sn으로 상세 보고서 목록 가져오기
-//    public List<PuduReportDTO> getReportsByRobotSn(String sn){
-//        return puduReportRepository.findByRobot_Sn(sn).stream()
-//                .map(PuduReportDTO::createReportDTO)
-//                .toList();
-//    }
 
     public List<PuduReportDTO> getReport(String startDate, String endDate){
 
@@ -169,76 +155,6 @@ public class PuduReportService {
                 .toList();
     }
 
-
-    // storeId가 있는 경우
-//    @Transactional(readOnly = true)
-//    public List<PuduReportResponseDTO> getReportsByStore(Long storeId, String startDate, String endDate) {
-//        LocalDateTime start = parseDate(startDate);
-//        LocalDateTime end = parseDate(endDate);
-//
-//        List<Robot> robots = robotRepository.findAllByStore_StoreId(storeId);
-//        if (robots.isEmpty()) {
-//            System.out.println("매장 ID " + storeId + "에 등록된 로봇이 없습니다.");
-//            return List.of();
-//        }
-//
-//        List<Long> robotIds = robots.stream().map(Robot::getRobotId).toList();
-//        List<PuduReport> reports = puduReportRepository.findAllByRobot_RobotIdInAndStartTimeBetween(robotIds, start, end);
-//
-//        return reports.stream().map(PuduReportResponseDTO::createReportResponseDTO).toList();
-//    }
-
-    // storeId가 없는 경우
-//    @Transactional(readOnly = true)
-//    public List<PuduReportResponseDTO> getReportsAllStores(String startDate, String endDate) {
-//        LocalDateTime start = parseDate(startDate);
-//        LocalDateTime end = parseDate(endDate);
-//
-//        List<PuduReport> reports = puduReportRepository.findByStartTimeBetween(start, end);
-//        return reports.stream().map(PuduReportResponseDTO::createReportResponseDTO).toList();
-//    }
-//
-//    private LocalDateTime parseDate(String dateStr) {
-//        return LocalDateTime.parse(dateStr, formatter);
-//    }
-//
-//    public Page<PuduReportResponseDTO> getReportPage(
-//            Long storeId,
-//            LocalDateTime start,
-//            LocalDateTime end,
-//            int page,
-//            int size,
-//            String sortKey,
-//            String sortOrder
-//    ) {
-//        Sort sort = Sort.by(
-//                "desc".equalsIgnoreCase(sortOrder)
-//                        ? Sort.Direction.DESC
-//                        : Sort.Direction.ASC,
-//                sortKey
-//        );
-//
-//        Pageable pageable = PageRequest.of(page, size, sort);
-//
-//        Page<PuduReport> result;
-//
-//        if (storeId != null) {
-//            List<Long> robotIds = robotRepository
-//                    .findAllByStore_StoreId(storeId)
-//                    .stream()
-//                    .map(Robot::getRobotId)
-//                    .toList();
-//
-//            result = puduReportRepository
-//                    .findAllByRobot_RobotIdInAndStartTimeBetween(
-//                            robotIds, start, end, pageable
-//                    );
-//        } else {
-//            result = puduReportRepository
-//                    .findByStartTimeBetween(start, end, pageable);
-//        }
-//        return result.map(PuduReportResponseDTO::createReportResponseDTO);
-//    }
     @Transactional(readOnly = true)
     public List<PuduReportResponseDTO> getReports(
             Long storeId,

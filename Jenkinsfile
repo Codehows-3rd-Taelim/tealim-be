@@ -6,8 +6,6 @@ pipeline {
         DOCKER_NETWORK = 'app-network'
         // 호스트의 설정 파일 경로 (Jenkins가 접근 가능한 경로)
         HOST_CONFIG_PATH = '/var/jenkins_config/application.properties'
-        // 작업 디렉토리 내 설정 파일이 복사될 위치
-        WORKSPACE_CONFIG_DIR = 'config'
     }
     
     stages {
@@ -18,25 +16,23 @@ pipeline {
             }
         }
         
-        stage('Copy Configuration') {
+        stage('Copy Configuration to Build') {
             steps {
                 script {
-                    echo "Copying application.properties from host..."
+                    echo "Copying application.properties for build..."
                     sh """
-                        # config 디렉토리 생성
-                        mkdir -p ${WORKSPACE_CONFIG_DIR}
-                        
-                        # 호스트의 설정 파일을 작업 디렉토리로 복사
+                        # src/main/resources 디렉토리 생성
+                        mkdir -p src/main/resources
+
+                        # 호스트의 실제 설정을 빌드용으로 복사
                         if [ -f ${HOST_CONFIG_PATH} ]; then
-                            cp ${HOST_CONFIG_PATH} ${WORKSPACE_CONFIG_DIR}/application.properties
-                            echo "Configuration file copied successfully"
+                            cp ${HOST_CONFIG_PATH} src/main/resources/application.properties
+                            echo "✅ Configuration copied to build resources"
+                            ls -lh src/main/resources/application.properties
                         else
-                            echo "Warning: Configuration file not found at ${HOST_CONFIG_PATH}"
+                            echo "❌ Configuration file not found at ${HOST_CONFIG_PATH}"
                             exit 1
                         fi
-                        
-                        # 복사된 파일 확인 (민감정보 제외하고 파일 존재 확인)
-                        ls -lh ${WORKSPACE_CONFIG_DIR}/application.properties
                     """
                 }
             }
@@ -143,13 +139,6 @@ pipeline {
                 
                 echo "=== Container Status ==="
                 docker ps -a || true
-            """
-        }
-        always {
-            echo 'Cleaning up workspace configuration files...'
-            sh """
-                # 민감정보 보호를 위해 복사된 설정 파일 삭제
-                rm -f ${WORKSPACE_CONFIG_DIR}/application.properties || true
             """
         }
     }
