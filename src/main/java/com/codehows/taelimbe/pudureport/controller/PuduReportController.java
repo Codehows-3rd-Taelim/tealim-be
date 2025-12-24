@@ -46,16 +46,24 @@ public class PuduReportController {
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (모든 매장 - 전체 기간)");
     }
 
-
-
-
     // id로 보고서 가져오기
     @GetMapping("/detail/{id}")
     public ResponseEntity<PuduReportDTO> getReportById(@PathVariable Long id) {
         return ResponseEntity.ok(puduReportService.getReportById(id));
     }
 
-
+    // 특이사항 입력
+    @PutMapping("/{puduReportId}/remark")
+    public ResponseEntity<PuduReportDTO> updateRemark(
+            @PathVariable Long puduReportId,
+            @RequestBody RemarkUpdateRequestDTO req
+    ) {
+        PuduReportDTO dto = puduReportService.updateRemark(
+                puduReportId,
+                req.getRemark()
+        );
+        return ResponseEntity.ok(dto);
+    }
 
     @GetMapping
     public ResponseEntity<?> getReports(

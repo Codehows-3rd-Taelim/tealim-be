@@ -40,6 +40,8 @@ public class PuduReportResponseDTO {
     private Long robotId;
     private String sn;
 
+    private String remark;
+
     public static PuduReportResponseDTO createReportResponseDTO(PuduReport puduReport) {
         return PuduReportResponseDTO.builder()
                 .puduReportId(puduReport.getPuduReportId())
@@ -58,6 +60,7 @@ public class PuduReportResponseDTO {
                 .storeId(puduReport.getRobot().getStore().getStoreId())
                 .robotId(puduReport.getRobot().getRobotId())
                 .sn(puduReport.getRobot().getSn())
+                .remark(puduReport.getRemark())
                 .build();
     }
 }
