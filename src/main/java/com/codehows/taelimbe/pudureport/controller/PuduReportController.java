@@ -47,8 +47,6 @@ public class PuduReportController {
     }
 
 
-
-
     // id로 보고서 가져오기
     @GetMapping("/detail/{id}")
     public ResponseEntity<PuduReportDTO> getReportById(@PathVariable Long id) {
@@ -56,11 +54,10 @@ public class PuduReportController {
     }
 
 
-
     @GetMapping
-    public ResponseEntity<?> getReports(
-            @RequestParam(required = false) Integer page,
-            @RequestParam(required = false) Integer size,
+    public ResponseEntity<Page<PuduReportResponseDTO>> getReports(
+            @RequestParam int page,
+            @RequestParam int size,
             @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) Long filterStoreId,
             @RequestParam(required = false) String sn,
@@ -72,48 +69,29 @@ public class PuduReportController {
         LocalDateTime s;
         LocalDateTime e;
 
-        // 안전하게 파싱
         try {
-            // 시간 포함 가능성
-            DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-            s = LocalDateTime.parse(startDate, dateTimeFormatter);
-            e = LocalDateTime.parse(endDate, dateTimeFormatter);
+            DateTimeFormatter formatter =
+                    DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+            s = LocalDateTime.parse(startDate, formatter);
+            e = LocalDateTime.parse(endDate, formatter);
         } catch (Exception ex) {
-            // 시간 없는 경우 yyyy-MM-dd
-            LocalDate start = LocalDate.parse(startDate);
-            LocalDate end = LocalDate.parse(endDate);
-            s = start.atStartOfDay();
-            e = end.atTime(LocalTime.MAX);
+            s = LocalDate.parse(startDate).atStartOfDay();
+            e = LocalDate.parse(endDate).atTime(LocalTime.MAX);
         }
 
-        // 페이징 O
-        if (page != null && size != null) {
-            return ResponseEntity.ok(
-                    puduReportService.getReportsPage(
-                            storeId,
-                            filterStoreId,
-                            sn,
-                            s,
-                            e,
-                            page,
-                            size,
-                            sortKey,
-                            sortOrder
-                    )
-            );
-        }
-
-        // 페이징 X
         return ResponseEntity.ok(
-                puduReportService.getReports(
+                puduReportService.getReportsPage(
                         storeId,
                         filterStoreId,
                         sn,
                         s,
                         e,
+                        page,
+                        size,
                         sortKey,
                         sortOrder
                 )
         );
     }
 }
+
