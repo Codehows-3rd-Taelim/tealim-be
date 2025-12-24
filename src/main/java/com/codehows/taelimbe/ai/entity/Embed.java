@@ -9,40 +9,21 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Table(name = "embed")
 public class Embed {
 
     @Id
     private String embedKey;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String embedValue;
 
     @Enumerated(EnumType.STRING)
-    private EmbedSourceType sourceType;
+    private EmbedSourceType sourceType; // QNA / FILE
 
-    private Long sourceQuestionId;
-    private boolean active;
+    // QnA 임베딩일 때만 값 있음
+    private Long qnaId;
 
     private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-
-    public static Embed createText(String key, String value, Long questionId) {
-        LocalDateTime now = LocalDateTime.now();
-        return Embed.builder()
-                .embedKey(key)
-                .embedValue(value)
-                .sourceType(EmbedSourceType.TEXT)
-                .sourceQuestionId(questionId)
-                .active(true)
-                .createdAt(now)
-                .updatedAt(now)
-                .build();
-    }
-
-    public void deactivate() {
-        this.active = false;
-        this.updatedAt = LocalDateTime.now();
-    }
 }
+

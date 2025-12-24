@@ -1,8 +1,6 @@
 package com.codehows.taelimbe.ai.service;
 
-import com.codehows.taelimbe.ai.entity.Answer;
 import com.codehows.taelimbe.ai.entity.Embed;
-import com.codehows.taelimbe.ai.entity.Question;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import com.codehows.taelimbe.langchain.embaddings.TextSplitterStrategy;
@@ -99,10 +97,6 @@ public class EmbeddingService {
      * @return 비동기 작업의 완료를 나타내는 `CompletableFuture<Void>`
      */
 
-
-
-
-
     public CompletableFuture<Void> embedAndStore(String text) {
         return CompletableFuture.runAsync(() -> {
             log.info("텍스트 임베딩 및 저장 시작: '{}'", text);
@@ -143,66 +137,6 @@ public class EmbeddingService {
         }, taskExecutor); // 지정된 `taskExecutor` 스레드 풀에서 실행
     }
 
-
-    ///
-    public CompletableFuture<Void> embedByValue(String text) {
-        return CompletableFuture.runAsync(() -> {
-
-            log.info("텍스트 임베딩 및 저장 시작 (단일 값)");
-
-            // 1. key 생성
-            String key = java.util.UUID.randomUUID().toString();
-
-            // 2. 텍스트 분할
-            List<TextSegment> segments =
-                    textSplitterStrategy.split(text)
-                            .stream()
-                            .map(TextSegment::from)
-                            .toList();
-
-            log.info("텍스트 분할 완료 ({}개 chunk)", segments.size());
-
-            // 3. 임베딩 계산
-            Response<List<Embedding>> embeddingResponse =
-                    embeddingModel.embedAll(segments);
-
-            List<Embedding> embeddings = embeddingResponse.content();
-
-            // 4. Milvus 저장용 데이터 구성
-            List<String> ids = new ArrayList<>();
-            List<String> texts = new ArrayList<>();
-            List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
-            List<List<Float>> vectors = new ArrayList<>();
-
-            for (int i = 0; i < segments.size(); i++) {
-                ids.add(java.util.UUID.randomUUID().toString());
-                texts.add(segments.get(i).text());
-
-                com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
-                metadata.put("key", key);
-                metadata.put("chunk_id", i + 1);
-
-                metadatas.add(metadata);
-                vectors.add(embeddings.get(i).vectorAsList());
-            }
-
-            log.info("Milvus 저장 데이터 구성 완료 ({}개 벡터)", vectors.size());
-
-            // 5. Milvus 저장
-            embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
-
-            // 6. RDB 저장
-            embedRepository.save(
-                    Embed.builder()
-                            .embedKey(key)
-                            .embedValue(text)
-                            .build()
-            );
-
-            log.info("텍스트 임베딩 및 저장 완료 (key={})", key);
-
-        }, taskExecutor);
-    }
 
 
     public CompletableFuture<Void> deleteByKey(String key) {
