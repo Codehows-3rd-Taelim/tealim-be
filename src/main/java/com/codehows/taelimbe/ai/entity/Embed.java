@@ -19,11 +19,24 @@ public class Embed {
     private String embedValue;
 
     @Enumerated(EnumType.STRING)
-    private EmbedSourceType sourceType; // QNA / FILE
+    private EmbedSourceType sourceType; // TEXT / FILE
 
     // QnA 임베딩일 때만 값 있음
     private Long qnaId;
 
     private LocalDateTime createdAt;
+
+    public static Embed createText(String key, String value, Long qnaId) {
+        Embed e = new Embed();
+        e.embedKey = key;
+        e.embedValue = value;
+        e.sourceType = EmbedSourceType.TEXT;
+        e.qnaId = qnaId;
+        e.createdAt = LocalDateTime.now();
+        return e;
+    }
+
+
+
 }
 

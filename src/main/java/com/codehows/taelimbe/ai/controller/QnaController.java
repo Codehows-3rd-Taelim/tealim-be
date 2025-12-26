@@ -70,26 +70,15 @@ public class QnaController {
      * 답변 편집 (관리자 액션)
      * ========================= */
 
-    // 답변 초안(editingAnswer) 저장
-    @PutMapping("/{qnaId}/answer")
-    public ResponseEntity<Void> updateAnswer(
+    @PostMapping("/{qnaId}/apply")
+    public ResponseEntity<Void> apply(
             @PathVariable Long qnaId,
             @RequestBody UpdateAnswerRequest request
     ) {
-        qnaService.updateEditingAnswer(qnaId, request.getAnswer());
+        qnaService.apply(qnaId, request.getAnswer());
         return ResponseEntity.ok().build();
     }
 
-    /* =========================
-     * QnA 적용
-     * ========================= */
-
-    // editingAnswer → appliedAnswer + 임베딩
-    @PostMapping("/{qnaId}/apply")
-    public ResponseEntity<Void> apply(@PathVariable Long qnaId) {
-        qnaService.apply(qnaId);
-        return ResponseEntity.ok().build();
-    }
 
     /* =========================
      * 운영 액션

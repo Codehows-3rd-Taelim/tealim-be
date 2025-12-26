@@ -22,8 +22,8 @@ public class AgentService {
     private final SseService sseService;
     private final AiChatService aiChatService;
     private final NotificationService notificationService;
-    private final QuestionService questionService;
     private final EmbeddingStoreManager embeddingStoreManager;
+    private final QnaService qnaService;
 
     @Qualifier("chatAgent")
     private final Agent chatAgent;
@@ -41,7 +41,7 @@ public class AgentService {
             sseService.send(conversationId, fallback);
             sseService.complete(conversationId);
 
-            questionService.record(message);
+            qnaService.recordQuestion(message);
             notificationService.notify(
                     userId,
                     NotificationType.AI_CHAT_SUCCESS,
@@ -70,7 +70,7 @@ public class AgentService {
 
                     // 답변 불가인 정보 미답 질문에 저장
                     if ("답변드릴 수 없는 정보입니다.".equals(rawAnswer)) {
-                        questionService.record(message);
+                        qnaService.recordQuestion(message);
                     }
 
                     notificationService.notify(userId, NotificationType.AI_CHAT_SUCCESS, "AI 챗봇 답변이 도착했습니다");

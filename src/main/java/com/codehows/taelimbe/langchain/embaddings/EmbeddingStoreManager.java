@@ -335,4 +335,75 @@ public class EmbeddingStoreManager {
             milvusClient.close();
         }
     }
+    public void deleteByQnaId(Long qnaId) {
+        log.info("Milvus 데이터 삭제 시작 (qnaId={})", qnaId);
+
+        MilvusServiceClient milvusClient = new MilvusServiceClient(
+                ConnectParam.newBuilder()
+                        .withHost(milvusHost)
+                        .withPort(milvusPort)
+                        .build()
+        );
+
+        try {
+            List<String> targetCollections = new ArrayList<>();
+            targetCollections.add(milvusCollectionName);
+
+            if (fileCollectionName != null && !fileCollectionName.isEmpty()) {
+                targetCollections.add(fileCollectionName);
+            }
+
+            for (String collection : targetCollections) {
+
+                // ⚠ metadata에 qnaId를 넣어두었어야 함
+                String queryExpr = "metadata[\"qnaId\"] == %d".formatted(qnaId);
+
+                QueryParam queryParam = QueryParam.newBuilder()
+                        .withCollectionName(collection)
+                        .withExpr(queryExpr)
+                        .withOutFields(Collections.singletonList("id"))
+                        .build();
+
+                R<QueryResults> queryResponse = milvusClient.query(queryParam);
+                if (queryResponse.getStatus() != R.Status.Success.getCode()) {
+                    continue;
+                }
+
+                QueryResultsWrapper wrapper = new QueryResultsWrapper(queryResponse.getData());
+                List<String> ids =
+                        (List<String>) wrapper.getFieldWrapper("id").getFieldData();
+
+                if (ids.isEmpty()) {
+                    continue;
+                }
+
+                String deleteExpr = "id in [%s]".formatted(
+                        ids.stream()
+                                .map(id -> "\"" + id + "\"")
+                                .collect(Collectors.joining(", "))
+                );
+
+                DeleteParam deleteParam = DeleteParam.newBuilder()
+                        .withCollectionName(collection)
+                        .withExpr(deleteExpr)
+                        .build();
+
+                milvusClient.delete(deleteParam);
+                milvusClient.flush(
+                        FlushParam.newBuilder()
+                                .withCollectionNames(Collections.singletonList(collection))
+                                .build()
+                );
+
+                log.info("Milvus 데이터 삭제 완료 ({}건, collection={}, qnaId={})",
+                        ids.size(), collection, qnaId);
+            }
+
+        } catch (Exception e) {
+            log.error("Milvus 데이터 삭제 중 오류 발생 (qnaId={})", qnaId, e);
+            throw new RuntimeException("Milvus 데이터 삭제 실패", e);
+        } finally {
+            milvusClient.close();
+        }
+    }
 }

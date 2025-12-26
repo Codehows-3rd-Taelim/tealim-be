@@ -90,19 +90,19 @@ public class AgentController {
                 });
     }
 
-    @PostMapping("/embeddings/add")
-    public CompletableFuture<ResponseEntity<String>> addEmbed(@RequestBody EmbeddingRequest request) {
-        return embeddingService.embedByValue(request.getText())
-                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
-                .thenApply(v -> ResponseEntity.ok("success"))
-                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
-                .exceptionally(ex -> {
-                    log.error("resetAndEmbed 작업 실행 실패", ex);
-                    Throwable cause = ex.getCause();
-                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
-                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
-                });
-    }
+//    @PostMapping("/embeddings/add")
+//    public CompletableFuture<ResponseEntity<String>> addEmbed(@RequestBody EmbeddingRequest request) {
+//        return embeddingService.embedByValue(request.getText())
+//                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+//                .thenApply(v -> ResponseEntity.ok("success"))
+//                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
+//                .exceptionally(ex -> {
+//                    log.error("resetAndEmbed 작업 실행 실패", ex);
+//                    Throwable cause = ex.getCause();
+//                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+//                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
+//                });
+//    }
 
     @DeleteMapping("/embeddings/{key}")
     public CompletableFuture<ResponseEntity<String>> deleteEmbed(@PathVariable String key) {

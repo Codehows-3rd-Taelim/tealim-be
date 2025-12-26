@@ -33,25 +33,27 @@ public class QnaService {
     }
 
     @Transactional
-    public void apply(Long qnaId) {
-        Qna qna = get(qnaId);
+    public void apply(Long qnaId, String answer) {
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
 
-        if (qna.getStatus() != QnaStatus.EDITING) {
-            throw new IllegalStateException("QnA is not in EDITING state");
-        }
-
-        String text =
-                "Q: " + qna.getQuestionText() + "\n" +
-                        "A: " + qna.getEditingAnswer();
+        // 1️⃣ 최신 답변 반영
+        qna.updateEditingAnswer(answer);
 
         try {
-            embeddingService.embedQna(text, qnaId).join();
+            // 2️⃣ 임베딩 교체 (모든 책임은 EmbeddingService)
+            embeddingService.replaceQnaEmbedding(qnaId, answer);
+
+            // 3️⃣ 성공 처리
             qna.applySuccess();
+
         } catch (Exception e) {
             qna.applyFail();
             throw e;
         }
     }
+
+
 
     @Transactional
     public void resolveWithoutQna(Long qnaId) {
@@ -104,5 +106,17 @@ public class QnaService {
         return text.trim()
                 .toLowerCase()
                 .replaceAll("\\s+", " ");
+    }
+
+    // 미답 질문 기록
+    public void recordQuestion(String rawQuestion) {
+        String normalized = normalize(rawQuestion);
+
+        qnaRepository.findByNormalizedText(normalized)
+                .orElseGet(() ->
+                        qnaRepository.save(
+                                Qna.create(rawQuestion, normalized)
+                        )
+                );
     }
 }

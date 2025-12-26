@@ -82,6 +82,7 @@ public class Qna {
         this.appliedAnswer = this.editingAnswer;
         this.editingAnswer = null;
         this.status = QnaStatus.APPLIED;
+        this.resolved = true;
         touch();
     }
 
