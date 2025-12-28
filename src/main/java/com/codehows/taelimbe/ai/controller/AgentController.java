@@ -4,6 +4,7 @@ import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.dto.EmbeddingRequest;
 import com.codehows.taelimbe.ai.dto.QnaEmbeddingRequest;
 import com.codehows.taelimbe.ai.service.AgentService;
+import com.codehows.taelimbe.ai.service.EmbedFileService;
 import com.codehows.taelimbe.ai.service.SseService;
 import com.codehows.taelimbe.ai.service.EmbeddingService;
 import com.codehows.taelimbe.user.security.UserPrincipal;
@@ -30,7 +31,7 @@ public class AgentController {
     private final AgentService agentService;
     private final SseService sseService;
     private final EmbeddingService embeddingService;
-
+    private final EmbedFileService embedFileService;
 
     // SSE 연결, AI 응답 받아옴
     @PostMapping("/agent/chat")
@@ -90,6 +91,8 @@ public class AgentController {
                 });
     }
 
+
+
     @PostMapping("/embeddings/add")
     public CompletableFuture<ResponseEntity<String>> addEmbed(@RequestBody EmbeddingRequest request) {
         return embeddingService.embedByValue(request.getText())
@@ -104,53 +107,59 @@ public class AgentController {
                 });
     }
 
-    @DeleteMapping("/embeddings/{key}")
-    public CompletableFuture<ResponseEntity<String>> deleteEmbed(@PathVariable String key) {
-        return embeddingService.deleteByKey(key)
-                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
-                .thenApply(v -> ResponseEntity.ok("success"))
-                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
-                .exceptionally(ex -> {
-                    log.error("resetAndEmbed 작업 실행 실패", ex);
-                    Throwable cause = ex.getCause();
-                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
-                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
-                });
-    }
+//    @DeleteMapping("/embeddings/{key}")
+//    public CompletableFuture<ResponseEntity<String>> deleteEmbed(@PathVariable String key) {
+//        return embeddingService.deleteByKey(key)
+//                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+//                .thenApply(v -> ResponseEntity.ok("success"))
+//                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
+//                .exceptionally(ex -> {
+//                    log.error("resetAndEmbed 작업 실행 실패", ex);
+//                    Throwable cause = ex.getCause();
+//                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+//                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
+//                });
+//    }
 
-    @PostMapping("/embeddings/upload-csv")
-    public CompletableFuture<ResponseEntity<String>> embedCsv(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
-            return CompletableFuture.completedFuture(
-                    ResponseEntity.badRequest().body("CSV 파일을 선택하거나 유효한 파일 형식을 확인해주세요."));
-        }
+//    @PostMapping("/embeddings/upload-csv")
+//    public CompletableFuture<ResponseEntity<String>> embedCsv(
+//            @RequestParam("file") MultipartFile file,
+//            @RequestParam("embedKey") String embedKey
+//    ) {
+//        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
+//            return CompletableFuture.completedFuture(
+//                    ResponseEntity.badRequest().body("CSV 파일을 선택하거나 유효한 파일 형식을 확인해주세요.")
+//            );
+//        }
+//
+//        return embeddingService.embedAndStoreCsv(file, embedKey)
+//                .thenApply(v -> ResponseEntity.ok("CSV 파일 임베딩 시작됨"))
+//                .exceptionally(ex -> {
+//                    log.error("CSV embed error", ex);
+//                    return ResponseEntity.internalServerError().body(ex.getMessage());
+//                });
+//    }
+//
+//
+//    @PostMapping("/embeddings/upload-pdf")
+//    public CompletableFuture<ResponseEntity<String>> embedPdf(
+//            @RequestParam("file") MultipartFile file,
+//            @RequestParam("embedKey") String embedKey
+//    ) {
+//        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
+//            return CompletableFuture.completedFuture(
+//                    ResponseEntity.badRequest().body("PDF 파일을 선택해주세요.")
+//            );
+//        }
+//
+//        return embeddingService.embedAndStorePdf(file, embedKey)
+//                .thenApply(v -> ResponseEntity.ok("PDF 병렬 임베딩 시작됨"))
+//                .exceptionally(ex -> {
+//                    log.error("PDF embed error", ex);
+//                    return ResponseEntity.internalServerError().body(ex.getMessage());
+//                });
+//    }
 
-        // CSV 파일 처리 로직을 EmbeddingService로 위임합니다.
-        return embeddingService.embedAndStoreCsv(file)
-                .thenApply(v -> ResponseEntity.ok("CSV 파일 임베딩 및 저장 프로세스가 성공적으로 시작되었습니다."))
-                .exceptionally(ex -> {
-                    log.error("CSV 파일 embedAndStore 작업 실행 실패", ex);
-                    return ResponseEntity.internalServerError().body("CSV 파일 처리 실패: " + ex.getMessage());
-                });
-    }
-
-    @PostMapping("/embeddings/upload-pdf")
-    public CompletableFuture<ResponseEntity<String>> embedPdf(
-            @RequestParam("file") MultipartFile file
-    ) {
-        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".pdf")) {
-            return CompletableFuture.completedFuture(
-                    ResponseEntity.badRequest().body("PDF 파일을 선택해주세요.")
-            );
-        }
-
-        return embeddingService.embedAndStorePdf(file)
-                .thenApply(v -> ResponseEntity.ok("PDF 병렬 임베딩 시작됨"))
-                .exceptionally(ex -> {
-                    log.error("PDF embed error", ex);
-                    return ResponseEntity.internalServerError().body(ex.getMessage());
-                });
-    }
 
     @PostMapping("/embeddings/reset-only")
     public ResponseEntity<Void> resetOnly() {
