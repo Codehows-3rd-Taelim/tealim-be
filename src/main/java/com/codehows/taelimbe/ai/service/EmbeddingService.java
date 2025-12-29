@@ -4,6 +4,7 @@ import com.codehows.taelimbe.ai.entity.Embed;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import com.codehows.taelimbe.langchain.embaddings.TextSplitterStrategy;
+import dev.langchain4j.data.document.Metadata;
 import dev.langchain4j.data.embedding.Embedding;
 import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
@@ -157,7 +158,10 @@ public class EmbeddingService {
      * @param file 임베딩할 데이터가 포함된 CSV 파일
      * @return 비동기 작업의 완료를 나타내는 `CompletableFuture<Void>`
      */
-    public CompletableFuture<Void> embedAndStoreCsv(MultipartFile file) {
+    public CompletableFuture<Void> embedAndStoreCsv(
+            MultipartFile file,
+            String embedKey
+    ) {
         return CompletableFuture.runAsync(() -> {
 
             log.info("CSV 병렬 임베딩 시작 (batchSize={}): {}",
@@ -189,14 +193,14 @@ public class EmbeddingService {
                         buffer.add(segment);
 
                         if (buffer.size() >= embeddingCsvBatchSize) {
-                            flushBatch(buffer);
+                            flushBatch(buffer,embedKey,"csv");
                         }
                     }
                 }
 
                 // 남은 batch 처리
                 if (!buffer.isEmpty()) {
-                    flushBatch(buffer);
+                    flushBatch(buffer,embedKey,"csv");
                 }
 
                 log.info("CSV 병렬 임베딩 완료");
@@ -209,66 +213,7 @@ public class EmbeddingService {
         }, taskExecutor);
     }
 
-//    public CompletableFuture<Void> embedByValue(String text) {
-//        return CompletableFuture.runAsync(() -> {
-//
-//            log.info("텍스트 임베딩 및 저장 시작 (단일 값)");
-//
-//            // 1. key 생성
-//            String key = java.util.UUID.randomUUID().toString();
-//
-//            // 2. 텍스트 분할
-//            List<TextSegment> segments =
-//                    textSplitterStrategy.split(text)
-//                            .stream()
-//                            .map(TextSegment::from)
-//                            .toList();
-//
-//            log.info("텍스트 분할 완료 ({}개 chunk)", segments.size());
-//
-//            // 3. 임베딩 계산
-//            Response<List<Embedding>> embeddingResponse =
-//                    embeddingModel.embedAll(segments);
-//
-//            List<Embedding> embeddings = embeddingResponse.content();
-//
-//            // 4. Milvus 저장용 데이터 구성
-//            List<String> ids = new ArrayList<>();
-//            List<String> texts = new ArrayList<>();
-//            List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
-//            List<List<Float>> vectors = new ArrayList<>();
-//
-//            for (int i = 0; i < segments.size(); i++) {
-//                ids.add(java.util.UUID.randomUUID().toString());
-//                texts.add(segments.get(i).text());
-//
-//                com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
-//                metadata.put("key", key);
-//                metadata.put("chunk_id", i + 1);
-//
-//                metadatas.add(metadata);
-//                vectors.add(embeddings.get(i).vectorAsList());
-//            }
-//
-//            log.info("Milvus 저장 데이터 구성 완료 ({}개 벡터)", vectors.size());
-//
-//            // 5. Milvus 저장
-//            embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
-//
-//            // 6. RDB 저장
-//            embedRepository.save(
-//                    Embed.builder()
-//                            .embedKey(key)
-//                            .embedValue(text)
-//                            .build()
-//            );
-//
-//            log.info("텍스트 임베딩 및 저장 완료 (key={})", key);
-//
-//        }, taskExecutor);
-//    }
-
-    public CompletableFuture<Void> embedAndStorePdf(MultipartFile file) {
+    public CompletableFuture<Void> embedAndStorePdf(MultipartFile file, String embedKey) {
         return CompletableFuture.runAsync(() -> {
 
             log.info("PDF 병렬 임베딩 시작 (batchSize={}): {}",
@@ -291,15 +236,15 @@ public class EmbeddingService {
                     buffer.add(segment);
 
                     if (buffer.size() >= embeddingPdfBatchSize) {
-                        flushBatch(buffer);
+                        flushBatch(buffer, embedKey, "PDF");
                     }
                 }
 
                 if (!buffer.isEmpty()) {
-                    flushBatch(buffer);
+                    flushBatch(buffer, embedKey, "PDF");
                 }
 
-                log.info("PDF 병렬 임베딩 완료");
+                log.info("PDF 병렬 임베딩 완료 (embedKey={})", embedKey);
 
             } catch (Exception e) {
                 log.error("PDF 임베딩 실패", e);
@@ -309,46 +254,76 @@ public class EmbeddingService {
         }, taskExecutor);
     }
 
-    private void flushBatch(List<TextSegment> batch) {
 
-        int attempt = 0;
-        long delay = initialRetryDelayMs;
+    private void flushBatch(
+            List<TextSegment> batch,
+            String embedKey,
+            String source
+    ) {
+        Response<List<Embedding>> embeddings =
+                parallelEmbeddingModel.embedAll(batch);
 
-        while (true) {
-            try {
-                log.info("Embedding batch flush size={}, attempt={}", batch.size(), attempt + 1);
+        for (int i = 0; i < batch.size(); i++) {
+            Metadata metadata = new Metadata();
+            metadata.put("embedKey", embedKey);
+            metadata.put("source", source);
+            metadata.put("chunk", i + 1);
 
-                Response<List<Embedding>> embeddings =
-                        parallelEmbeddingModel.embedAll(batch);
+            TextSegment segmentWithMeta =
+                    TextSegment.from(batch.get(i).text(), metadata);
 
-                embeddingStore.addAll(embeddings.content(), batch);
-                batch.clear();
-                return;
+            embeddingStore.add(
+                    embeddings.content().get(i),
+                    segmentWithMeta
+            );
 
-            } catch (Exception e) {
-                attempt++;
-
-                if (attempt >= maxRetryAttempts) {
-                    log.error(" Embedding batch failed after {} attempts. Skip batch.", attempt, e);
-                    batch.clear();
-                    return;
-                }
-
-                log.warn("⚠ Embedding batch failed. Retry in {} ms (attempt {}/{})",
-                        delay, attempt, maxRetryAttempts);
-
-                try {
-                    Thread.sleep(delay);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    batch.clear();
-                    return;
-                }
-
-                delay *= 2; // exponential backoff
-            }
         }
+
+        batch.clear();
     }
+
+
+
+//    private void flushBatch(List<TextSegment> batch) {
+//
+//        int attempt = 0;
+//        long delay = initialRetryDelayMs;
+//
+//        while (true) {
+//            try {
+//                log.info("Embedding batch flush size={}, attempt={}", batch.size(), attempt + 1);
+//
+//                Response<List<Embedding>> embeddings =
+//                        parallelEmbeddingModel.embedAll(batch);
+//
+//                embeddingStore.addAll(embeddings.content(), batch);
+//                batch.clear();
+//                return;
+//
+//            } catch (Exception e) {
+//                attempt++;
+//
+//                if (attempt >= maxRetryAttempts) {
+//                    log.error(" Embedding batch failed after {} attempts. Skip batch.", attempt, e);
+//                    batch.clear();
+//                    return;
+//                }
+//
+//                log.warn("⚠ Embedding batch failed. Retry in {} ms (attempt {}/{})",
+//                        delay, attempt, maxRetryAttempts);
+//
+//                try {
+//                    Thread.sleep(delay);
+//                } catch (InterruptedException ie) {
+//                    Thread.currentThread().interrupt();
+//                    batch.clear();
+//                    return;
+//                }
+//
+//                delay *= 2; // exponential backoff
+//            }
+//        }
+//    }
 
 
 

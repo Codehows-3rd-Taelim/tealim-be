@@ -285,7 +285,7 @@ public class EmbeddingStoreManager {
 
             for (String collection : targetCollections) {
 
-                String queryExpr = "metadata[\"key\"] == \"%s\"".formatted(key);
+                String queryExpr = "metadata[\"key\"] == \"%s\" || metadata[\"embedKey\"] == \"%s\"".formatted(key, key);
 
                 QueryParam queryParam = QueryParam.newBuilder()
                         .withCollectionName(collection)
@@ -303,6 +303,7 @@ public class EmbeddingStoreManager {
                         (List<String>) wrapper.getFieldWrapper("id").getFieldData();
 
                 if (ids.isEmpty()) {
+                    log.warn("삭제 대상 없음! 쿼리문 확인 필요: {}", queryExpr);
                     continue;
                 }
 
@@ -337,3 +338,4 @@ public class EmbeddingStoreManager {
     }
 
 }
+
