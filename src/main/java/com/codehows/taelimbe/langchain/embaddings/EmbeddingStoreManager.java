@@ -45,9 +45,6 @@ public class EmbeddingStoreManager {
     @Value("${milvus.collection-name}")
     private String milvusCollectionName;
 
-    @Value("${milvus.collection-name.file:}")
-    private String fileCollectionName;
-
     // application.properties에서 Milvus 임베딩 모델의 차원 수를 주입받습니다.
     @Value("${milvus.embedding.dimension}")
     private Integer embeddingDimension;
@@ -194,27 +191,6 @@ public class EmbeddingStoreManager {
         );
     }
 
-    // 파일 임베딩용 오버로드
-    public void addDocuments(
-            List<String> ids,
-            List<String> texts,
-            List<JSONObject> metadatas,
-            List<List<Float>> vectors,
-            boolean useFileCollection
-    ) {
-        String targetCollection =
-                useFileCollection && fileCollectionName != null && !fileCollectionName.isEmpty()
-                        ? fileCollectionName
-                        : milvusCollectionName;
-
-        addDocumentsInternal(
-                targetCollection,
-                ids,
-                texts,
-                metadatas,
-                vectors
-        );
-    }
 
     private void addDocumentsInternal(
             String collectionName,
@@ -279,9 +255,6 @@ public class EmbeddingStoreManager {
             List<String> targetCollections = new ArrayList<>();
             targetCollections.add(milvusCollectionName);
 
-            if (fileCollectionName != null && !fileCollectionName.isEmpty()) {
-                targetCollections.add(fileCollectionName);
-            }
 
             for (String collection : targetCollections) {
 

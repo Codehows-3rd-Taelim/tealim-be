@@ -93,19 +93,19 @@ public class AgentController {
 
 
 
-    @PostMapping("/embeddings/add")
-    public CompletableFuture<ResponseEntity<String>> addEmbed(@RequestBody EmbeddingRequest request) {
-        return embeddingService.embedByValue(request.getText())
-                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
-                .thenApply(v -> ResponseEntity.ok("success"))
-                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
-                .exceptionally(ex -> {
-                    log.error("resetAndEmbed 작업 실행 실패", ex);
-                    Throwable cause = ex.getCause();
-                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
-                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
-                });
-    }
+//    @PostMapping("/embeddings/add")
+//    public CompletableFuture<ResponseEntity<String>> addEmbed(@RequestBody EmbeddingRequest request) {
+//        return embeddingService.embedByValue(request.getText())
+//                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+//                .thenApply(v -> ResponseEntity.ok("success"))
+//                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
+//                .exceptionally(ex -> {
+//                    log.error("resetAndEmbed 작업 실행 실패", ex);
+//                    Throwable cause = ex.getCause();
+//                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+//                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
+//                });
+//    }
 
     @DeleteMapping("/embeddings/{key}")
     public CompletableFuture<ResponseEntity<String>> deleteEmbed(@PathVariable String key) {
@@ -121,12 +121,12 @@ public class AgentController {
                 });
     }
 
-    @PostMapping("/embeddings/upload-csv")
-    public CompletableFuture<ResponseEntity<String>> embedCsv(@RequestParam("file") MultipartFile file) {
-        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
-            return CompletableFuture.completedFuture(
-                    ResponseEntity.badRequest().body("CSV 파일을 선택하거나 유효한 파일 형식을 확인해주세요."));
-        }
+//    @PostMapping("/embeddings/upload-csv")
+//    public CompletableFuture<ResponseEntity<String>> embedCsv(@RequestParam("file") MultipartFile file) {
+//        if (file.isEmpty() || !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
+//            return CompletableFuture.completedFuture(
+//                    ResponseEntity.badRequest().body("CSV 파일을 선택하거나 유효한 파일 형식을 확인해주세요."));
+//        }
 
 //    @PostMapping("/embeddings/upload-csv")
 //    public CompletableFuture<ResponseEntity<String>> embedCsv(
@@ -168,20 +168,20 @@ public class AgentController {
 //    }
 
 
-    @PostMapping("/embeddings/reset-only")
-    public ResponseEntity<Void> resetOnly() {
-        embeddingService.resetOnly();
-        return ResponseEntity.ok().build();
+//    @PostMapping("/embeddings/reset-only")
+//    public ResponseEntity<Void> resetOnly() {
+//        embeddingService.resetOnly();
+//        return ResponseEntity.ok().build();
+//    }
+
+
+        @PostMapping("/qna")
+        public CompletableFuture<ResponseEntity<Void>> embedQna(@RequestBody QnaEmbeddingRequest req) {
+            String text = "Q: " + req.getQuestion() + "\n" + "A: " + req.getAnswer();
+
+            return embeddingService
+                    .embedQna(text, req.getQuestionId())
+                    .thenApply(v -> ResponseEntity.ok().build());
+        }
     }
 
-
-    @PostMapping("/qna")
-    public CompletableFuture<ResponseEntity<Void>> embedQna(@RequestBody QnaEmbeddingRequest req) {
-        String text = "Q: " + req.getQuestion() + "\n" + "A: " + req.getAnswer();
-
-        return embeddingService
-                .embedQna(text, req.getQuestionId())
-                .thenApply(v -> ResponseEntity.ok().build());
-    }
-
-}
