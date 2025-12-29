@@ -358,11 +358,7 @@ public class EmbeddingService {
 
             String key = UUID.randomUUID().toString();
 
-            Embed embed = Embed.createText(
-                    key,
-                    text,
-                    qnaId
-            );
+            Embed embed = Embed.createText(key, text, qnaId);
             embedRepository.save(embed);
 
             List<TextSegment> segments =
@@ -400,22 +396,25 @@ public class EmbeddingService {
 
     public void replaceQnaEmbedding(Long qnaId, String text) {
 
-        // 1️⃣ 기존 임베딩 조회
+        // 기존 임베딩 조회
         List<Embed> oldEmbeds = embedRepository.findByQnaId(qnaId);
 
-        // 2️⃣ embedKey 기준 Milvus + RDB 삭제
+        // embedKey 기준 Milvus + RDB 삭제
         for (Embed embed : oldEmbeds) {
             embeddingStoreManager.deleteDocuments(embed.getEmbedKey());
             embedRepository.delete(embed);
         }
 
-        // 3️⃣ 새 임베딩 생성
+        // 새 임베딩 생성
+
+
         embedQna(text, qnaId);
 
         log.info("QnA embedding replaced (qnaId={}, oldEmbeds={})",
                 qnaId, oldEmbeds.size());
     }
 
-
-
+    public boolean isEmpty() {
+        return embeddingStoreManager.isEmpty();
+    }
 }

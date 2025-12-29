@@ -17,11 +17,7 @@ public class QnaController {
 
     private final QnaService qnaService;
 
-    /* =========================
-     * 조회 (관리 화면)
-     * ========================= */
-
-    // 전체
+    // qna 전체 조회
     @GetMapping
     public List<QnaDTO> listAll() {
         return qnaService.findAll()
@@ -30,7 +26,7 @@ public class QnaController {
                 .toList();
     }
 
-    // 운영 기준: 미처리
+    // 미처리 질문 조회
     @GetMapping("/unresolved")
     public List<QnaDTO> listUnresolved() {
         return qnaService.findByResolved(false)
@@ -39,7 +35,7 @@ public class QnaController {
                 .toList();
     }
 
-    // 운영 기준: 처리 완료
+    // 처리 완료 질문 조회
     @GetMapping("/resolved")
     public List<QnaDTO> listResolved() {
         return qnaService.findByResolved(true)
@@ -48,7 +44,7 @@ public class QnaController {
                 .toList();
     }
 
-    // 시스템 기준: QnA 적용 완료 (검색/챗봇 대상)
+    // QnA 적용 완료된 질문 조회
     @GetMapping("/applied")
     public List<QnaDTO> listApplied() {
         return qnaService.findByStatus(QnaStatus.APPLIED)
@@ -57,19 +53,9 @@ public class QnaController {
                 .toList();
     }
 
-    // 운영 종료 + QnA 미사용 (파일/정책 처리)
-    @GetMapping("/resolved/without-qna")
-    public List<QnaDTO> listResolvedWithoutQna() {
-        return qnaService.findResolvedWithoutQna()
-                .stream()
-                .map(QnaDTO::new)
-                .toList();
-    }
 
-    /* =========================
-     * 답변 편집 (관리자 액션)
-     * ========================= */
 
+    // qna 임베딩
     @PostMapping("/{qnaId}/apply")
     public ResponseEntity<Void> apply(
             @PathVariable Long qnaId,
@@ -80,21 +66,15 @@ public class QnaController {
     }
 
 
-    /* =========================
-     * 운영 액션
-     * ========================= */
 
-    // 파일/정책 처리로 QnA 미사용 종료
-    @PostMapping("/{qnaId}/resolve-without-qna")
-    public ResponseEntity<Void> resolveWithoutQna(@PathVariable Long qnaId) {
-        qnaService.resolveWithoutQna(qnaId);
-        return ResponseEntity.ok().build();
-    }
-
-    // 질문 완전 삭제 (Embed + Milvus 포함)
+    // 질문 완전 삭제 Embed + Milvus 포함
     @DeleteMapping("/{qnaId}")
-    public ResponseEntity<Void> delete(@PathVariable Long qnaId) {
-        qnaService.delete(qnaId);
+    public ResponseEntity<Void> questionDelete(@PathVariable Long qnaId) {
+        qnaService.questionDelete(qnaId);
         return ResponseEntity.noContent().build();
     }
+
+
+
+
 }

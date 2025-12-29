@@ -18,33 +18,18 @@ public class QnaService {
     private final EmbeddingService embeddingService;
     private final EmbedRepository embedRepository;
 
-    public Qna createQuestion(String rawQuestion) {
-        String normalized = normalize(rawQuestion);
-        return qnaRepository.findByNormalizedText(normalized)
-                .orElseGet(() ->
-                        qnaRepository.save(Qna.create(rawQuestion, normalized))
-                );
-    }
 
-    @Transactional
-    public void updateEditingAnswer(Long qnaId, String answer) {
-        Qna qna = get(qnaId);
-        qna.updateEditingAnswer(answer);
-    }
+
 
     @Transactional
     public void apply(Long qnaId, String answer) {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
 
-        // 1️⃣ 최신 답변 반영
         qna.updateEditingAnswer(answer);
 
         try {
-            // 2️⃣ 임베딩 교체 (모든 책임은 EmbeddingService)
             embeddingService.replaceQnaEmbedding(qnaId, answer);
-
-            // 3️⃣ 성공 처리
             qna.applySuccess();
 
         } catch (Exception e) {
@@ -55,20 +40,11 @@ public class QnaService {
 
 
 
-    @Transactional
-    public void resolveWithoutQna(Long qnaId) {
-        Qna qna = get(qnaId);
 
-        embedRepository.findByQnaId(qnaId)
-                .forEach(embed ->
-                        embeddingService.deleteByKey(embed.getEmbedKey())
-                );
 
-        qna.resolveWithoutQna();
-    }
 
     @Transactional
-    public void delete(Long qnaId) {
+    public void questionDelete(Long qnaId) {
         Qna qna = get(qnaId);
 
         embedRepository.findByQnaId(qnaId)
@@ -91,11 +67,8 @@ public class QnaService {
     }
 
     public List<Qna> findByStatus(QnaStatus status) {
-        return qnaRepository.findByStatus(status);
-    }
 
-    public List<Qna> findResolvedWithoutQna() {
-        return qnaRepository.findResolvedWithoutQna();
+        return qnaRepository.findByStatus(status);
     }
 
     public List<Qna> findAll() {

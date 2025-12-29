@@ -77,7 +77,7 @@ public class Qna {
         touch();
     }
 
-    // QnA 적용 성공 (swap)
+    // QnA 적용 성공
     public void applySuccess() {
         this.appliedAnswer = this.editingAnswer;
         this.editingAnswer = null;

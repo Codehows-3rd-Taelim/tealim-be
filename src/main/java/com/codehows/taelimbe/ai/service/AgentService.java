@@ -22,7 +22,7 @@ public class AgentService {
     private final SseService sseService;
     private final AiChatService aiChatService;
     private final NotificationService notificationService;
-    private final EmbeddingStoreManager embeddingStoreManager;
+    private final EmbeddingService embeddingService;
     private final QnaService qnaService;
 
     @Qualifier("chatAgent")
@@ -34,7 +34,7 @@ public class AgentService {
         // 1) 사용자 메시지 저장
         aiChatService.saveUserMessage(conversationId, userId, message);
 
-        if (embeddingStoreManager.isEmpty()) {
+        if (embeddingService.isEmpty()) {
             String fallback = "답변드릴 수 없는 정보입니다.";
 
             aiChatService.saveAiMessage(conversationId, userId, fallback);
