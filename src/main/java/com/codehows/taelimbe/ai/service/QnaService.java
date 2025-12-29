@@ -26,7 +26,7 @@ public class QnaService {
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
 
-        qna.updateEditingAnswer(answer);
+        qna.requestApply(answer);
 
         try {
             embeddingService.replaceQnaEmbedding(qnaId, answer);

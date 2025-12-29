@@ -7,7 +7,6 @@ package com.codehows.taelimbe.ai.constant;
  // FAILED  : 적용 실패 (기존 applied 유지)
 
 public enum QnaStatus {
-    EDITING,
     APPLIED,
     FAILED
 }
