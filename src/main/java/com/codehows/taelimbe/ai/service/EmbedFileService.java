@@ -55,15 +55,14 @@ public class EmbedFileService {
         return embedFileDTO(saved);
     }
 
+
     @Transactional
     public void deleteFile(Long id) {
         EmbedFile file = embedFileRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("파일 없음"));
-
-        String embedKey = file.getEmbedKey();
+                .orElseThrow(() -> new IllegalArgumentException("파일이 존재하지 않습니다. id=" + id));
 
         // ️ Milvus 벡터 삭제
-        embeddingStoreManager.deleteDocuments(embedKey);
+        embeddingStoreManager.deleteDocuments(file.getEmbedKey());
 
         //  DB row 삭제
         embedFileRepository.delete(file);
