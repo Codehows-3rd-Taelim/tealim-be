@@ -139,6 +139,24 @@ public class PuduReportService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: "+id));
     }
 
+    // 특이사항 저장
+    @Transactional
+    public PuduReportDTO updateRemark(Long puduReportId, String remark) {
+
+        PuduReport report = puduReportRepository.findById(puduReportId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Report not found: " + puduReportId)
+                );
+
+        // 특이사항 업데이트
+        report.updateRemark(remark);
+
+        // save는 선택이지만 명시적으로 해주는 게 좋음
+        puduReportRepository.save(report);
+
+        return PuduReportDTO.createReportDTO(report);
+    }
+
     public List<PuduReportDTO> getReport(String startDate, String endDate){
 
         if(startDate == null || startDate.isEmpty())
