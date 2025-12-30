@@ -51,47 +51,6 @@ public class EmbeddingStoreManager {
 
 
 
-    // 밀버스 데이터 0인지 계산 (밀버스 데이터 0이면 llm이 자유대화모드 -> 헛소리 함)
-    public boolean isEmpty() {
-
-        MilvusServiceClient client = new MilvusServiceClient(
-                ConnectParam.newBuilder()
-                        .withHost(milvusHost)
-                        .withPort(milvusPort)
-                        .build()
-        );
-
-        try {
-            R<GetCollectionStatisticsResponse> res =
-                    client.getCollectionStatistics(
-                            GetCollectionStatisticsParam.newBuilder()
-                                    .withCollectionName(milvusCollectionName)
-                                    .build()
-                    );
-
-            if (res.getStatus() != R.Status.Success.getCode()) {
-                // 안전하게 비어있다고 간주
-                return true;
-            }
-
-            long rowCount = 0;
-
-            for (KeyValuePair kv : res.getData().getStatsList()) {
-                if ("row_count".equals(kv.getKey())) {
-                    rowCount = Long.parseLong(kv.getValue());
-                    break;
-                }
-            }
-
-            return rowCount == 0;
-
-        } finally {
-            client.close();
-        }
-    }
-
-
-
     /**
      * Milvus 벡터 저장소를 재설정(reset)합니다.
      */

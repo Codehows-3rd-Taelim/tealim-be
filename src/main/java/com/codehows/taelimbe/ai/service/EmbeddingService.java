@@ -389,7 +389,4 @@ public class EmbeddingService {
                 qnaId, oldEmbeds.size());
     }
 
-    public boolean isEmpty() {
-        return embeddingStoreManager.isEmpty();
-    }
 }
