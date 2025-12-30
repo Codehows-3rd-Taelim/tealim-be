@@ -68,29 +68,4 @@ public class EmbedFileService {
         embedFileRepository.delete(file);
     }
 
-
-    /** 임베딩 시작 */
-    public void markEmbedding(Long fileId) {
-        EmbedFile file = getFile(fileId);
-        file.markEmbedding();
-    }
-
-    /** 임베딩 완료 */
-    public void markDone(Long fileId, String embedKey) {
-        EmbedFile file = getFile(fileId);
-        file.markDone(embedKey);
-    }
-
-    /** 실패 */
-    public void markFailed(Long fileId) {
-        EmbedFile file = getFile(fileId);
-        file.markFailed();
-    }
-
-    private EmbedFile getFile(Long id) {
-        return embedFileRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("파일 없음"));
-    }
-
-
 }

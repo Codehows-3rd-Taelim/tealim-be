@@ -69,8 +69,8 @@ public class PuduReportController {
 
     @GetMapping
     public ResponseEntity<Page<PuduReportResponseDTO>> getReports(
-            @RequestParam int page,
-            @RequestParam int size,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) Long filterStoreId,
             @RequestParam(required = false) String sn,
