@@ -182,7 +182,7 @@ public class EmbeddingStoreManager {
 
             milvusClient.insert(insertParam);
             milvusClient.flush(
-eoeh                    FlushParam.newBuilder()
+                    FlushParam.newBuilder()
                             .withCollectionNames(Collections.singletonList(collectionName))
                             .build()
             );
