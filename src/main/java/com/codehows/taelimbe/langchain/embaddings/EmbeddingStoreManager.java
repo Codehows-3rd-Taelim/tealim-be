@@ -134,30 +134,16 @@ public class EmbeddingStoreManager {
     /**
      * Milvus에 벡터 데이터를 추가합니다.
      */
-    // 텍스트 임베딩용
+    // qna 임베딩용
     public void addDocuments(
+
             List<String> ids,
             List<String> texts,
             List<JSONObject> metadatas,
             List<List<Float>> vectors
     ) {
-        addDocumentsInternal(
-                milvusCollectionName,
-                ids,
-                texts,
-                metadatas,
-                vectors
-        );
-    }
+        String collectionName = milvusCollectionName;
 
-
-    private void addDocumentsInternal(
-            String collectionName,
-            List<String> ids,
-            List<String> texts,
-            List<JSONObject> metadatas,
-            List<List<Float>> vectors
-    ) {
         log.info("Milvus 벡터 데이터 저장 시작 ({}건, collection={})",
                 vectors.size(), collectionName);
 

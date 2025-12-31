@@ -76,8 +76,9 @@ public class Qna {
     }
 
     // QnA 적용 실패
-    public void applyFail() {
+    public void applyFail(String answer) {
         this.status = QnaStatus.FAILED;
+        this.editingAnswer = answer;
         touch();
     }
 

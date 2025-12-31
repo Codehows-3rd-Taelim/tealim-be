@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.ai.service;
 
+import com.codehows.taelimbe.ai.constant.QnaEmbeddingFailPoint;
 import com.codehows.taelimbe.ai.entity.Embed;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
@@ -41,6 +42,9 @@ import java.util.concurrent.CompletableFuture;
 @Service
 @Slf4j
 public class EmbeddingService {
+
+    @Value("${embedding.qna.fail-point:NONE}")
+    private QnaEmbeddingFailPoint qnaFailPoint;
 
     // 텍스트를 임베딩 벡터로 변환하는 모델을 주입받습니다.
     private final EmbeddingModel embeddingModel;
@@ -328,8 +332,7 @@ public class EmbeddingService {
 
 
     // QnA 임베딩
-    public CompletableFuture<Void> embedQna(String text, Long qnaId) {
-        return CompletableFuture.runAsync(() -> {
+    public void embedQna(String text, Long qnaId) {
 
             String key = UUID.randomUUID().toString();
 
@@ -366,27 +369,46 @@ public class EmbeddingService {
 
             log.info("QnA embedding completed (key={})", key);
 
-        }, taskExecutor);
     }
 
     public void replaceQnaEmbedding(Long qnaId, String text) {
 
         // 기존 임베딩 조회
-        List<Embed> oldEmbeds = embedRepository.findByQnaId(qnaId);
+        Embed oldEmbed = embedRepository.findByQnaId(qnaId)
+                .orElse(null);
 
-        // embedKey 기준 Milvus + RDB 삭제
-        for (Embed embed : oldEmbeds) {
-            embeddingStoreManager.deleteDocuments(embed.getEmbedKey());
-            embedRepository.delete(embed);
+        String oldEmbedKey = oldEmbed != null ? oldEmbed.getEmbedKey() : null;
+
+        // INSERT 전 실패 테스트
+        if (qnaFailPoint == QnaEmbeddingFailPoint.BEFORE_INSERT) {
+            throw new RuntimeException("QNA_FAIL_BEFORE_INSERT");
         }
 
-        // 새 임베딩 생성
-
-
+        //  새 임베딩 생성 (Milvus + RDB)
         embedQna(text, qnaId);
+        // embedQna 내부에서 새 embedKey 생성 + RDB 저장 + Milvus insert
 
-        log.info("QnA embedding replaced (qnaId={}, oldEmbeds={})",
-                qnaId, oldEmbeds.size());
+        // INSERT 후 실패 (테스트용)
+        if (qnaFailPoint == QnaEmbeddingFailPoint.AFTER_INSERT) {
+            throw new RuntimeException("QNA_FAIL_AFTER_INSERT");
+        }
+
+        // 기존 임베딩 삭제 전 실패 (테스트용)
+        if (qnaFailPoint == QnaEmbeddingFailPoint.BEFORE_DELETE) {
+            throw new RuntimeException("QNA_FAIL_BEFORE_DELETE");
+        }
+
+        //  기존 임베딩 삭제 (있을 경우)
+        if (oldEmbedKey != null) {
+            embeddingStoreManager.deleteDocuments(oldEmbedKey);
+            embedRepository.delete(oldEmbed);
+        }
+
+        // DELETE 후 실패 (테스트용)
+        if (qnaFailPoint == QnaEmbeddingFailPoint.AFTER_DELETE) {
+            throw new RuntimeException("QNA_FAIL_AFTER_DELETE");
+        }
     }
+
 
 }

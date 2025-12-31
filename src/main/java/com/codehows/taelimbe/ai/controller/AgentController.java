@@ -175,13 +175,5 @@ public class AgentController {
 //    }
 
 
-        @PostMapping("/qna")
-        public CompletableFuture<ResponseEntity<Void>> embedQna(@RequestBody QnaEmbeddingRequest req) {
-            String text = "Q: " + req.getQuestion() + "\n" + "A: " + req.getAnswer();
-
-            return embeddingService
-                    .embedQna(text, req.getQuestionId())
-                    .thenApply(v -> ResponseEntity.ok().build());
-        }
     }
 
