@@ -63,14 +63,8 @@ public class AgentService {
                     String rawAnswer = aiBuilder.toString();
                     String normalizedAnswer = normalizeForChat(rawAnswer);
 
-
                     aiChatService.saveAiMessage(conversationId, userId, normalizedAnswer);
                     sseService.complete(conversationId);
-
-                    // 답변 불가인 정보 미답 질문에 저장
-                    if ("답변드릴 수 없는 정보입니다.".equals(rawAnswer)) {
-                        qnaService.recordQuestion(message);
-                    }
 
                     notificationService.notify(userId, NotificationType.AI_CHAT_SUCCESS, "AI 챗봇 답변이 도착했습니다");
 
