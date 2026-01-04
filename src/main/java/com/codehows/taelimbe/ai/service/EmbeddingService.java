@@ -1,6 +1,8 @@
 package com.codehows.taelimbe.ai.service;
 
+import com.codehows.taelimbe.ai.constant.QnaEmbeddingFailPoint;
 import com.codehows.taelimbe.ai.entity.Embed;
+import com.codehows.taelimbe.ai.entity.QnaEmbeddingCleanup;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import com.codehows.taelimbe.langchain.embaddings.TextSplitterStrategy;
@@ -42,6 +44,9 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class EmbeddingService {
 
+    @Value("${embedding.qna.fail-point:NONE}")
+    private QnaEmbeddingFailPoint qnaFailPoint;
+
     // 텍스트를 임베딩 벡터로 변환하는 모델을 주입받습니다.
     private final EmbeddingModel embeddingModel;
     // 병렬 임베딩 모델 (CSV / PDF 전용)
@@ -55,6 +60,8 @@ public class EmbeddingService {
 
     private final EmbedRepository embedRepository;
 
+    private final QnaEmbeddingCleanupService qnaEmbeddingCleanupService;
+
     // 비동기 작업을 위한 스레드 풀을 주입받습니다.
     @Qualifier("taskExecutor")
     private final TaskExecutor taskExecutor;
@@ -65,7 +72,7 @@ public class EmbeddingService {
             EmbeddingStore<TextSegment> embeddingStore,
             EmbeddingStoreManager embeddingStoreManager,
             TextSplitterStrategy textSplitterStrategy,
-            EmbedRepository embedRepository,
+            EmbedRepository embedRepository, QnaEmbeddingCleanupService qnaEmbeddingCleanupService,
             @Qualifier("taskExecutor") TaskExecutor taskExecutor
     ) {
         this.embeddingModel = embeddingModel;
@@ -74,6 +81,7 @@ public class EmbeddingService {
         this.embeddingStoreManager = embeddingStoreManager;
         this.textSplitterStrategy = textSplitterStrategy;
         this.embedRepository = embedRepository;
+        this.qnaEmbeddingCleanupService = qnaEmbeddingCleanupService;
         this.taskExecutor = taskExecutor;
     }
 
@@ -140,13 +148,6 @@ public class EmbeddingService {
     }
 
 
-
-    public CompletableFuture<Void> deleteByKey(String key) {
-        return CompletableFuture.runAsync(() -> {
-            embeddingStoreManager.deleteDocuments(key);
-            embedRepository.deleteById(key);
-        }, taskExecutor);
-    }
 
     public void resetOnly() {
         embeddingStoreManager.reset();
@@ -328,14 +329,11 @@ public class EmbeddingService {
 
 
     // QnA 임베딩
-    public CompletableFuture<Void> embedQna(String text, Long qnaId) {
-        return CompletableFuture.runAsync(() -> {
+    public String embedQna(String text, Long qnaId) {
 
-            String key = UUID.randomUUID().toString();
+        String key = UUID.randomUUID().toString();
 
-            Embed embed = Embed.createText(key, text, qnaId);
-            embedRepository.save(embed);
-
+        try {
             List<TextSegment> segments =
                     textSplitterStrategy.split(text)
                             .stream()
@@ -362,31 +360,80 @@ public class EmbeddingService {
                 vectors.add(embeddingResponse.content().get(i).vectorAsList());
             }
 
+            // 1️ Milvus 저장
             embeddingStoreManager.addDocuments(ids, texts, metadatas, vectors);
 
-            log.info("QnA embedding completed (key={})", key);
+            // 2️ DB 저장
+            Embed embed = Embed.createText(key, text, qnaId);
+            embedRepository.save(embed);
 
-        }, taskExecutor);
+            log.info("QnA embedding completed (key={})", key);
+            return key;
+
+        } catch (Exception e) {
+            qnaEmbeddingCleanupService.record(qnaId, key);
+            throw e;
+        }
     }
 
+
+    @Transactional
     public void replaceQnaEmbedding(Long qnaId, String text) {
 
-        // 기존 임베딩 조회
-        List<Embed> oldEmbeds = embedRepository.findByQnaId(qnaId);
+        // 1️ 이전 cleanup 정리
+        cleanupByQnaId(qnaId);
 
-        // embedKey 기준 Milvus + RDB 삭제
-        for (Embed embed : oldEmbeds) {
-            embeddingStoreManager.deleteDocuments(embed.getEmbedKey());
-            embedRepository.delete(embed);
+        // 2️ 기존 임베딩 조회
+        Embed oldEmbed = embedRepository.findByQnaId(qnaId).orElse(null);
+        String oldEmbedKey = oldEmbed != null ? oldEmbed.getEmbedKey() : null;
+
+        // 3️ 새 임베딩 생성
+        final String newEmbedKey = embedQna(text, qnaId);
+
+        try {
+            // 4️ 기존 임베딩 삭제
+            if (oldEmbedKey != null) {
+                boolean deleted =
+                        embeddingStoreManager.deleteDocuments(oldEmbedKey);
+
+                if (deleted) {
+                    embedRepository.delete(oldEmbed);
+                }
+            }
+
+        } catch (Exception e) {
+            qnaEmbeddingCleanupService.record(qnaId, newEmbedKey);
+            throw e;
         }
-
-        // 새 임베딩 생성
-
-
-        embedQna(text, qnaId);
-
-        log.info("QnA embedding replaced (qnaId={}, oldEmbeds={})",
-                qnaId, oldEmbeds.size());
     }
+
+
+
+
+    public boolean deleteEmbeddingByKey(String embedKey) {
+        return embeddingStoreManager.deleteDocuments(embedKey);
+    }
+
+
+    public void cleanupByQnaId(Long qnaId) {
+
+        List<QnaEmbeddingCleanup> cleanups =
+                qnaEmbeddingCleanupService.findByQnaId(qnaId);
+
+        for (QnaEmbeddingCleanup cleanup : cleanups) {
+
+            boolean deleted =
+                    deleteEmbeddingByKey(cleanup.getEmbedKey());
+
+            if (deleted) {
+                qnaEmbeddingCleanupService.delete(cleanup);
+            }
+        }
+    }
+
+
+
+
+
 
 }

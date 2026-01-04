@@ -107,19 +107,19 @@ public class AgentController {
 //                });
 //    }
 
-    @DeleteMapping("/embeddings/{key}")
-    public CompletableFuture<ResponseEntity<String>> deleteEmbed(@PathVariable String key) {
-        return embeddingService.deleteByKey(key)
-                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
-                .thenApply(v -> ResponseEntity.ok("success"))
-                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
-                .exceptionally(ex -> {
-                    log.error("resetAndEmbed 작업 실행 실패", ex);
-                    Throwable cause = ex.getCause();
-                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
-                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
-                });
-    }
+//    @DeleteMapping("/embeddings/{key}")
+//    public CompletableFuture<ResponseEntity<String>> deleteEmbed(@PathVariable String key) {
+//        return embeddingService.deleteByKey(key)
+//                // 저장소 재설정 및 임베딩 작업이 성공적으로 시작되면 200 OK 응답을 반환합니다.
+//                .thenApply(v -> ResponseEntity.ok("success"))
+//                // 작업 중 예외 발생 시 500 Internal Server Error 응답을 반환합니다.
+//                .exceptionally(ex -> {
+//                    log.error("resetAndEmbed 작업 실행 실패", ex);
+//                    Throwable cause = ex.getCause();
+//                    String errorMessage = (cause != null) ? cause.getMessage() : ex.getMessage();
+//                    return ResponseEntity.internalServerError().body("Failed to start reset and embedding process: " + errorMessage);
+//                });
+//    }
 
 //    @PostMapping("/embeddings/upload-csv")
 //    public CompletableFuture<ResponseEntity<String>> embedCsv(@RequestParam("file") MultipartFile file) {
@@ -175,13 +175,5 @@ public class AgentController {
 //    }
 
 
-        @PostMapping("/qna")
-        public CompletableFuture<ResponseEntity<Void>> embedQna(@RequestBody QnaEmbeddingRequest req) {
-            String text = "Q: " + req.getQuestion() + "\n" + "A: " + req.getAnswer();
-
-            return embeddingService
-                    .embedQna(text, req.getQuestionId())
-                    .thenApply(v -> ResponseEntity.ok().build());
-        }
     }
 

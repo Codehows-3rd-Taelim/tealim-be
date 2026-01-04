@@ -19,7 +19,7 @@ public class Embed {
     private String embedValue;
 
     @Enumerated(EnumType.STRING)
-    private EmbedSourceType sourceType; // TEXT / FILE
+    private EmbedSourceType sourceType; // TEXT
 
     // QnA 임베딩일 때만 값 있음
     private Long qnaId;

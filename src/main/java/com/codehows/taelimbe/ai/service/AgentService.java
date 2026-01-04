@@ -40,31 +40,17 @@ public class AgentService {
         // 1) 사용자 메시지 저장
         aiChatService.saveUserMessage(conversationId, userId, message);
 
+        // 2) RAG 검색
         List<Content> contents = contentRetriever.retrieve(Query.from(message));
 
         if (contents.isEmpty()) {
-
-            String fallback = "답변할 수 없는 정보입니다.";
-
-            aiChatService.saveAiMessage(conversationId, userId, fallback);
-            sseService.send(conversationId, fallback);
-            sseService.complete(conversationId);
-
-            // 미해결 질문 기록
+            // 미답 질문 기록
             qnaService.recordQuestion(message);
-
-            notificationService.notify(
-                    userId,
-                    NotificationType.AI_CHAT_SUCCESS,
-                    "AI 챗봇 답변이 도착했습니다"
-            );
-
-            return;
         }
 
 
 
-    // 2) TokenStream 가져오기
+        // 2) TokenStream 가져오기
         TokenStream stream = chatAgent.chat(message, conversationId);
 
         StringBuilder aiBuilder = new StringBuilder();
@@ -78,14 +64,8 @@ public class AgentService {
                     String rawAnswer = aiBuilder.toString();
                     String normalizedAnswer = normalizeForChat(rawAnswer);
 
-
                     aiChatService.saveAiMessage(conversationId, userId, normalizedAnswer);
                     sseService.complete(conversationId);
-
-                    // 답변 불가인 정보 미답 질문에 저장
-                    if ("답변드릴 수 없는 정보입니다.".equals(rawAnswer)) {
-                        qnaService.recordQuestion(message);
-                    }
 
                     notificationService.notify(userId, NotificationType.AI_CHAT_SUCCESS, "AI 챗봇 답변이 도착했습니다");
 
@@ -95,7 +75,7 @@ public class AgentService {
                     log.error("AI 스트림 오류", e);
                     sseService.completeWithError(conversationId, e);
                 })
-                .start();  
+                .start();
     }
 
     private String normalizeForChat(String text) {
@@ -134,8 +114,4 @@ public class AgentService {
                 .replaceAll("\\s{2,}", " ")
                 .trim();
     }
-
-
-
-
 }
