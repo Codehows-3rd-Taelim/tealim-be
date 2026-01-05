@@ -55,8 +55,15 @@ public class PuduReport {
     @Column(name = "map_url", length = 255)
     private String mapUrl;
 
+    @Column(name = "remark", columnDefinition = "TEXT")
+    private String remark;
+
     @ManyToOne
     @JoinColumn(name = "robot_id")
     private Robot robot;
+
+    public void updateRemark(String remark) {
+        this.remark = remark;
+    }
 
 }

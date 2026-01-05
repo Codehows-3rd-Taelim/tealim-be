@@ -5,8 +5,6 @@ import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class AnswerSetRequest {
-
-    private Long questionId;
-    private String answerText;
+public class UpdateAnswerRequest {
+    private String answer;
 }

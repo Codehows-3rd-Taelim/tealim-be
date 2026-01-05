@@ -49,23 +49,26 @@ public class AiReportService {
         log.info("🚀 보고서 생성 시작 - conversationId: {}", conversationId);
 
         User user = userRepository.findById(principal.userId()).orElseThrow();
-        ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(principal.isAdmin()));
+
+        String modifiedMessage = req.getMessage();
+
+        Long storeId = null;
+        String storeName = null;
 
         if (!principal.isAdmin()) {
-            // USER는 본인 매장 정보 설정
-            Long storeId = user.getStore().getStoreId();
-            String storeName = user.getStore().getShopName();
-
-            ToolArgsContextHolder.setToolArgs("fixedStoreId", storeId.toString());
-            ToolArgsContextHolder.setToolArgs("storeName", storeName);
-
-            // 프롬프트에 매장명 추가
-            String modifiedMessage = req.getMessage() + "\n\n[매장명: " + storeName + "]";
-            generateAsync(conversationId, req.getMessage(), modifiedMessage, principal);
-            return;
+            storeId = user.getStore().getStoreId();
+            storeName = user.getStore().getShopName();
+            modifiedMessage += "\n\n[매장명: " + storeName + "]";
         }
 
-        generateAsync(conversationId, req.getMessage(), req.getMessage(), principal);
+        generateAsync(
+                conversationId,
+                req.getMessage(),
+                modifiedMessage,
+                principal,
+                storeId,
+                storeName
+        );
     }
 
     // 2. SSE 연결
@@ -75,7 +78,15 @@ public class AiReportService {
 
     // 3. 실제 AI 보고서 생성 (비동기)
     @Async
-    public void generateAsync(String conversationId, String originalMessage, String aiMessage, UserPrincipal user) {
+    public void generateAsync(String conversationId, String originalMessage, String aiMessage,
+                              UserPrincipal user, Long storeId, String storeName) {
+
+        ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(user.isAdmin()));
+
+        if (!user.isAdmin()) {
+            ToolArgsContextHolder.setToolArgs("fixedStoreId", String.valueOf(storeId));
+            ToolArgsContextHolder.setToolArgs("storeName", storeName);
+        }
 
         if (aiMessage == null || aiMessage.isBlank()) {
             sseService.sendOnceAndComplete(
@@ -86,7 +97,6 @@ public class AiReportService {
             notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "보고서 요청 내용이 비어 있습니다.");
             return;
         }
-
         try {
             String generatedDate = LocalDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
@@ -178,6 +188,9 @@ public class AiReportService {
                     "fail",
                     "보고서 생성 중 예외 발생"
             );
+        } finally {
+            // 무조건 정리 (중요)
+            ToolArgsContextHolder.clear();
         }
     }
 

@@ -37,7 +37,7 @@ public class StoreController {
     @ResponseBody
     public ResponseEntity<PaginationDTO<StoreDTO>> getStore(
             @RequestParam(value = "page", required = false, defaultValue = "1") int page,
-            @RequestParam(value = "size", required = false, defaultValue = "20") int size) {
+            @RequestParam(value = "size", required = false, defaultValue = "15") int size) {
 
         Page<StoreDTO> storePage = storeService.findStoresPage(page - 1, size);
 
@@ -52,24 +52,26 @@ public class StoreController {
     }
     // 매장 직원 불러오기
     @GetMapping("/user")
-    public ResponseEntity<List<UserResponseDTO>> getStoreUser(
-            @RequestParam(value = "storeId", required = false) Long storeId) {
+    @ResponseBody
+    public ResponseEntity<PaginationDTO<UserResponseDTO>> getStoreUser(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "15") int size,
+            @RequestParam(required = false) Long storeId
+    ) {
+        Page<User> userPage =
+                storeService.findUsersPage(page - 1 , size, storeId);
 
-        List<User> users;
+        PaginationDTO<UserResponseDTO> dto = new PaginationDTO<>();
+        dto.setContent(
+                userPage.map(UserResponseDTO::fromEntity).getContent()
+        );
+        dto.setPage(userPage.getNumber() + 1);
+        dto.setSize(userPage.getSize());
+        dto.setTotalPages(userPage.getTotalPages());
+        dto.setTotalElements(userPage.getTotalElements());
 
-        if (storeId != null) {
-            users = storeService.findUsersByStore(storeId);
-        } else {
-            users = storeService.findAllUsers();
-        }
-
-        List<UserResponseDTO> userDTOs = users.stream()
-                .map(UserResponseDTO::fromEntity)
-                .toList();
-
-        return ResponseEntity.ok(userDTOs);
+        return ResponseEntity.ok(dto);
     }
-
     // 업종 불러오기
     @GetMapping("/industry")
     public ResponseEntity<List<Industry>> getIndustry() {
