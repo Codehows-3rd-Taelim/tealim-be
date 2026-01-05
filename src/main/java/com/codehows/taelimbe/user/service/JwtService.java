@@ -41,7 +41,7 @@ public class JwtService {
                 .claim("storeId", storeId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationTime)) // ← 수정
-                .signWith(signingKey, SignatureAlgorithm.HS256) // ← 수정
+                .signWith(signingKey, SignatureAlgorithm.HS512) // ← 수정
                 .compact();
     }
 

@@ -85,6 +85,22 @@ public class ReportTools {
     
     - USER: fixedStoreId만 허용.
     - ADMIN: resolveStore 결과 storeId 사용.
+    
+    ⚠️ 날짜 규칙:
+    - "어제" → 어제 날짜.
+    - "오늘" → 오늘 날짜.
+    - "지난주" → 지난주 월~일.
+    - "저번주" → 지난주 월~일.
+    - "이번주" → 이번주 월~일.
+    - "이번달" → 이번 달 1일~말일.
+    - 연도가 없는 경우:
+        - "n월" → **올해 n월** 데이터 조회 (예: "12월" → 2025-12-01 ~ 2025-12-31)
+    - 연도 + 월이 있는 경우:
+        - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
+    - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
+    
+    날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
+    storeId가 null이면 전매장 데이터를 조회합니다.
     """)
     public ReportResult getStoreReport(
             String startDate,
