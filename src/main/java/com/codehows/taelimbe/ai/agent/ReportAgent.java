@@ -130,7 +130,13 @@ public interface ReportAgent {
     | 총 청소 면적 | [모든 cleanArea 합계] ㎡ |
     | 평균 배터리 소모 | [costBattery 평균]% |
     | 총 물 소비량 | [모든 costWater 합계 / 1000] ℓ |
-    | 특이사항 | ([remark가 null이 아닌 startTime의 년-월-일]) [remark] |
+//    | 특이사항 | ([remark가 null이 아닌 startTime의 년-월-일]) [remark] |
+
+    ### 🔔 특이사항 요약
+    - remark가 null이 아닌 작업만 출력
+    - 각 항목은 **한 줄씩 출력**
+    - 날짜 형식은 [YYY-MM-DD]형식으로 대괄호 안에 startTime 넣어서 출력
+    - 형식: `[YYYY-MM-DD] remark 내용`
     
     ## 🤖 2. 로봇별 작업 현황
     
