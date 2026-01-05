@@ -196,4 +196,13 @@ public class StoreService {
         Page<Store> storePage = storeRepository.findAll(PageRequest.of(page, size, Sort.by("storeId").ascending()));
         return storePage.map(StoreDTO::fromEntity);
     }
+
+    public Page<User> findUsersPage(int page, int size, Long storeId) {
+        PageRequest pageable = PageRequest.of(page, size);
+
+        if (storeId != null) {
+            return userRepository.findByStore_StoreId(storeId, pageable);
+        }
+        return userRepository.findAll(pageable);
+    }
 }
