@@ -1,10 +1,7 @@
 package com.codehows.taelimbe.langchain.embaddings;
 
 import io.milvus.client.MilvusServiceClient;
-import io.milvus.grpc.GetCollectionStatisticsResponse;
-import io.milvus.grpc.KeyValuePair;
-import io.milvus.grpc.MutationResult;
-import io.milvus.grpc.QueryResults;
+import io.milvus.grpc.*;
 import io.milvus.param.*;
 import io.milvus.param.collection.*;
 import io.milvus.param.dml.DeleteParam;
@@ -45,53 +42,9 @@ public class EmbeddingStoreManager {
     @Value("${milvus.collection-name}")
     private String milvusCollectionName;
 
-    @Value("${milvus.collection-name.file:}")
-    private String fileCollectionName;
-
     // application.properties에서 Milvus 임베딩 모델의 차원 수를 주입받습니다.
     @Value("${milvus.embedding.dimension}")
     private Integer embeddingDimension;
-
-
-
-    // 밀버스 데이터 0인지 계산 (밀버스 데이터 0이면 llm이 자유대화모드 -> 헛소리 위험)
-    public boolean isEmpty() {
-
-        MilvusServiceClient client = new MilvusServiceClient(
-                ConnectParam.newBuilder()
-                        .withHost(milvusHost)
-                        .withPort(milvusPort)
-                        .build()
-        );
-
-        try {
-            R<GetCollectionStatisticsResponse> res =
-                    client.getCollectionStatistics(
-                            GetCollectionStatisticsParam.newBuilder()
-                                    .withCollectionName(milvusCollectionName)
-                                    .build()
-                    );
-
-            if (res.getStatus() != R.Status.Success.getCode()) {
-                // 안전하게 비어있다고 간주
-                return true;
-            }
-
-            long rowCount = 0;
-
-            for (KeyValuePair kv : res.getData().getStatsList()) {
-                if ("row_count".equals(kv.getKey())) {
-                    rowCount = Long.parseLong(kv.getValue());
-                    break;
-                }
-            }
-
-            return rowCount == 0;
-
-        } finally {
-            client.close();
-        }
-    }
 
 
 
@@ -178,51 +131,16 @@ public class EmbeddingStoreManager {
     /**
      * Milvus에 벡터 데이터를 추가합니다.
      */
-    // 텍스트 임베딩용
+    // qna 임베딩용
     public void addDocuments(
+
             List<String> ids,
             List<String> texts,
             List<JSONObject> metadatas,
             List<List<Float>> vectors
     ) {
-        addDocumentsInternal(
-                milvusCollectionName,
-                ids,
-                texts,
-                metadatas,
-                vectors
-        );
-    }
+        String collectionName = milvusCollectionName;
 
-    // 파일 임베딩용 오버로드
-    public void addDocuments(
-            List<String> ids,
-            List<String> texts,
-            List<JSONObject> metadatas,
-            List<List<Float>> vectors,
-            boolean useFileCollection
-    ) {
-        String targetCollection =
-                useFileCollection && fileCollectionName != null && !fileCollectionName.isEmpty()
-                        ? fileCollectionName
-                        : milvusCollectionName;
-
-        addDocumentsInternal(
-                targetCollection,
-                ids,
-                texts,
-                metadatas,
-                vectors
-        );
-    }
-
-    private void addDocumentsInternal(
-            String collectionName,
-            List<String> ids,
-            List<String> texts,
-            List<JSONObject> metadatas,
-            List<List<Float>> vectors
-    ) {
         log.info("Milvus 벡터 데이터 저장 시작 ({}건, collection={})",
                 vectors.size(), collectionName);
 
@@ -265,7 +183,9 @@ public class EmbeddingStoreManager {
     /**
      * 특정 key에 해당하는 벡터 데이터를 삭제합니다.
      */
-    public void deleteDocuments(String key) {
+    // true = 삭제됨, false = 삭제 불확실
+    public boolean deleteDocuments(String key) {
+
         log.info("Milvus 데이터 삭제 시작 (key={})", key);
 
         MilvusServiceClient milvusClient = new MilvusServiceClient(
@@ -279,13 +199,11 @@ public class EmbeddingStoreManager {
             List<String> targetCollections = new ArrayList<>();
             targetCollections.add(milvusCollectionName);
 
-            if (fileCollectionName != null && !fileCollectionName.isEmpty()) {
-                targetCollections.add(fileCollectionName);
-            }
-
             for (String collection : targetCollections) {
 
-                String queryExpr = "metadata[\"key\"] == \"%s\"".formatted(key);
+                String queryExpr =
+                        "metadata[\"key\"] == \"%s\" || metadata[\"embedKey\"] == \"%s\""
+                                .formatted(key, key);
 
                 QueryParam queryParam = QueryParam.newBuilder()
                         .withCollectionName(collection)
@@ -293,19 +211,26 @@ public class EmbeddingStoreManager {
                         .withOutFields(Collections.singletonList("id"))
                         .build();
 
+                // 1️. query
                 R<QueryResults> queryResponse = milvusClient.query(queryParam);
                 if (queryResponse.getStatus() != R.Status.Success.getCode()) {
-                    continue;
+                    log.warn("Milvus query failed (status={})", queryResponse.getStatus());
+                    return false;
                 }
 
-                QueryResultsWrapper wrapper = new QueryResultsWrapper(queryResponse.getData());
+                QueryResultsWrapper wrapper =
+                        new QueryResultsWrapper(queryResponse.getData());
+
                 List<String> ids =
                         (List<String>) wrapper.getFieldWrapper("id").getFieldData();
 
+                // 2. 이미 없음 = 확실
                 if (ids.isEmpty()) {
-                    continue;
+                    log.info("삭제 대상 없음 (이미 삭제됨) key={}", key);
+                    return true;
                 }
 
+                // 3️. 삭제
                 String deleteExpr = "id in [%s]".formatted(
                         ids.stream()
                                 .map(id -> "\"" + id + "\"")
@@ -317,22 +242,42 @@ public class EmbeddingStoreManager {
                         .withExpr(deleteExpr)
                         .build();
 
-                milvusClient.delete(deleteParam);
-                milvusClient.flush(
-                        FlushParam.newBuilder()
-                                .withCollectionNames(Collections.singletonList(collection))
-                                .build()
-                );
+                R<MutationResult> deleteResponse =
+                        milvusClient.delete(deleteParam);
+
+                if (deleteResponse.getStatus() != R.Status.Success.getCode()) {
+                    log.warn("Milvus delete failed (status={})", deleteResponse.getStatus());
+                    return false;
+                }
+
+                // 4️. flush
+                R<FlushResponse> flushResponse =
+                        milvusClient.flush(
+                                FlushParam.newBuilder()
+                                        .withCollectionNames(
+                                                Collections.singletonList(collection))
+                                        .build()
+                        );
+
+                if (flushResponse.getStatus() != R.Status.Success.getCode()) {
+                    log.warn("Milvus flush failed (status={})", flushResponse.getStatus());
+                    return false;
+                }
 
                 log.info("Milvus 데이터 삭제 완료 ({}건, collection={}, key={})",
                         ids.size(), collection, key);
             }
 
+            return true;
+
         } catch (Exception e) {
-            log.error("Milvus 데이터 삭제 중 오류 발생 (key={})", key, e);
-            throw new RuntimeException("Milvus 데이터 삭제 실패", e);
+            log.warn("Milvus 데이터 삭제 중 불확실 오류 (key={})", key, e);
+            return false;
         } finally {
             milvusClient.close();
         }
     }
+
+
 }
+

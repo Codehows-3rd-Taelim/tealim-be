@@ -67,9 +67,7 @@ dependencies {
 
     // ⭐ 핵심: MapChatMemoryProvider가 포함된 core 모듈을 명시적으로 추가
     implementation 'dev.langchain4j:langchain4j-core:0.31.0'
-
-    implementation 'com.google.genai:google-genai:1.28.0'
-
+    implementation 'com.google.genai:google-genai:1.32.0'
     implementation platform('io.grpc:grpc-bom:1.59.1') 
     implementation 'io.grpc:grpc-api'
     implementation 'io.grpc:grpc-core'

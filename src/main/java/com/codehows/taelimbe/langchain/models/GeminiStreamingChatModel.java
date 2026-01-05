@@ -51,6 +51,12 @@ public class GeminiStreamingChatModel implements StreamingChatLanguageModel {
 
         GenerateContentConfig config = GenerateContentConfig.builder()
                 .tools(googleAiTools)
+                .temperature(0f)
+                .topP(0.95f)
+                .topK(40f)
+                .maxOutputTokens(2048)
+                .thinkingConfig(ThinkingConfig.builder().thinkingBudget(0))
+                .candidateCount(1)
                 .build();
 
         AtomicReference<StringBuilder> contentBuilder = new AtomicReference<>(new StringBuilder());

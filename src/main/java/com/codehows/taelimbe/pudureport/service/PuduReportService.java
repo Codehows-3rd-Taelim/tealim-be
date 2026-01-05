@@ -45,6 +45,15 @@ public class PuduReportService {
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    private String resolveSortKey(String sortKey) {
+        return switch (sortKey) {
+            case "sn" -> "robot.sn";
+            case "storeName" -> "robot.store.shopName";
+            case "mapName" -> "mapName";
+            default -> "startTime";
+        };
+    }
+
     // 단일 매장 특정 기간 보고서 조회
     @Transactional
     public int syncSingleStoreByTimeRange(StoreTimeRangeSyncRequestDTO req) {
@@ -139,6 +148,24 @@ public class PuduReportService {
                 .orElseThrow(() -> new IllegalArgumentException("Report not found: "+id));
     }
 
+    // 특이사항 저장
+    @Transactional
+    public PuduReportDTO updateRemark(Long puduReportId, String remark) {
+
+        PuduReport report = puduReportRepository.findById(puduReportId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Report not found: " + puduReportId)
+                );
+
+        // 특이사항 업데이트
+        report.updateRemark(remark);
+
+        // save는 선택이지만 명시적으로 해주는 게 좋음
+        puduReportRepository.save(report);
+
+        return PuduReportDTO.createReportDTO(report);
+    }
+
     public List<PuduReportDTO> getReport(String startDate, String endDate){
 
         if(startDate == null || startDate.isEmpty())
@@ -155,67 +182,68 @@ public class PuduReportService {
                 .toList();
     }
 
-    @Transactional(readOnly = true)
-    public List<PuduReportResponseDTO> getReports(
-            Long storeId,
-            Long filterStoreId,
-            String sn,
-            LocalDateTime start,
-            LocalDateTime end,
-            String sortKey,
-            String sortOrder
-    ) {
-        Sort sort = Sort.by(
-                "desc".equalsIgnoreCase(sortOrder)
-                        ? Sort.Direction.DESC
-                        : Sort.Direction.ASC,
-                sortKey
-        );
-
-        // 1. sn 우선
-        if (sn != null && !sn.isBlank()) {
-            return puduReportRepository
-                    .findByRobot_SnAndStartTimeBetween(sn, start, end, sort)
-                    .stream()
-                    .map(PuduReportResponseDTO::createReportResponseDTO)
-                    .toList();
-        }
-
-        // 2. filterStoreId (관리자)
-        if (filterStoreId != null) {
-            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(filterStoreId);
-            if (robotIds.isEmpty()) return List.of();
-
-            return puduReportRepository
-                    .findAllByRobot_RobotIdInAndStartTimeBetween(
-                            robotIds, start, end, sort
-                    )
-                    .stream()
-                    .map(PuduReportResponseDTO::createReportResponseDTO)
-                    .toList();
-        }
-
-        // 3. storeId (일반 유저)
-        if (storeId != null) {
-            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(storeId);
-            if (robotIds.isEmpty()) return List.of();
-
-            return puduReportRepository
-                    .findAllByRobot_RobotIdInAndStartTimeBetween(
-                            robotIds, start, end, sort
-                    )
-                    .stream()
-                    .map(PuduReportResponseDTO::createReportResponseDTO)
-                    .toList();
-        }
-
-        // 4. 전체 (페이징 X)
-        return puduReportRepository
-                .findByStartTimeBetween(start, end, sort)
-                .stream()
-                .map(PuduReportResponseDTO::createReportResponseDTO)
-                .toList();
-    }
+    /*legacy - paging 없는 조회 (현재 사용 안 함)*/
+//    @Transactional(readOnly = true)
+//    public List<PuduReportResponseDTO> getReports(
+//            Long storeId,
+//            Long filterStoreId,
+//            String sn,
+//            LocalDateTime start,
+//            LocalDateTime end,
+//            String sortKey,
+//            String sortOrder
+//    ) {
+//        Sort sort = Sort.by(
+//                "desc".equalsIgnoreCase(sortOrder)
+//                        ? Sort.Direction.DESC
+//                        : Sort.Direction.ASC,
+//                sortKey
+//        );
+//
+//        // 1. sn 우선
+//        if (sn != null && !sn.isBlank()) {
+//            return puduReportRepository
+//                    .findByRobot_SnAndStartTimeBetween(sn, start, end, sort)
+//                    .stream()
+//                    .map(PuduReportResponseDTO::createReportResponseDTO)
+//                    .toList();
+//        }
+//
+//        // 2. filterStoreId (관리자)
+//        if (filterStoreId != null) {
+//            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(filterStoreId);
+//            if (robotIds.isEmpty()) return List.of();
+//
+//            return puduReportRepository
+//                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+//                            robotIds, start, end, sort
+//                    )
+//                    .stream()
+//                    .map(PuduReportResponseDTO::createReportResponseDTO)
+//                    .toList();
+//        }
+//
+//        // 3. storeId (일반 유저)
+//        if (storeId != null) {
+//            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(storeId);
+//            if (robotIds.isEmpty()) return List.of();
+//
+//            return puduReportRepository
+//                    .findAllByRobot_RobotIdInAndStartTimeBetween(
+//                            robotIds, start, end, sort
+//                    )
+//                    .stream()
+//                    .map(PuduReportResponseDTO::createReportResponseDTO)
+//                    .toList();
+//        }
+//
+//        // 4. 전체 (페이징 X)
+//        return puduReportRepository
+//                .findByStartTimeBetween(start, end, sort)
+//                .stream()
+//                .map(PuduReportResponseDTO::createReportResponseDTO)
+//                .toList();
+//    }
 
 
     @Transactional(readOnly = true)
@@ -230,11 +258,13 @@ public class PuduReportService {
             String sortKey,
             String sortOrder
     ) {
+        String resolvedSortKey = resolveSortKey(sortKey);
+
         Sort sort = Sort.by(
                 "desc".equalsIgnoreCase(sortOrder)
                         ? Sort.Direction.DESC
                         : Sort.Direction.ASC,
-                sortKey
+                resolvedSortKey
         );
 
         Pageable pageable = PageRequest.of(page, size, sort);
