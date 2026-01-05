@@ -62,9 +62,8 @@ public class AgentService {
                 })
                 .onComplete(finalResponse -> {
                     String rawAnswer = aiBuilder.toString();
-                    String normalizedAnswer = normalizeForChat(rawAnswer);
 
-                    aiChatService.saveAiMessage(conversationId, userId, normalizedAnswer);
+                    aiChatService.saveAiMessage(conversationId, userId, rawAnswer);
                     sseService.complete(conversationId);
 
                     notificationService.notify(userId, NotificationType.AI_CHAT_SUCCESS, "AI 챗봇 답변이 도착했습니다");
@@ -78,40 +77,4 @@ public class AgentService {
                 .start();
     }
 
-    private String normalizeForChat(String text) {
-        if (text == null) return null;
-
-        // 마크다운/기호 제거
-        String t = text
-                .replace("**", "")
-                .replace("*", "")
-                .replaceAll("(?m)^#+\\s*", "")
-                .replaceAll("(?m)^-+\\s*", "");
-
-        // 줄 단위 처리
-        String[] lines = t.split("\\r?\\n");
-        StringBuilder result = new StringBuilder();
-
-        for (int i = 0; i < lines.length; i++) {
-            String line = lines[i].trim();
-            if (line.isEmpty()) continue;
-
-            // 값 없는 헤더 제거 (":"로 끝나고 다음 줄이 또 라벨:값 형태)
-            if (line.endsWith(":") &&
-                    i + 1 < lines.length &&
-                    lines[i + 1].contains(":")) {
-                continue;
-            }
-
-            if (result.length() > 0) {
-                result.append(" ");
-            }
-            result.append(line);
-        }
-
-        // 공백 정리
-        return result.toString()
-                .replaceAll("\\s{2,}", " ")
-                .trim();
-    }
 }

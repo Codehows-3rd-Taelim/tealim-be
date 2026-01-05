@@ -1,6 +1,5 @@
 package com.codehows.taelimbe.ai.service;
 
-import com.codehows.taelimbe.ai.constant.QnaEmbeddingFailPoint;
 import com.codehows.taelimbe.ai.entity.Embed;
 import com.codehows.taelimbe.ai.entity.QnaEmbeddingCleanup;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
@@ -12,7 +11,6 @@ import dev.langchain4j.data.segment.TextSegment;
 import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.output.Response;
 import dev.langchain4j.store.embedding.EmbeddingStore;
-import jakarta.transaction.Transactional;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
@@ -44,8 +42,6 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class EmbeddingService {
 
-    @Value("${embedding.qna.fail-point:NONE}")
-    private QnaEmbeddingFailPoint qnaFailPoint;
 
     // 텍스트를 임베딩 벡터로 변환하는 모델을 주입받습니다.
     private final EmbeddingModel embeddingModel;
@@ -377,7 +373,6 @@ public class EmbeddingService {
     }
 
 
-    @Transactional
     public void replaceQnaEmbedding(Long qnaId, String text) {
 
         // 1️ 이전 cleanup 정리
@@ -389,6 +384,7 @@ public class EmbeddingService {
 
         // 3️ 새 임베딩 생성
         final String newEmbedKey = embedQna(text, qnaId);
+
 
         try {
             // 4️ 기존 임베딩 삭제
