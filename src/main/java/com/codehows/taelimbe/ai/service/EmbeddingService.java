@@ -3,6 +3,7 @@ package com.codehows.taelimbe.ai.service;
 import com.codehows.taelimbe.ai.entity.Embed;
 import com.codehows.taelimbe.ai.entity.QnaEmbeddingCleanup;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
+import com.codehows.taelimbe.langchain.converters.PdfEmbeddingNormalizer;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import com.codehows.taelimbe.langchain.embaddings.TextSplitterStrategy;
 import dev.langchain4j.data.document.Metadata;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 텍스트 임베딩 및 벡터 저장소 관리를 담당하는 서비스입니다.
@@ -57,6 +59,7 @@ public class EmbeddingService {
     private final EmbedRepository embedRepository;
 
     private final QnaEmbeddingCleanupService qnaEmbeddingCleanupService;
+
 
     // 비동기 작업을 위한 스레드 풀을 주입받습니다.
     @Qualifier("taskExecutor")
@@ -168,16 +171,21 @@ public class EmbeddingService {
                  Reader reader = new InputStreamReader(bomIn, StandardCharsets.UTF_8)) {
 
                 Iterable<CSVRecord> records =
-                        CSVFormat.DEFAULT.withFirstRecordAsHeader().parse(reader);
+                        CSVFormat.DEFAULT
+                                .withFirstRecordAsHeader()
+                                .withIgnoreHeaderCase()
+                                .withTrim()
+                                .parse(reader);
 
                 List<TextSegment> buffer = new ArrayList<>(embeddingCsvBatchSize);
+                AtomicInteger chunkCounter = new AtomicInteger(1);
 
                 for (CSVRecord record : records) {
 
                     String documentText = String.format(
                             "제목: %s\n내용: %s",
-                            record.get("column1"),
-                            record.get("column2")
+                            record.get("title"),
+                            record.get("content")
                     );
 
                     List<TextSegment> segments =
@@ -190,14 +198,14 @@ public class EmbeddingService {
                         buffer.add(segment);
 
                         if (buffer.size() >= embeddingCsvBatchSize) {
-                            flushBatch(buffer,embedKey,"csv");
+                            flushBatch(buffer, embedKey, "CSV", chunkCounter);
                         }
                     }
                 }
 
                 // 남은 batch 처리
                 if (!buffer.isEmpty()) {
-                    flushBatch(buffer,embedKey,"csv");
+                    flushBatch(buffer, embedKey, "CSV", chunkCounter);
                 }
 
                 log.info("CSV 병렬 임베딩 완료");
@@ -219,26 +227,31 @@ public class EmbeddingService {
             try (PDDocument document = PDDocument.load(file.getInputStream())) {
 
                 PDFTextStripper stripper = new PDFTextStripper();
-                String text = stripper.getText(document);
+                String rawText = stripper.getText(document);
+
+                String embeddingText =
+                        PdfEmbeddingNormalizer.normalize(rawText, file.getOriginalFilename());
+
 
                 List<TextSegment> segments =
-                        textSplitterStrategy.split(text)
+                        textSplitterStrategy.split(embeddingText)
                                 .stream()
                                 .map(TextSegment::from)
                                 .toList();
 
                 List<TextSegment> buffer = new ArrayList<>(embeddingPdfBatchSize);
+                AtomicInteger chunkCounter = new AtomicInteger(1);
 
                 for (TextSegment segment : segments) {
                     buffer.add(segment);
 
                     if (buffer.size() >= embeddingPdfBatchSize) {
-                        flushBatch(buffer, embedKey, "PDF");
+                        flushBatch(buffer, embedKey, "PDF",chunkCounter);
                     }
                 }
 
                 if (!buffer.isEmpty()) {
-                    flushBatch(buffer, embedKey, "PDF");
+                    flushBatch(buffer, embedKey, "PDF",chunkCounter);
                 }
 
                 log.info("PDF 병렬 임베딩 완료 (embedKey={})", embedKey);
@@ -255,7 +268,9 @@ public class EmbeddingService {
     private void flushBatch(
             List<TextSegment> batch,
             String embedKey,
-            String source
+            String source,
+            AtomicInteger chunkCounter
+
     ) {
         Response<List<Embedding>> embeddings =
                 parallelEmbeddingModel.embedAll(batch);
@@ -264,7 +279,7 @@ public class EmbeddingService {
             Metadata metadata = new Metadata();
             metadata.put("embedKey", embedKey);
             metadata.put("source", source);
-            metadata.put("chunk", i + 1);
+            metadata.put("chunk", chunkCounter.getAndIncrement());
 
             TextSegment segmentWithMeta =
                     TextSegment.from(batch.get(i).text(), metadata);
