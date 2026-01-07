@@ -110,11 +110,20 @@ public class QnaService {
     public void recordQuestion(String rawQuestion, User user) {
         String normalized = normalize(rawQuestion);
 
-        qnaRepository.findByNormalizedText(normalized)
-                .orElseGet(() ->
-                        qnaRepository.save(
-                                Qna.create(rawQuestion, normalized, user)
-                        )
-                );
+        // 아직 미처리된 동일 질문이 있으면 생성 안 함
+        boolean existsUnresolved =
+                qnaRepository
+                        .findByNormalizedTextAndResolvedFalse(normalized)
+                        .isPresent();
+
+        if (existsUnresolved) {
+            return;
+        }
+
+        // 없으면 새 질문 생성
+        qnaRepository.save(
+                Qna.create(rawQuestion, normalized, user)
+        );
     }
+
 }

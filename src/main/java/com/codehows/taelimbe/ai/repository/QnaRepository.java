@@ -37,4 +37,6 @@ public interface QnaRepository extends JpaRepository<Qna, Long> {
 
     // 유저 본인 + status 조건
     List<Qna> findByUserIdAndStatus(Long userId, QnaStatus status);
+
+    Optional<Qna> findByNormalizedTextAndResolvedFalse(String normalizedText);
 }
