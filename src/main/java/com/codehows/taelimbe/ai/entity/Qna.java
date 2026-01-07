@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.ai.entity;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
+import com.codehows.taelimbe.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -44,9 +45,13 @@ public class Qna {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
 
-    public static Qna create(String questionText, String normalizedText) {
+
+    public static Qna create(String questionText, String normalizedText, User user) {
         Qna q = new Qna();
         q.questionText = questionText;
         q.normalizedText = normalizedText;
@@ -54,6 +59,8 @@ public class Qna {
         q.status = null;
         q.createdAt = LocalDateTime.now();
         q.updatedAt = q.createdAt;
+        q.user = user;
+
         return q;
     }
 
