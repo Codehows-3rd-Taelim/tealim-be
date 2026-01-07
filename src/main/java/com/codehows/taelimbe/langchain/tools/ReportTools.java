@@ -50,6 +50,11 @@ public class ReportTools {
     - 연도 + 월이 있는 경우:
         - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
     - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
+    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위(startDate, endDate)로 변환하세요.
+        - 예:
+          - "25년 12월부터 26년 1월" →
+            startDate = 2025-12-01
+            endDate   = 2026-01-31
     
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
     storeId가 null이면 전매장 데이터를 조회합니다.
@@ -98,6 +103,11 @@ public class ReportTools {
     - 연도 + 월이 있는 경우:
         - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
     - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
+    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위(startDate, endDate)로 변환하세요.
+        - 예:
+          - "25년 12월부터 26년 1월" →
+            startDate = 2025-12-01
+            endDate   = 2026-01-31
     
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
     storeId가 null이면 전매장 데이터를 조회합니다.
@@ -130,9 +140,10 @@ public class ReportTools {
 
         List<PuduReportDTO> reports =
                 puduReportService.getReportByStoreId(
+                        resolvedStoreId,
                         startDate,
-                        endDate,
-                        resolvedStoreId
+                        endDate
+
                 );
 
         return new ReportResult(gson.toJson(reports), startDate, endDate);
