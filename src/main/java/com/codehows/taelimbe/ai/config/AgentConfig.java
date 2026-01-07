@@ -3,6 +3,7 @@ package com.codehows.taelimbe.ai.config;
 import com.codehows.taelimbe.ai.agent.ReportAgent;
 import com.codehows.taelimbe.langchain.Agent;
 import com.codehows.taelimbe.langchain.tools.ChatTools;
+import com.codehows.taelimbe.langchain.JudgeAgent;
 import com.codehows.taelimbe.langchain.tools.ReportTools;
 import dev.langchain4j.memory.chat.ChatMemoryProvider;
 import dev.langchain4j.model.chat.StreamingChatLanguageModel;
@@ -48,4 +49,17 @@ public class AgentConfig {
                 .contentRetriever(contentRetriever) // RAG를 위한 콘텐츠 검색기를 등록합니다.
                 .build();
     }
+
+    @Bean
+    public JudgeAgent judgeAgent(StreamingChatLanguageModel streamingChatLanguageModel, ContentRetriever contentRetriever, ChatTools chatTools) {
+        return AiServices.builder(JudgeAgent.class)
+                .streamingChatLanguageModel(streamingChatLanguageModel)
+                .contentRetriever(contentRetriever)
+                .build();
+    }
+
+
+
+
+
 }

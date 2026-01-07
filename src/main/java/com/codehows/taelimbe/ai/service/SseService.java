@@ -44,10 +44,34 @@ public class SseService {
         return emitter;
     }
 
-    // 토큰 스트리밍 전송 ( event name : message) */
-    public void send(String conversationId, String data) {
-        sendEvent(conversationId, "message", data);
+    public void sendFinalAndComplete(String conversationId, Object data) {
+        SseEmitter emitter = emitters.get(conversationId);
+        if (emitter == null) {
+            log.warn("SSE emitter not found. conversationId={}", conversationId);
+            return;
+        }
+
+        try {
+            log.info("📤 Sending FINAL SSE event. conversationId={}", conversationId);
+
+
+            emitter.send(
+                    SseEmitter.event()
+                            .name("message")
+                            .data(data)
+            );
+
+            Thread.sleep(10);
+
+            emitter.complete();
+        } catch (Exception e) {
+            emitters.remove(conversationId);
+            log.error("SSE final send failed. conversationId={}", conversationId, e);
+        } finally {
+            emitters.remove(conversationId);
+        }
     }
+
 
     // named event 전송
     public void sendEvent(String conversationId, String event, Object data) {
@@ -137,5 +161,7 @@ public class SseService {
             }
         }
     }
+
+
 
 }
