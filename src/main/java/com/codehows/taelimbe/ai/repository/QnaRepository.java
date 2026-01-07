@@ -23,20 +23,17 @@ public interface QnaRepository extends JpaRepository<Qna, Long> {
     // 파일/정책 처리된 질문
     @Query("""
         select q
-        from Qna qQ
+        from Qna q
         where q.resolved = true
           and (q.status is null or q.status <> 'APPLIED')
     """)
     List<Qna> findResolvedWithoutQna();
 
     // 유저 본인 QnA 전체
-    List<Qna> findByUserId(Long userId);
+    List<Qna> findByUser_UserId(Long userId);
 
-    // 유저 본인 + resolved 조건
-    List<Qna> findByUserIdAndResolved(Long userId, boolean resolved);
+    List<Qna> findByUser_UserIdAndResolved(Long userId, boolean resolved);
 
-    // 유저 본인 + status 조건
-    List<Qna> findByUserIdAndStatus(Long userId, QnaStatus status);
-
+    List<Qna> findByUser_UserIdAndStatus(Long userId, QnaStatus status);
     Optional<Qna> findByNormalizedTextAndResolvedFalse(String normalizedText);
 }

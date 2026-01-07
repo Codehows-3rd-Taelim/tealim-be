@@ -77,14 +77,14 @@ public class QnaService {
         if (user.isAdmin()) {
             return qnaRepository.findAll();
         }
-        return qnaRepository.findByUserId(user.userId());
+        return qnaRepository.findByUser_UserId(user.userId());
     }
 
     public List<Qna> findByResolved(boolean resolved, UserPrincipal user) {
         if (user.isAdmin()) {
             return qnaRepository.findByResolved(resolved);
         }
-        return qnaRepository.findByUserIdAndResolved(
+        return qnaRepository.findByUser_UserIdAndResolved(
                 user.userId(), resolved
         );
     }
@@ -93,10 +93,11 @@ public class QnaService {
         if (user.isAdmin()) {
             return qnaRepository.findByStatus(status);
         }
-        return qnaRepository.findByUserIdAndStatus(
+        return qnaRepository.findByUser_UserIdAndStatus(
                 user.userId(), status
         );
     }
+
 
 
 
