@@ -68,4 +68,10 @@ public class EmbedFileService {
         embedFileRepository.delete(file);
     }
 
+    @Transactional(readOnly = true)
+    public EmbedFile getFileById(Long id) {
+        return embedFileRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("파일이 존재하지 않습니다. id=" + id));
+    }
+
 }
