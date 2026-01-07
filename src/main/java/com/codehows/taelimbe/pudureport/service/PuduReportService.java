@@ -182,69 +182,47 @@ public class PuduReportService {
                 .toList();
     }
 
-    /*legacy - paging 없는 조회 (현재 사용 안 함)*/
-//    @Transactional(readOnly = true)
-//    public List<PuduReportResponseDTO> getReports(
-//            Long storeId,
-//            Long filterStoreId,
-//            String sn,
-//            LocalDateTime start,
-//            LocalDateTime end,
-//            String sortKey,
-//            String sortOrder
-//    ) {
-//        Sort sort = Sort.by(
-//                "desc".equalsIgnoreCase(sortOrder)
-//                        ? Sort.Direction.DESC
-//                        : Sort.Direction.ASC,
-//                sortKey
-//        );
-//
-//        // 1. sn 우선
-//        if (sn != null && !sn.isBlank()) {
-//            return puduReportRepository
-//                    .findByRobot_SnAndStartTimeBetween(sn, start, end, sort)
-//                    .stream()
-//                    .map(PuduReportResponseDTO::createReportResponseDTO)
-//                    .toList();
-//        }
-//
-//        // 2. filterStoreId (관리자)
-//        if (filterStoreId != null) {
-//            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(filterStoreId);
-//            if (robotIds.isEmpty()) return List.of();
-//
-//            return puduReportRepository
-//                    .findAllByRobot_RobotIdInAndStartTimeBetween(
-//                            robotIds, start, end, sort
-//                    )
-//                    .stream()
-//                    .map(PuduReportResponseDTO::createReportResponseDTO)
-//                    .toList();
-//        }
-//
-//        // 3. storeId (일반 유저)
-//        if (storeId != null) {
-//            List<Long> robotIds = robotRepository.findRobotIdsByStoreId(storeId);
-//            if (robotIds.isEmpty()) return List.of();
-//
-//            return puduReportRepository
-//                    .findAllByRobot_RobotIdInAndStartTimeBetween(
-//                            robotIds, start, end, sort
-//                    )
-//                    .stream()
-//                    .map(PuduReportResponseDTO::createReportResponseDTO)
-//                    .toList();
-//        }
-//
-//        // 4. 전체 (페이징 X)
-//        return puduReportRepository
-//                .findByStartTimeBetween(start, end, sort)
-//                .stream()
-//                .map(PuduReportResponseDTO::createReportResponseDTO)
-//                .toList();
-//    }
+    /*legacy - paging 없는 조회 (대시보드용)*/
+    // storeId가 없는 경우
+    @Transactional(readOnly = true)
+    public List<PuduReportResponseDTO> getReportsAllStores(
+            String startDate,
+            String endDate
+    ) {
+        LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
+        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
 
+        return puduReportRepository
+                .findByStartTimeBetween(start, end)
+                .stream()
+                .map(PuduReportResponseDTO::createReportResponseDTO)
+                .toList();
+    }
+
+    // ai report에서 사용
+    @Transactional(readOnly = true)
+    public List<PuduReportResponseDTO> getReportByStore(
+            Long storeId,
+            String startDate,
+            String endDate
+    ) {
+        LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
+        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
+
+        List<Long> robotIds = robotRepository.findRobotIdsByStoreId(storeId);
+
+        if (robotIds.isEmpty()) {
+            return List.of();
+        }
+
+        Sort sort = Sort.by(Sort.Direction.DESC, "startTime");
+
+        return puduReportRepository
+                .findAllByRobot_RobotIdInAndStartTimeBetween(robotIds, start, end, sort)
+                .stream()
+                .map(PuduReportResponseDTO::createReportResponseDTO)
+                .toList();
+    }
 
     @Transactional(readOnly = true)
     public Page<PuduReportResponseDTO> getReportsPage(
@@ -302,9 +280,9 @@ public class PuduReportService {
 
     // ai report에서 사용
     public List<PuduReportDTO> getReportByStoreId(
+            Long storeId,
             String startDate,
-            String endDate,
-            Long storeId
+            String endDate
     ) {
         LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
         LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);

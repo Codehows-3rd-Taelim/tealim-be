@@ -140,9 +140,10 @@ public class ReportTools {
 
         List<PuduReportDTO> reports =
                 puduReportService.getReportByStoreId(
+                        resolvedStoreId,
                         startDate,
-                        endDate,
-                        resolvedStoreId
+                        endDate
+
                 );
 
         return new ReportResult(gson.toJson(reports), startDate, endDate);

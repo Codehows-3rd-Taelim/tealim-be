@@ -106,5 +106,25 @@ public class PuduReportController {
                 )
         );
     }
+
+    // 해당 store의 report 조회
+    @GetMapping("/list")
+    public ResponseEntity<List<PuduReportResponseDTO>> getReportsforDashboard(
+            @RequestParam(value = "storeId", required = false) Long storeId,
+            @RequestParam(value = "startDate", required = false) String startDate,
+            @RequestParam(value = "endDate", required = false) String endDate
+    ) {
+        List<PuduReportResponseDTO> reports;
+
+        if (storeId == null) {
+            // 전체 매장
+            reports = puduReportService.getReportsAllStores(startDate, endDate);
+        } else {
+            // 특정 매장
+            reports = puduReportService.getReportByStore(storeId, startDate, endDate);
+        }
+
+        return ResponseEntity.ok(reports);
+    }
 }
 
