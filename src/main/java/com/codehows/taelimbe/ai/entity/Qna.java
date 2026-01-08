@@ -107,4 +107,8 @@ public class Qna {
         this.resolved = false;
         touch();
     }
+
+    public void markDeleted() {
+        this.deletedAt = LocalDateTime.now();
+    }
 }
