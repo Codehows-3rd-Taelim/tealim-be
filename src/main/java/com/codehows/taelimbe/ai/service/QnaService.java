@@ -49,15 +49,25 @@ public class QnaService {
             return;
         }
 
-        qna.markDeleted(); // deletedAt = now()
+        // 챗봇 답변 적용된 (APPLIED) 질문은 삭제 차단
+        if (qna.getStatus() == QnaStatus.APPLIED) {
+            throw new IllegalStateException("Applied Qna cannot be deleted");
+        }
 
-        qnaRepository.delete(qna);
+
+        // 소프트 삭제
+        qna.markDeleted();
     }
 
+    // 챗봇 답변 철회
     @Transactional
-    public void questionEmbedDelete(Long qnaId) {
+    public void deleteAppliedAnswer(Long qnaId) {
         Qna qna = get(qnaId);
 
+        // 1. appliedAnswer 삭제 (지식 철회)
+        qna.deleteAppliedAnswer();
+
+        // 2. Embed 조회 (단건)
         Embed embed = embedRepository.findByQnaId(qnaId).orElse(null);
 
         if (embed != null) {
@@ -66,32 +76,31 @@ public class QnaService {
 
             if (!deleted) {
                 throw new IllegalStateException(
-                        "Milvus delete failed. Abort questionDelete. qnaId=" + qnaId
+                        "Milvus delete failed. Abort embed delete. qnaId=" + qnaId
                 );
             }
 
+            // 3. Embed row 삭제
             embedRepository.delete(embed);
         }
-
-        qnaRepository.delete(qna);
     }
 
 
     public Qna get(Long qnaId) {
-        return qnaRepository.findById(qnaId)
+        return qnaRepository.findByIdAndDeletedAtIsNull(qnaId)
                 .orElseThrow(() ->
-                        new IllegalArgumentException("Qna not found")
+                        new IllegalArgumentException("Active Qna not found")
                 );
     }
 
 
-
     public List<Qna> findAll(UserPrincipal user) {
         if (user.isAdmin()) {
-            return qnaRepository.findAll();
+            return qnaRepository.findByDeletedAtIsNull();
         }
         return qnaRepository.findByUser_UserIdAndDeletedAtIsNull(user.userId());
     }
+
 
     public List<Qna> findByResolved(boolean resolved, UserPrincipal user) {
         if (user.isAdmin()) {
@@ -110,6 +119,29 @@ public class QnaService {
                 user.userId(), status
         );
     }
+
+    @Transactional
+    public void saveDisplayAnswer(Long qnaId, String answer) {
+        Qna qna = get(qnaId);
+        qna.updateDisplayAnswer(answer);
+    }
+
+    @Transactional
+    public void updateDisplayAnswer(Long qnaId, String answer) {
+        Qna qna = get(qnaId);
+        qna.updateDisplayAnswer(answer);
+    }
+
+    @Transactional
+    public void deleteDisplayAnswer(Long qnaId) {
+        Qna qna = get(qnaId);
+        qna.clearDisplayAnswer();
+    }
+
+
+
+
+
 
 
 

@@ -108,6 +108,10 @@ public class Qna {
         touch();
     }
 
+    public void deleteAppliedAnswer() {
+        this.appliedAnswer = null;
+    }
+
     public void markDeleted() {
         this.deletedAt = LocalDateTime.now();
     }
