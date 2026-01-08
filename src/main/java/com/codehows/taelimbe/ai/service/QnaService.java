@@ -5,7 +5,10 @@ import com.codehows.taelimbe.ai.entity.Embed;
 import com.codehows.taelimbe.ai.entity.Qna;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.ai.repository.QnaRepository;
+import com.codehows.taelimbe.user.entity.User;
+import com.codehows.taelimbe.user.repository.UserRepository;
 import com.codehows.taelimbe.user.security.UserPrincipal;
+import com.codehows.taelimbe.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +23,7 @@ public class QnaService {
     private final EmbeddingService embeddingService;
     private final EmbedRepository embedRepository;
     private final QnaEmbeddingFailService qnaEmbeddingFailService;
+    private final UserService userService;
 
 
 
@@ -137,6 +141,19 @@ public class QnaService {
         Qna qna = get(qnaId);
         qna.clearDisplayAnswer();
     }
+
+
+    // 질문 생성
+    @Transactional
+    public Long createQuestion(String questionText, Long userId) {
+        User user = userService.getUser(userId);
+
+        Qna qna = Qna.create(questionText, user);
+        qnaRepository.save(qna);
+
+        return qna.getId();
+    }
+
 
 
 

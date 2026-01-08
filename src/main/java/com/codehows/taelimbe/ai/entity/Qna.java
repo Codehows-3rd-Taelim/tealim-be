@@ -44,7 +44,7 @@ public class Qna {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(nullable = false)
+    @Column
     private LocalDateTime deletedAt;
 
 

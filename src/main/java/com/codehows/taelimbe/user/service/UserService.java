@@ -98,4 +98,13 @@ public class UserService {
                         () -> { throw new IllegalArgumentException("해당 ID의 직원을 찾을 수 없습니다: " + userId); }
                 );
     }
+
+    @Transactional(readOnly = true)
+    public User getUser(Long userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "User not found. userId=" + userId
+                        ));
+    }
 }

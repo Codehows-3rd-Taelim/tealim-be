@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.ai.controller;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
+import com.codehows.taelimbe.ai.dto.CreateQnaRequest;
 import com.codehows.taelimbe.ai.dto.QnaDTO;
 import com.codehows.taelimbe.ai.dto.UpdateAnswerRequest;
 import com.codehows.taelimbe.ai.service.QnaService;
@@ -150,5 +151,22 @@ public class QnaController {
         qnaService.deleteAppliedAnswer(qnaId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping
+    public ResponseEntity<Long> createQuestion(
+            @RequestBody CreateQnaRequest request,
+            Authentication authentication
+    ) {
+        UserPrincipal principal =
+                (UserPrincipal) authentication.getPrincipal();
+
+        Long qnaId = qnaService.createQuestion(
+                request.getQuestionText(),
+                principal.userId()
+        );
+
+        return ResponseEntity.ok(qnaId);
+    }
+
 
 }
