@@ -5,9 +5,10 @@ import com.codehows.taelimbe.ai.entity.Embed;
 import com.codehows.taelimbe.ai.entity.Qna;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.ai.repository.QnaRepository;
+import com.codehows.taelimbe.user.entity.User;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -25,15 +26,13 @@ public class QnaService {
 
     @Transactional
     public void apply(Long qnaId, String answer) {
-        Qna qna = qnaRepository.findById(qnaId)
-                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+        Qna qna = get(qnaId);
 
         qna.requestApply(answer);
 
         try {
             embeddingService.replaceQnaEmbedding(qnaId, answer);
             qna.applySuccess();
-
         } catch (Exception e) {
             qnaEmbeddingFailService.markFail(qnaId, answer);
             throw e;
@@ -41,9 +40,9 @@ public class QnaService {
     }
 
 
+
     @Transactional
     public void questionDelete(Long qnaId) {
-
         Qna qna = get(qnaId);
 
         Embed embed = embedRepository.findByQnaId(qnaId).orElse(null);
@@ -65,7 +64,6 @@ public class QnaService {
     }
 
 
-
     public Qna get(Long qnaId) {
         return qnaRepository.findById(qnaId)
                 .orElseThrow(() ->
@@ -73,18 +71,34 @@ public class QnaService {
                 );
     }
 
-    public List<Qna> findByResolved(boolean resolved) {
-        return qnaRepository.findByResolved(resolved);
+
+
+    public List<Qna> findAll(UserPrincipal user) {
+        if (user.isAdmin()) {
+            return qnaRepository.findAll();
+        }
+        return qnaRepository.findByUserId(user.userId());
     }
 
-    public List<Qna> findByStatus(QnaStatus status) {
-
-        return qnaRepository.findByStatus(status);
+    public List<Qna> findByResolved(boolean resolved, UserPrincipal user) {
+        if (user.isAdmin()) {
+            return qnaRepository.findByResolved(resolved);
+        }
+        return qnaRepository.findByUserIdAndResolved(
+                user.userId(), resolved
+        );
     }
 
-    public List<Qna> findAll() {
-        return qnaRepository.findAll();
+    public List<Qna> findByStatus(QnaStatus status, UserPrincipal user) {
+        if (user.isAdmin()) {
+            return qnaRepository.findByStatus(status);
+        }
+        return qnaRepository.findByUserIdAndStatus(
+                user.userId(), status
+        );
     }
+
+
 
     private String normalize(String text) {
         return text.trim()
@@ -93,13 +107,13 @@ public class QnaService {
     }
 
     // 미답 질문 기록
-    public void recordQuestion(String rawQuestion) {
+    public void recordQuestion(String rawQuestion, User user) {
         String normalized = normalize(rawQuestion);
 
         qnaRepository.findByNormalizedText(normalized)
                 .orElseGet(() ->
                         qnaRepository.save(
-                                Qna.create(rawQuestion, normalized)
+                                Qna.create(rawQuestion, normalized, user)
                         )
                 );
     }
