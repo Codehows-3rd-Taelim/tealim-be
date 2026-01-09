@@ -28,12 +28,13 @@ import java.util.UUID;
 public class EmbedFileController {
 
     private final EmbedFileService embedFileService;
-    private final EmbeddingService embeddingService;
+
 
     @GetMapping
     public List<EmbedFileDTO> getAllFiles() {
         return embedFileService.getAllFiles();
     }
+
 
     @PostMapping
     public EmbedFileDTO upload(
@@ -41,42 +42,7 @@ public class EmbedFileController {
             @RequestParam("embedKey") String embedKey
     ) throws IOException {
 
-        String originalName = file.getOriginalFilename();
-
-        if (originalName == null || originalName.isBlank()) {
-            throw new IllegalArgumentException("파일 이름이 없습니다.");
-        }
-
-        String extension = getExtension(originalName).toLowerCase();
-        String storedName = UUID.randomUUID() + "." + extension;
-
-        //  실제 파일 저장
-        Path uploadPath = Paths.get("./uploads");
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
-        Path filePath = uploadPath.resolve(storedName);
-        file.transferTo(filePath);
-
-        // DTO 생성
-        EmbedFileDTO dto = embedFileService.createUploaded(
-                originalName,
-                storedName,
-                extension,
-                file.getSize(),
-                embedKey
-        );
-
-        // 임베딩
-        if (extension.equals("pdf")) {
-            embeddingService.embedAndStorePdf(file, embedKey);
-        } else if (extension.equals("csv")) {
-            embeddingService.embedAndStoreCsv(file, embedKey);
-        } else {
-            throw new IllegalArgumentException("지원하지 않는 파일 형식입니다.");
-        }
-
-        return dto;
+        return embedFileService.uploadAndEmbed(file, embedKey);
     }
 
     @DeleteMapping("/{id}")

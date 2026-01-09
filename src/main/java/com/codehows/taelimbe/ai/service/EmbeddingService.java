@@ -15,6 +15,7 @@ import dev.langchain4j.store.embedding.EmbeddingStore;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.io.ByteOrderMark;
 import org.apache.commons.io.input.BOMInputStream;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -25,10 +26,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -157,119 +161,133 @@ public class EmbeddingService {
 
     /**
      * CSV 파일을 받아 파싱하고 내용을 임베딩하여 벡터 저장소에 추가합니다.
-     * @param file 임베딩할 데이터가 포함된 CSV 파일
+//     * @param file 임베딩할 데이터가 포함된 CSV 파일
      * @return 비동기 작업의 완료를 나타내는 `CompletableFuture<Void>`
-     */
-    public CompletableFuture<Void> embedAndStoreCsv(MultipartFile file, String embedKey) {
-        try {
-            byte[] fileBytes = file.getBytes();
+     **/
+    public CompletableFuture<Void> embedAndStoreCsv(Path csvPath, String embedKey) {
 
-            return CompletableFuture.runAsync(() -> {
-                log.info("CSV 병렬 임베딩 시작 (batchSize={}): {}", embeddingCsvBatchSize, file.getOriginalFilename());
+        return CompletableFuture.runAsync(() -> {
+            log.info(
+                    "CSV 병렬 임베딩 시작 (batchSize={}): {}",
+                    embeddingCsvBatchSize,
+                    csvPath.getFileName()
+            );
 
-                try (BOMInputStream bomIn = new BOMInputStream(new ByteArrayInputStream(fileBytes));
-                     Reader reader = new InputStreamReader(bomIn, Charset.forName("MS949"))) {
-
-                    Iterable<CSVRecord> records = CSVFormat.DEFAULT
-                            .withFirstRecordAsHeader()
-                            .withIgnoreHeaderCase()
-                            .withTrim()
-                            .withIgnoreEmptyLines()
-                            .withAllowMissingColumnNames()
-                            .parse(reader);
-
-                    List<TextSegment> buffer = new ArrayList<>(embeddingCsvBatchSize);
-                    AtomicInteger chunkCounter = new AtomicInteger(1);
-
-                    for (CSVRecord record : records) {
-
-                        String title = record.get("title").trim();
-                        String content = record.get("content").replace("\r\n", "\n").trim();
-                        String documentText = String.format("제목: %s\n내용: %s", title, content);
-
-                        List<TextSegment> segments = textSplitterStrategy.split(documentText)
-                                .stream()
-                                .map(TextSegment::from)
-                                .toList();
-
-                        for (TextSegment segment : segments) {
-                            buffer.add(segment);
-
-                            if (buffer.size() >= embeddingCsvBatchSize) {
-                                flushBatch(buffer, embedKey, "CSV", chunkCounter);
-                            }
-                        }
-                    }
-
-                    if (!buffer.isEmpty()) {
-                        flushBatch(buffer, embedKey, "CSV", chunkCounter);
-                    }
-
-                    log.info("CSV 병렬 임베딩 완료");
-
-                } catch (Exception e) {
-                    log.error("CSV 병렬 임베딩 실패", e);
-                    throw new RuntimeException(e);
+            try (InputStream is = Files.newInputStream(csvPath);
+                 BOMInputStream bomIn = new BOMInputStream(
+                         is,
+                         ByteOrderMark.UTF_8,
+                         ByteOrderMark.UTF_16LE,
+                         ByteOrderMark.UTF_16BE
+                 )) {
+                Reader reader;
+                if (bomIn.hasBOM(ByteOrderMark.UTF_16LE)) {
+                    reader = new InputStreamReader(bomIn, StandardCharsets.UTF_16LE);
+                }else if (bomIn.hasBOM(ByteOrderMark.UTF_16BE)) {
+                    reader = new InputStreamReader(bomIn, StandardCharsets.UTF_16BE);
+                }else if (bomIn.hasBOM(ByteOrderMark.UTF_8)) {
+                    reader = new InputStreamReader(bomIn, StandardCharsets.UTF_8);
+                }else {
+                    reader = new InputStreamReader(bomIn, Charset.forName("MS949"));
                 }
+                Iterable<CSVRecord> records = CSVFormat.DEFAULT
+                        .withFirstRecordAsHeader()
+                        .withIgnoreHeaderCase()
+                        .withTrim()
+                        .withIgnoreEmptyLines()
+                        .withAllowMissingColumnNames()
+                        .parse(reader);
 
-            }, taskExecutor);
+                List<TextSegment> buffer = new ArrayList<>(embeddingCsvBatchSize);
+                AtomicInteger chunkCounter = new AtomicInteger(1);
 
-        } catch (Exception e) {
-            log.error("CSV 파일 읽기 실패", e);
-            throw new RuntimeException(e);
-        }
-    }
+                for (CSVRecord record : records) {
 
+                    String title = record.get("title").trim();
+                    String content = record.get("content")
+                            .replace("\r\n", "\n")
+                            .trim();
 
+                    String documentText =
+                            String.format("제목: %s\n내용: %s", title, content);
 
-    public CompletableFuture<Void> embedAndStorePdf(MultipartFile file, String embedKey) {
-        try {
-            byte[] pdfBytes = file.getBytes();
-
-            return CompletableFuture.runAsync(() -> {
-                log.info("PDF 병렬 임베딩 시작 (batchSize={}): {}", embeddingPdfBatchSize, file.getOriginalFilename());
-
-                try (PDDocument document = PDDocument.load(new ByteArrayInputStream(pdfBytes))) {
-
-                    PDFTextStripper stripper = new PDFTextStripper();
-                    String rawText = stripper.getText(document);
-
-                    String embeddingText = PdfEmbeddingNormalizer.normalize(rawText, file.getOriginalFilename());
-
-                    List<TextSegment> segments = textSplitterStrategy.split(embeddingText)
-                            .stream()
-                            .map(TextSegment::from)
-                            .toList();
-
-                    List<TextSegment> buffer = new ArrayList<>(embeddingPdfBatchSize);
-                    AtomicInteger chunkCounter = new AtomicInteger(1);
+                    List<TextSegment> segments =
+                            textSplitterStrategy.split(documentText)
+                                    .stream()
+                                    .map(TextSegment::from)
+                                    .toList();
 
                     for (TextSegment segment : segments) {
                         buffer.add(segment);
 
-                        if (buffer.size() >= embeddingPdfBatchSize) {
-                            flushBatch(buffer, embedKey, "PDF", chunkCounter);
+                        if (buffer.size() >= embeddingCsvBatchSize) {
+                            flushBatch(buffer, embedKey, "CSV", chunkCounter);
                         }
                     }
-
-                    if (!buffer.isEmpty()) {
-                        flushBatch(buffer, embedKey, "PDF", chunkCounter);
-                    }
-
-                    log.info("PDF 병렬 임베딩 완료 (embedKey={})", embedKey);
-
-                } catch (Exception e) {
-                    log.error("PDF 임베딩 실패", e);
-                    throw new RuntimeException(e);
                 }
 
-            }, taskExecutor);
+                if (!buffer.isEmpty()) {
+                    flushBatch(buffer, embedKey, "CSV", chunkCounter);
+                }
 
-        } catch (Exception e) {
-            log.error("PDF 파일 읽기 실패", e);
-            throw new RuntimeException(e);
-        }
+                log.info("CSV 병렬 임베딩 완료 (embedKey={})", embedKey);
+
+            } catch (Exception e) {
+                log.error("CSV 병렬 임베딩 실패: {}", csvPath, e);
+                throw new RuntimeException(e);
+            }
+
+        }, taskExecutor);
     }
+
+
+
+
+    public CompletableFuture<Void> embedAndStorePdf(Path pdfPath, String embedKey) {
+        return CompletableFuture.runAsync(() -> {
+            log.info("PDF 병렬 임베딩 시작: {}", pdfPath.getFileName());
+
+            try (PDDocument document = PDDocument.load(pdfPath.toFile())) {
+
+                PDFTextStripper stripper = new PDFTextStripper();
+                String rawText = stripper.getText(document);
+
+                String embeddingText =
+                        PdfEmbeddingNormalizer.normalize(
+                                rawText,
+                                pdfPath.getFileName().toString()
+                        );
+
+                List<TextSegment> segments = textSplitterStrategy.split(embeddingText)
+                        .stream()
+                        .map(TextSegment::from)
+                        .toList();
+
+                List<TextSegment> buffer = new ArrayList<>(embeddingPdfBatchSize);
+                AtomicInteger chunkCounter = new AtomicInteger(1);
+
+                for (TextSegment segment : segments) {
+                    buffer.add(segment);
+
+                    if (buffer.size() >= embeddingPdfBatchSize) {
+                        flushBatch(buffer, embedKey, "PDF", chunkCounter);
+                    }
+                }
+
+                if (!buffer.isEmpty()) {
+                    flushBatch(buffer, embedKey, "PDF", chunkCounter);
+                }
+
+                log.info("PDF 병렬 임베딩 완료 (embedKey={})", embedKey);
+
+            } catch (Exception e) {
+                log.error("PDF 임베딩 실패", e);
+                throw new RuntimeException(e);
+            }
+
+        }, taskExecutor);
+    }
+
 
 
     private void flushBatch(
