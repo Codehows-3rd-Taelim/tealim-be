@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.ai.controller;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
+import com.codehows.taelimbe.ai.dto.CreateQnaRequest;
 import com.codehows.taelimbe.ai.dto.QnaDTO;
 import com.codehows.taelimbe.ai.dto.UpdateAnswerRequest;
 import com.codehows.taelimbe.ai.service.QnaService;
@@ -77,10 +78,95 @@ public class QnaController {
         return ResponseEntity.ok().build();
     }
 
-    // 질문 완전 삭제 Embed + Milvus 포함
+    // 질문 소프트 삭제
     @DeleteMapping("/{qnaId}")
     public ResponseEntity<Void> questionDelete(@PathVariable Long qnaId) {
         qnaService.questionDelete(qnaId);
         return ResponseEntity.noContent().build();
     }
+
+    // displayAnswer 저장
+    @PostMapping("/{qnaId}/display-answer")
+    public ResponseEntity<Void> saveDisplayAnswer(
+            @PathVariable Long qnaId,
+            @RequestBody UpdateAnswerRequest request,
+            Authentication authentication) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        qnaService.saveDisplayAnswer(qnaId, request.getAnswer());
+        return ResponseEntity.ok().build();
+    }
+
+    // displayAnswer 수정
+    @PutMapping("/{qnaId}/display-answer")
+    public ResponseEntity<Void> updateDisplayAnswer(
+            @PathVariable Long qnaId,
+            @RequestBody UpdateAnswerRequest request,
+            Authentication authentication) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        qnaService.updateDisplayAnswer(qnaId, request.getAnswer());
+        return ResponseEntity.ok().build();
+    }
+
+    // displayAnswer 삭제 (미처리 상태로 변경)
+    @DeleteMapping("/{qnaId}/display-answer")
+    public ResponseEntity<Void> deleteDisplayAnswer(
+            @PathVariable Long qnaId,
+            Authentication authentication) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        qnaService.deleteDisplayAnswer(qnaId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // 챗봇 답변 삭제
+    @DeleteMapping("/{qnaId}/applied-answer")
+    public ResponseEntity<Void> deleteAppliedAnswer(
+            @PathVariable Long qnaId,
+            Authentication authentication
+    ) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        qnaService.deleteAppliedAnswer(qnaId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping
+    public ResponseEntity<Long> createQuestion(
+            @RequestBody CreateQnaRequest request,
+            Authentication authentication
+    ) {
+        UserPrincipal principal =
+                (UserPrincipal) authentication.getPrincipal();
+
+        Long qnaId = qnaService.createQuestion(
+                request.getQuestionText(),
+                principal.userId()
+        );
+
+        return ResponseEntity.ok(qnaId);
+    }
+
+
 }

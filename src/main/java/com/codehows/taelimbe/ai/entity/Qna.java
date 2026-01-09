@@ -22,12 +22,11 @@ public class Qna {
     @Column(columnDefinition = "TEXT", nullable = false)
     private String questionText;
 
-
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String normalizedText;
-
     @Column(columnDefinition = "TEXT")
     private String appliedAnswer;
+
+    @Column(columnDefinition = "TEXT")
+    private String displayAnswer;
 
     @Column(columnDefinition = "TEXT")
     private String editingAnswer;
@@ -45,16 +44,19 @@ public class Qna {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
+    @Column
+    private LocalDateTime deletedAt;
+
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
 
 
-    public static Qna create(String questionText, String normalizedText, User user) {
+    public static Qna create(String questionText, User user) {
         Qna q = new Qna();
         q.questionText = questionText;
-        q.normalizedText = normalizedText;
         q.resolved = false;
         q.status = null;
         q.createdAt = LocalDateTime.now();
@@ -78,7 +80,6 @@ public class Qna {
         this.appliedAnswer = this.editingAnswer;
         this.editingAnswer = null;
         this.status = QnaStatus.APPLIED;
-        this.resolved = true;
         touch();
     }
 
@@ -92,5 +93,26 @@ public class Qna {
 
     private void touch() {
         this.updatedAt = LocalDateTime.now();
+    }
+
+
+    public void updateDisplayAnswer(String answer) {
+        this.displayAnswer = answer;
+        this.resolved = (answer != null);
+        touch();
+    }
+
+    public void clearDisplayAnswer() {
+        this.displayAnswer = null;
+        this.resolved = false;
+        touch();
+    }
+
+    public void deleteAppliedAnswer() {
+        this.appliedAnswer = null;
+    }
+
+    public void markDeleted() {
+        this.deletedAt = LocalDateTime.now();
     }
 }

@@ -2,7 +2,6 @@ package com.codehows.taelimbe.ai.controller;
 
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
 import com.codehows.taelimbe.ai.dto.EmbeddingRequest;
-import com.codehows.taelimbe.ai.dto.QnaEmbeddingRequest;
 import com.codehows.taelimbe.ai.service.AgentService;
 import com.codehows.taelimbe.ai.service.EmbedFileService;
 import com.codehows.taelimbe.ai.service.SseService;
