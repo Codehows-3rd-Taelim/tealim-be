@@ -19,25 +19,33 @@ public class EmbedFile {
     private Long id;
 
     /** 사용자가 업로드한 원본 파일명 */
+    @Column(nullable = false)
     private String originalName;   // CC1 사용법 가이드.pdf
 
     /** 서버에 저장된 파일명 (UUID 기반) */
+    @Column(nullable = false)
     private String storedName;     // uuid.pdf
 
     /** 파일 확장자 */
+    @Column(nullable = false, length = 20)
     private String extension;      // pdf / csv
 
     /** 파일 크기 */
+    @Column(nullable = false)
     private long fileSize;
 
     /** 임베딩 처리 상태 */
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private EmbedFileStatus status;
 
     /** 생성된 Embed 묶음 키 */
     private String embedKey;       // Embed.embedKey
 
+    @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(nullable = false)
     private LocalDateTime updatedAt;
 
     /* ================= 생성 메서드 ================= */
