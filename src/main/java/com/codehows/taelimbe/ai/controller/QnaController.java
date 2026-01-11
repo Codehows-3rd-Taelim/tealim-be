@@ -168,5 +168,58 @@ public class QnaController {
         return ResponseEntity.ok(qnaId);
     }
 
+    // 비활성 질문 조회
+    @GetMapping("/inactive")
+    public ResponseEntity<List<QnaDTO>> listInactive(Authentication authentication) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        List<QnaDTO> result = qnaService.findInactive()
+                .stream()
+                .map(QnaDTO::new)
+                .toList();
+
+        return ResponseEntity.ok(result);
+    }
+
+    // 비활성 질문 복구
+    @PostMapping("/{qnaId}/restore")
+    public ResponseEntity<Void> restoreQna(
+            @PathVariable Long qnaId,
+            Authentication authentication
+    ) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        qnaService.restore(qnaId);
+        return ResponseEntity.ok().build();
+    }
+
+
+    // 비활성 질문 완전 삭제
+    @DeleteMapping("/{qnaId}/hard-delete")
+    public ResponseEntity<Void> hardDeleteQna(
+            @PathVariable Long qnaId,
+            Authentication authentication
+    ) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        qnaService.hardDelete(qnaId);
+        return ResponseEntity.noContent().build();
+    }
+
 
 }

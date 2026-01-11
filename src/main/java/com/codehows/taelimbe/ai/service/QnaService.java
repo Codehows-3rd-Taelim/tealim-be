@@ -154,15 +154,49 @@ public class QnaService {
         return qna.getId();
     }
 
+    public List<Qna> findInactive() {
+        return qnaRepository.findByDeletedAtIsNotNullOrderByDeletedAtDesc();
+    }
+
+
+    // 비활성 질문 완전 삭제
+    @Transactional
+    public void hardDelete(Long qnaId) {
+        Qna qna = getIncludingDeleted(qnaId);
+
+        if (qna.getDeletedAt() == null) {
+            throw new IllegalStateException("Active QnA cannot be hard deleted");
+        }
+
+        qnaRepository.delete(qna);
+    }
 
 
 
+    public Qna getIncludingDeleted(Long qnaId) {
+        return qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+    }
 
+    @Transactional
+    public void restore(Long qnaId) {
+        Qna qna = getIncludingDeleted(qnaId);
 
+        if (qna.getDeletedAt() == null) {
+            return; // 이미 활성 상태면 무시
+        }
 
-
-
-
-
-
+        qna.restore();
+    }
 }
+
+
+
+
+
+
+
+
+
+
+

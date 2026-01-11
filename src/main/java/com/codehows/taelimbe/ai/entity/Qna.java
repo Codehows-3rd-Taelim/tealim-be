@@ -110,9 +110,15 @@ public class Qna {
 
     public void deleteAppliedAnswer() {
         this.appliedAnswer = null;
+        this.status = null;
     }
 
     public void markDeleted() {
         this.deletedAt = LocalDateTime.now();
+    }
+
+    public void restore() {
+        this.deletedAt = null;
+        this.updatedAt = LocalDateTime.now();
     }
 }

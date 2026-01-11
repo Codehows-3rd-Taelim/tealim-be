@@ -34,4 +34,6 @@ public interface QnaRepository extends JpaRepository<Qna, Long> {
 
     List<Qna> findByUser_UserIdAndStatusAndDeletedAtIsNull(Long userId, QnaStatus status);
 
+    List<Qna> findByDeletedAtIsNotNullOrderByDeletedAtDesc();
+
 }
