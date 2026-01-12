@@ -34,7 +34,10 @@ public class ReportTools {
     // LangChainConfig에서 빈으로 등록된 Gson 인스턴스를 주입받습니다.
     private final Gson gson;
 
-    public static final String DATE_RULES = """
+    @Tool("""
+    (ADMIN 전용)
+    관리자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
+    
     ⚠️ 날짜 규칙:
     - "어제" → 어제 날짜.
     - "오늘" → 오늘 날짜.
@@ -43,21 +46,19 @@ public class ReportTools {
     - "이번주" → 이번주 월~일.
     - "이번달" → 이번 달 1일~말일.
     - 연도가 없는 경우:
-        - "n월" → 올해 n월 데이터 조회
+        - "n월" → **올해 n월** 데이터 조회 (예: "12월" → 2025-12-01 ~ 2025-12-31)
     - 연도 + 월이 있는 경우:
-        - "YYYY년 n월" → 해당 연도 n월 데이터 조회
+        - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
     - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
-    - 기간이 두 개 이상의 연도에 걸쳐도 하나의 연속된 날짜 범위로 변환
-
+    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위(startDate, endDate)로 변환하세요.
+        - 예:
+          - "25년 12월부터 26년 1월" →
+            startDate = 2025-12-01
+            endDate   = 2026-01-31
+    
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
-    """;
-
-    @Tool(
-        "(ADMIN 전용)\n" +
-        "관리자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.\n\n" +
-        DATE_RULES + "\n" +
-        "storeId가 null이면 전매장 데이터를 조회합니다."
-    )
+    storeId가 null이면 전매장 데이터를 조회합니다.
+    """)
     public ReportResult getReport(String startDate, String endDate) {
 
         boolean isAdmin = Boolean.parseBoolean(
@@ -84,13 +85,33 @@ public class ReportTools {
         return new ReportResult(gson.toJson(reportData), startDate, endDate);
     }
 
-    @Tool(
-        "매장 단위 청소 로봇 보고서 데이터를 조회합니다.\n\n" +
-        "- USER: fixedStoreId만 허용.\n" +
-        "- ADMIN: resolveStore 결과 storeId 사용.\n\n" +
-        DATE_RULES + "\n" +
-        "storeId가 null이면 전매장 데이터를 조회합니다."
-    )
+    @Tool("""
+    매장 단위 청소 로봇 보고서 데이터를 조회합니다.
+    
+    - USER: fixedStoreId만 허용.
+    - ADMIN: resolveStore 결과 storeId 사용.
+    
+    ⚠️ 날짜 규칙:
+    - "어제" → 어제 날짜.
+    - "오늘" → 오늘 날짜.
+    - "지난주" → 지난주 월~일.
+    - "저번주" → 지난주 월~일.
+    - "이번주" → 이번주 월~일.
+    - "이번달" → 이번 달 1일~말일.
+    - 연도가 없는 경우:
+        - "n월" → **올해 n월** 데이터 조회 (예: "12월" → 2025-12-01 ~ 2025-12-31)
+    - 연도 + 월이 있는 경우:
+        - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
+    - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
+    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위(startDate, endDate)로 변환하세요.
+        - 예:
+          - "25년 12월부터 26년 1월" →
+            startDate = 2025-12-01
+            endDate   = 2026-01-31
+    
+    날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
+    storeId가 null이면 전매장 데이터를 조회합니다.
+    """)
     public ReportResult getStoreReport(
             String startDate,
             String endDate,
