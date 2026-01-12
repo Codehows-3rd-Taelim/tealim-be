@@ -5,6 +5,8 @@ import com.codehows.taelimbe.ai.entity.EmbedFile;
 import com.codehows.taelimbe.ai.repository.EmbedFileRepository;
 import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,23 +28,14 @@ public class EmbedFileService {
     private final EmbedFileStatusService embedFileStatusService;
 
     @Transactional(readOnly = true)
-    public List<EmbedFileDTO> getAllFiles() {
-        return embedFileRepository.findAllByOrderByCreatedAtDesc();
-    }
-    private EmbedFileDTO embedFileDTO(EmbedFile file) {
-        return EmbedFileDTO.builder()
-                .id(file.getId())
-                .originalName(file.getOriginalName())
-                .storedName(file.getStoredName())
-                .extension(file.getExtension())
-                .fileSize(file.getFileSize())
-                .status(file.getStatus())
-                .embedKey(file.getEmbedKey())
-                .createdAt(file.getCreatedAt())
-                .updatedAt(file.getUpdatedAt())
-                .build();
+    public Page<EmbedFileDTO> getFiles(Pageable pageable) {
+        return embedFileRepository.findAll(pageable)
+                .map(this::toDTO);
     }
 
+    private EmbedFileDTO toDTO(EmbedFile file) {
+        return EmbedFileDTO.from(file);
+    }
 
     public EmbedFileDTO uploadAndEmbed(MultipartFile file, String embedKey) {
 
@@ -95,7 +88,7 @@ public class EmbedFileService {
                 }
             });
 
-            return embedFileDTO(embedFile); // 바로 응답
+            return EmbedFileDTO.from(embedFile); // 바로 응답
 
         } catch (Exception e) {
             try { Files.deleteIfExists(filePath); } catch (Exception ignore) {}

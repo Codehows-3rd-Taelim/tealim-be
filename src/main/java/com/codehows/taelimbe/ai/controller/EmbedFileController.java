@@ -3,17 +3,19 @@ package com.codehows.taelimbe.ai.controller;
 import com.codehows.taelimbe.ai.dto.EmbedFileDTO;
 import com.codehows.taelimbe.ai.entity.EmbedFile;
 import com.codehows.taelimbe.ai.service.EmbedFileService;
-import com.codehows.taelimbe.ai.service.EmbeddingService;
 import org.springframework.core.io.Resource;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.UrlResource;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.util.UriUtils;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
@@ -31,10 +33,12 @@ public class EmbedFileController {
 
 
     @GetMapping
-    public List<EmbedFileDTO> getAllFiles() {
-        return embedFileService.getAllFiles();
+    public Page<EmbedFileDTO> getFiles(
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable
+    ) {
+        return embedFileService.getFiles(pageable);
     }
-
 
     @PostMapping
     public EmbedFileDTO upload(
