@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.ai.entity;
+package com.codehows.taelimbe.qna.entity;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
 import com.codehows.taelimbe.user.entity.User;
@@ -18,6 +18,8 @@ public class Qna {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(length = 50, nullable = false)
+    private String title;
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String questionText;
@@ -54,17 +56,18 @@ public class Qna {
 
 
 
-    public static Qna create(String questionText, User user) {
+    public static Qna create(String title, String questionText, User user) {
         Qna q = new Qna();
+        q.title = title;
         q.questionText = questionText;
         q.resolved = false;
         q.status = null;
         q.createdAt = LocalDateTime.now();
         q.updatedAt = q.createdAt;
         q.user = user;
-
         return q;
     }
+
 
 
 
@@ -110,9 +113,22 @@ public class Qna {
 
     public void deleteAppliedAnswer() {
         this.appliedAnswer = null;
+        this.status = null;
     }
 
     public void markDeleted() {
         this.deletedAt = LocalDateTime.now();
     }
+
+    public void restore() {
+        this.deletedAt = null;
+        this.updatedAt = LocalDateTime.now();
+    }
+
+    public void updateQuestion(String title, String questionText) {
+        this.title = title;
+        this.questionText = questionText;
+        touch();
+    }
+
 }

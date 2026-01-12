@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.ai.service;
 
-import com.codehows.taelimbe.ai.entity.Qna;
-import com.codehows.taelimbe.ai.repository.QnaRepository;
+import com.codehows.taelimbe.qna.entity.Qna;
+import com.codehows.taelimbe.qna.repository.QnaRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;

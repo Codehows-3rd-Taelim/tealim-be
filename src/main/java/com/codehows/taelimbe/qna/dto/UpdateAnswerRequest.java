@@ -1,4 +1,4 @@
-package com.codehows.taelimbe.ai.dto;
+package com.codehows.taelimbe.qna.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

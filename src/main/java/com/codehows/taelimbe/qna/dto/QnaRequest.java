@@ -1,10 +1,11 @@
-package com.codehows.taelimbe.ai.dto;
+package com.codehows.taelimbe.qna.dto;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class CreateQnaRequest {
+public class QnaRequest {
+    private String title;
     private String questionText;
 }

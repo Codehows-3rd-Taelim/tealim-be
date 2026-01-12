@@ -1,10 +1,11 @@
-package com.codehows.taelimbe.ai.controller;
+package com.codehows.taelimbe.qna.controller;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
-import com.codehows.taelimbe.ai.dto.CreateQnaRequest;
-import com.codehows.taelimbe.ai.dto.QnaDTO;
-import com.codehows.taelimbe.ai.dto.UpdateAnswerRequest;
-import com.codehows.taelimbe.ai.service.QnaService;
+import com.codehows.taelimbe.qna.dto.QnaRequest;
+import com.codehows.taelimbe.qna.dto.QnaDTO;
+import com.codehows.taelimbe.qna.dto.UpdateAnswerRequest;
+import com.codehows.taelimbe.ai.service.QnaEmbedService;
+import com.codehows.taelimbe.qna.service.QnaService;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import java.util.List;
 @RequestMapping("/qna")
 public class QnaController {
 
+    private final QnaEmbedService qnaEmbedService;
     private final QnaService qnaService;
 
     // qna 전체 조회
@@ -68,15 +70,6 @@ public class QnaController {
                 .toList();
     }
 
-    // qna 임베딩
-    @PostMapping("/{qnaId}/apply")
-    public ResponseEntity<Void> apply(
-            @PathVariable Long qnaId,
-            @RequestBody UpdateAnswerRequest request
-    ) {
-        qnaService.apply(qnaId, request.getAnswer());
-        return ResponseEntity.ok().build();
-    }
 
     // 질문 소프트 삭제
     @DeleteMapping("/{qnaId}")
@@ -135,9 +128,27 @@ public class QnaController {
         return ResponseEntity.noContent().build();
     }
 
-    // 챗봇 답변 삭제
-    @DeleteMapping("/{qnaId}/applied-answer")
-    public ResponseEntity<Void> deleteAppliedAnswer(
+    // 비활성 질문 조회
+    @GetMapping("/inactive")
+    public ResponseEntity<List<QnaDTO>> listInactive(Authentication authentication) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        List<QnaDTO> result = qnaService.findInactive()
+                .stream()
+                .map(QnaDTO::new)
+                .toList();
+
+        return ResponseEntity.ok(result);
+    }
+
+    // 비활성 질문 복구
+    @PostMapping("/{qnaId}/restore")
+    public ResponseEntity<Void> restoreQna(
             @PathVariable Long qnaId,
             Authentication authentication
     ) {
@@ -148,25 +159,88 @@ public class QnaController {
             return ResponseEntity.status(403).build();
         }
 
-        qnaService.deleteAppliedAnswer(qnaId);
+        qnaService.restore(qnaId);
+        return ResponseEntity.ok().build();
+    }
+
+
+    // 비활성 질문 완전 삭제
+    @DeleteMapping("/{qnaId}/hard-delete")
+    public ResponseEntity<Void> hardDeleteQna(
+            @PathVariable Long qnaId,
+            Authentication authentication
+    ) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        if (!user.isAdmin()) {
+            return ResponseEntity.status(403).build();
+        }
+
+        qnaService.hardDelete(qnaId);
         return ResponseEntity.noContent().build();
     }
 
+
+
+
+    // 질문 생성
     @PostMapping
     public ResponseEntity<Long> createQuestion(
-            @RequestBody CreateQnaRequest request,
+            @RequestBody QnaRequest request,
             Authentication authentication
     ) {
         UserPrincipal principal =
                 (UserPrincipal) authentication.getPrincipal();
 
         Long qnaId = qnaService.createQuestion(
+                request.getTitle(),
                 request.getQuestionText(),
                 principal.userId()
         );
 
         return ResponseEntity.ok(qnaId);
     }
+
+    // 유저 질문 수정 (displayAnswer 없을 때만 가능)
+    @PutMapping("/{qnaId}/question")
+    public ResponseEntity<Void> updateQuestion(
+            @PathVariable Long qnaId,
+            @RequestBody QnaRequest request,
+            Authentication authentication
+    ) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        qnaService.updateQuestionByUser(
+                qnaId,
+                request.getTitle(),
+                request.getQuestionText(),
+                user.userId()
+        );
+
+        return ResponseEntity.ok().build();
+    }
+
+    // 유저 질문 삭제 (displayAnswer 없을 때만 가능)
+    @DeleteMapping("/{qnaId}/question")
+    public ResponseEntity<Void> deleteQuestionByUser(
+            @PathVariable Long qnaId,
+            Authentication authentication
+    ) {
+        UserPrincipal user =
+                (UserPrincipal) authentication.getPrincipal();
+
+        qnaService.deleteQuestionByUser(
+                qnaId,
+                user.userId()
+        );
+
+        return ResponseEntity.noContent().build();
+    }
+
+
+
 
 
 }

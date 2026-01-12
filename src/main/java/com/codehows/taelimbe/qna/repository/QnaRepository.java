@@ -1,7 +1,7 @@
-package com.codehows.taelimbe.ai.repository;
+package com.codehows.taelimbe.qna.repository;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
-import com.codehows.taelimbe.ai.entity.Qna;
+import com.codehows.taelimbe.qna.entity.Qna;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
@@ -10,14 +10,13 @@ import java.util.Optional;
 public interface QnaRepository extends JpaRepository<Qna, Long> {
 
 
-    // 운영 기준
+
     List<Qna> findByResolvedAndDeletedAtIsNull(boolean resolved);
 
     // 단건
     Optional<Qna> findByIdAndDeletedAtIsNull(Long id);
 
 
-    // 관리자용 단건
     Optional<Qna> findById(Long id);
 
 
@@ -33,5 +32,7 @@ public interface QnaRepository extends JpaRepository<Qna, Long> {
     List<Qna> findByUser_UserIdAndResolvedAndDeletedAtIsNull(Long userId, boolean resolved);
 
     List<Qna> findByUser_UserIdAndStatusAndDeletedAtIsNull(Long userId, QnaStatus status);
+
+    List<Qna> findByDeletedAtIsNotNullOrderByDeletedAtDesc();
 
 }

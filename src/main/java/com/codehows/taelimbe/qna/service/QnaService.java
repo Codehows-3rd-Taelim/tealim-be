@@ -1,12 +1,13 @@
-package com.codehows.taelimbe.ai.service;
+package com.codehows.taelimbe.qna.service;
+
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
-import com.codehows.taelimbe.ai.entity.Embed;
-import com.codehows.taelimbe.ai.entity.Qna;
+import com.codehows.taelimbe.qna.entity.Qna;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
-import com.codehows.taelimbe.ai.repository.QnaRepository;
+import com.codehows.taelimbe.qna.repository.QnaRepository;
+import com.codehows.taelimbe.ai.service.EmbeddingService;
+import com.codehows.taelimbe.ai.service.QnaEmbeddingFailService;
 import com.codehows.taelimbe.user.entity.User;
-import com.codehows.taelimbe.user.repository.UserRepository;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.codehows.taelimbe.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -28,23 +29,6 @@ public class QnaService {
 
 
     @Transactional
-    public void apply(Long qnaId, String answer) {
-        Qna qna = get(qnaId);
-
-        qna.requestApply(answer);
-
-        try {
-            embeddingService.replaceQnaEmbedding(qnaId, answer);
-            qna.applySuccess();
-        } catch (Exception e) {
-            qnaEmbeddingFailService.markFail(qnaId, answer);
-            throw e;
-        }
-    }
-
-
-
-    @Transactional
     public void questionDelete(Long qnaId) {
         Qna qna = get(qnaId);
 
@@ -61,32 +45,6 @@ public class QnaService {
 
         // 소프트 삭제
         qna.markDeleted();
-    }
-
-    // 챗봇 답변 철회
-    @Transactional
-    public void deleteAppliedAnswer(Long qnaId) {
-        Qna qna = get(qnaId);
-
-        // 1. appliedAnswer 삭제 (지식 철회)
-        qna.deleteAppliedAnswer();
-
-        // 2. Embed 조회 (단건)
-        Embed embed = embedRepository.findByQnaId(qnaId).orElse(null);
-
-        if (embed != null) {
-            boolean deleted =
-                    embeddingService.deleteEmbeddingByKey(embed.getEmbedKey());
-
-            if (!deleted) {
-                throw new IllegalStateException(
-                        "Milvus delete failed. Abort embed delete. qnaId=" + qnaId
-                );
-            }
-
-            // 3. Embed row 삭제
-            embedRepository.delete(embed);
-        }
     }
 
 
@@ -144,25 +102,109 @@ public class QnaService {
 
 
     // 질문 생성
-    @Transactional
-    public Long createQuestion(String questionText, Long userId) {
+    public Long createQuestion(String title, String questionText, Long userId) {
         User user = userService.getUser(userId);
-
-        Qna qna = Qna.create(questionText, user);
+        Qna qna = Qna.create(title, questionText, user);
         qnaRepository.save(qna);
-
         return qna.getId();
     }
 
 
+    public List<Qna> findInactive() {
+        return qnaRepository.findByDeletedAtIsNotNullOrderByDeletedAtDesc();
+    }
+
+
+    // 비활성 질문 완전 삭제
+    @Transactional
+    public void hardDelete(Long qnaId) {
+        Qna qna = getIncludingDeleted(qnaId);
+
+        if (qna.getDeletedAt() == null) {
+            throw new IllegalStateException("Active QnA cannot be hard deleted");
+        }
+
+        qnaRepository.delete(qna);
+    }
 
 
 
+    public Qna getIncludingDeleted(Long qnaId) {
+        return qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new IllegalArgumentException("Qna not found"));
+    }
 
+    @Transactional
+    public void restore(Long qnaId) {
+        Qna qna = getIncludingDeleted(qnaId);
 
+        if (qna.getDeletedAt() == null) {
+            return; // 이미 활성 상태면 무시
+        }
 
+        qna.restore();
+    }
 
+    @Transactional
+    public void updateQuestionByUser(
+            Long qnaId,
+            String title,
+            String newQuestionText,
+            Long userId
+    ) {
+        Qna qna = qnaRepository
+                .findByIdAndDeletedAtIsNull(qnaId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Qna not found")
+                );
 
+        // 본인 질문인지 검증
+        if (!qna.getUser().getUserId().equals(userId)) {
+            throw new SecurityException("Not your question");
+        }
 
+        //  displayAnswer 있으면 수정 불가
+        if (qna.getDisplayAnswer() != null) {
+            throw new IllegalStateException(
+                    "Answered Qna cannot be edited"
+            );
+        }
+
+        qna.updateQuestion(title, newQuestionText);
+    }
+
+    @Transactional
+    public void deleteQuestionByUser(Long qnaId, Long userId) {
+        Qna qna = qnaRepository
+                .findByIdAndDeletedAtIsNull(qnaId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Qna not found")
+                );
+
+        // 본인 질문인지 검증
+        if (!qna.getUser().getUserId().equals(userId)) {
+            throw new SecurityException("Not your question");
+        }
+
+        //  displayAnswer 있으면 삭제 불가
+        if (qna.getDisplayAnswer() != null) {
+            throw new IllegalStateException(
+                    "Answered Qna cannot be deleted"
+            );
+        }
+
+        qna.markDeleted();
+    }
 
 }
+
+
+
+
+
+
+
+
+
+
+
