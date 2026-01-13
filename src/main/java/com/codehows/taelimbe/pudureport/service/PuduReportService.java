@@ -175,7 +175,7 @@ public class PuduReportService {
             endDate = LocalDate.now().toString();
 
         LocalDateTime s = LocalDate.parse(startDate).atStartOfDay();
-        LocalDateTime e = LocalDate.parse(endDate).atTime(LocalTime.MAX);
+        LocalDateTime e = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
 
         return puduReportRepository.findByStartTimeBetween(s,e).stream()
                 .map(PuduReportDTO::createReportDTO)
@@ -190,7 +190,7 @@ public class PuduReportService {
             String endDate
     ) {
         LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
-        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
+        LocalDateTime end   = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
 
         return puduReportRepository
                 .findByStartTimeBetween(start, end)
@@ -199,7 +199,7 @@ public class PuduReportService {
                 .toList();
     }
 
-    // ai report에서 사용
+    // report에서 사용
     @Transactional(readOnly = true)
     public List<PuduReportResponseDTO> getReportByStore(
             Long storeId,
@@ -207,7 +207,7 @@ public class PuduReportService {
             String endDate
     ) {
         LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
-        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
+        LocalDateTime end   = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
 
         List<Long> robotIds = robotRepository.findRobotIdsByStoreId(storeId);
 
@@ -285,7 +285,7 @@ public class PuduReportService {
             String endDate
     ) {
         LocalDateTime start = LocalDate.parse(startDate).atStartOfDay();
-        LocalDateTime end   = LocalDate.parse(endDate).atTime(23, 59, 59);
+        LocalDateTime end   = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
 
         return puduReportRepository
                 .findByStoreIdAndPeriod(storeId, start, end)
