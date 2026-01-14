@@ -7,9 +7,11 @@ import com.codehows.taelimbe.langchain.embaddings.EmbeddingStoreManager;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -43,6 +45,14 @@ public class EmbedFileService {
         if (originalName == null || originalName.isBlank()) {
             throw new IllegalArgumentException("파일 이름이 없습니다.");
         }
+
+        if (embedFileRepository.existsByOriginalName(originalName)) {
+            throw new ResponseStatusException(
+                    HttpStatus.CONFLICT,
+                    "이미 등록된 파일입니다: " + originalName
+            );
+        }
+
 
         String extension = originalName.substring(originalName.lastIndexOf('.') + 1).toLowerCase();
         String storedName = java.util.UUID.randomUUID() + "." + extension;
