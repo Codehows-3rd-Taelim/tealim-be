@@ -3,36 +3,48 @@ package com.codehows.taelimbe.qna.repository;
 import com.codehows.taelimbe.ai.constant.QnaStatus;
 import com.codehows.taelimbe.qna.entity.Qna;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
-import java.util.List;
 import java.util.Optional;
 
 public interface QnaRepository extends JpaRepository<Qna, Long> {
 
-
-
-    List<Qna> findByResolvedAndDeletedAtIsNull(boolean resolved);
-
-    // 단건
     Optional<Qna> findByIdAndDeletedAtIsNull(Long id);
 
 
-    Optional<Qna> findById(Long id);
+    // 전체 (활성) 최신순
+    Page<Qna> findByDeletedAtIsNullOrderByCreatedAtDesc(Pageable pageable);
+
+    // 처리 / 미처리 최신순
+    Page<Qna> findByResolvedAndDeletedAtIsNullOrderByCreatedAtDesc(
+            boolean resolved,
+            Pageable pageable
+    );
 
 
-    // qna 삭제 안된것들(챗봇 답변 적용 여부에 따라)
-    List<Qna> findByStatusAndDeletedAtIsNull(QnaStatus status);
+    // 유저 전체 최신순
+    Page<Qna> findByUser_UserIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+            Long userId,
+            Pageable pageable
+    );
 
-    // 유저 본인 QnA 전체
-    List<Qna> findByUser_UserIdAndDeletedAtIsNull(Long userId);
+    // 유저 처리 / 미처리 최신순
+    Page<Qna> findByUser_UserIdAndResolvedAndDeletedAtIsNullOrderByCreatedAtDesc(
+            Long userId,
+            boolean resolved,
+            Pageable pageable
+    );
 
-    // 삭제 안된것들 목록 조회
-    List<Qna> findByDeletedAtIsNull();
 
-    List<Qna> findByUser_UserIdAndResolvedAndDeletedAtIsNull(Long userId, boolean resolved);
+    // 비활성 질문 (삭제 최신순)
+    Page<Qna> findByDeletedAtIsNotNullOrderByDeletedAtDesc(Pageable pageable);
 
-    List<Qna> findByUser_UserIdAndStatusAndDeletedAtIsNull(Long userId, QnaStatus status);
+    
 
-    List<Qna> findByDeletedAtIsNotNullOrderByDeletedAtDesc();
+    Page<Qna> findByUser_UserIdAndResolvedTrueAndStatusIsNotNullAndDeletedAtIsNullOrderByCreatedAtDesc(
+            Long userId,
+            Pageable pageable
+    );
 
 }

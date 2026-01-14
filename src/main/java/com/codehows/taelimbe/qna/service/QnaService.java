@@ -2,6 +2,7 @@ package com.codehows.taelimbe.qna.service;
 
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
+import com.codehows.taelimbe.qna.constant.QnaViewType;
 import com.codehows.taelimbe.qna.entity.Qna;
 import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.qna.repository.QnaRepository;
@@ -11,6 +12,8 @@ import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.codehows.taelimbe.user.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,10 +24,57 @@ import java.util.List;
 public class QnaService {
 
     private final QnaRepository qnaRepository;
-    private final EmbeddingService embeddingService;
-    private final EmbedRepository embedRepository;
-    private final QnaEmbeddingFailService qnaEmbeddingFailService;
     private final UserService userService;
+
+    public Page<Qna> findByView(
+            QnaViewType viewType,
+            UserPrincipal user,
+            Pageable pageable
+    ) {
+        boolean isAdmin = user.isAdmin();
+
+        return switch (viewType) {
+
+            case ALL -> isAdmin
+                    ? qnaRepository.findByDeletedAtIsNullOrderByCreatedAtDesc(pageable)
+                    : qnaRepository
+                    .findByUser_UserIdAndDeletedAtIsNullOrderByCreatedAtDesc(
+                            user.userId(), pageable
+                    );
+
+            case UNRESOLVED -> isAdmin
+                    ? qnaRepository
+                    .findByResolvedAndDeletedAtIsNullOrderByCreatedAtDesc(
+                            false, pageable
+                    )
+                    : qnaRepository
+                    .findByUser_UserIdAndResolvedAndDeletedAtIsNullOrderByCreatedAtDesc(
+                            user.userId(), false, pageable
+                    );
+
+            case RESOLVED -> isAdmin
+                    ? qnaRepository
+                    .findByResolvedAndDeletedAtIsNullOrderByCreatedAtDesc(
+                            true, pageable
+                    )
+                    : qnaRepository
+                    .findByUser_UserIdAndResolvedAndDeletedAtIsNullOrderByCreatedAtDesc(
+                            user.userId(), true, pageable
+                    );
+
+
+
+            case INACTIVE -> {
+                if (!isAdmin) {
+                    throw new SecurityException("Admin only");
+                }
+                yield qnaRepository
+                        .findByDeletedAtIsNotNullOrderByDeletedAtDesc(pageable);
+            }
+        };
+    }
+
+
 
 
 
@@ -56,31 +106,7 @@ public class QnaService {
     }
 
 
-    public List<Qna> findAll(UserPrincipal user) {
-        if (user.isAdmin()) {
-            return qnaRepository.findByDeletedAtIsNull();
-        }
-        return qnaRepository.findByUser_UserIdAndDeletedAtIsNull(user.userId());
-    }
 
-
-    public List<Qna> findByResolved(boolean resolved, UserPrincipal user) {
-        if (user.isAdmin()) {
-            return qnaRepository.findByResolvedAndDeletedAtIsNull(resolved);
-        }
-        return qnaRepository.findByUser_UserIdAndResolvedAndDeletedAtIsNull(
-                user.userId(), resolved
-        );
-    }
-
-    public List<Qna> findByStatus(QnaStatus status, UserPrincipal user) {
-        if (user.isAdmin()) {
-            return qnaRepository.findByStatusAndDeletedAtIsNull(status);
-        }
-        return qnaRepository.findByUser_UserIdAndStatusAndDeletedAtIsNull(
-                user.userId(), status
-        );
-    }
 
     @Transactional
     public void saveDisplayAnswer(Long qnaId, String answer) {
@@ -109,10 +135,6 @@ public class QnaService {
         return qna.getId();
     }
 
-
-    public List<Qna> findInactive() {
-        return qnaRepository.findByDeletedAtIsNotNullOrderByDeletedAtDesc();
-    }
 
 
     // 비활성 질문 완전 삭제

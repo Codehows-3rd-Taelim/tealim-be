@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.qna.controller;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
+import com.codehows.taelimbe.qna.constant.QnaViewType;
 import com.codehows.taelimbe.qna.dto.QnaRequest;
 import com.codehows.taelimbe.qna.dto.QnaDTO;
 import com.codehows.taelimbe.qna.dto.UpdateAnswerRequest;
@@ -8,6 +9,8 @@ import com.codehows.taelimbe.ai.service.QnaEmbedService;
 import com.codehows.taelimbe.qna.service.QnaService;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -19,55 +22,20 @@ import java.util.List;
 @RequestMapping("/qna")
 public class QnaController {
 
-    private final QnaEmbedService qnaEmbedService;
     private final QnaService qnaService;
 
-    // qna 전체 조회
     @GetMapping
-    public List<QnaDTO> listAll(Authentication authentication) {
+    public Page<QnaDTO> list(
+            @RequestParam(defaultValue = "ALL") QnaViewType viewType,
+            Pageable pageable,
+            Authentication authentication
+    ) {
         UserPrincipal user =
                 (UserPrincipal) authentication.getPrincipal();
 
-        return qnaService.findAll(user)
-                .stream()
-                .map(QnaDTO::new)
-                .toList();
-    }
-
-    // 미처리 질문 조회
-    @GetMapping("/unresolved")
-    public List<QnaDTO> listUnresolved(Authentication authentication) {
-        UserPrincipal user =
-                (UserPrincipal) authentication.getPrincipal();
-
-        return qnaService.findByResolved(false, user)
-                .stream()
-                .map(QnaDTO::new)
-                .toList();
-    }
-
-    // 처리 완료 질문 조회
-    @GetMapping("/resolved")
-    public List<QnaDTO> listResolved(Authentication authentication) {
-        UserPrincipal user =
-                (UserPrincipal) authentication.getPrincipal();
-
-        return qnaService.findByResolved(true, user)
-                .stream()
-                .map(QnaDTO::new)
-                .toList();
-    }
-
-    // QnA 적용 완료된 질문 조회
-    @GetMapping("/applied")
-    public List<QnaDTO> listApplied(Authentication authentication) {
-        UserPrincipal user =
-                (UserPrincipal) authentication.getPrincipal();
-
-        return qnaService.findByStatus(QnaStatus.APPLIED, user)
-                .stream()
-                .map(QnaDTO::new)
-                .toList();
+        return qnaService
+                .findByView(viewType, user, pageable)
+                .map(QnaDTO::new);
     }
 
 
@@ -128,23 +96,7 @@ public class QnaController {
         return ResponseEntity.noContent().build();
     }
 
-    // 비활성 질문 조회
-    @GetMapping("/inactive")
-    public ResponseEntity<List<QnaDTO>> listInactive(Authentication authentication) {
-        UserPrincipal user =
-                (UserPrincipal) authentication.getPrincipal();
 
-        if (!user.isAdmin()) {
-            return ResponseEntity.status(403).build();
-        }
-
-        List<QnaDTO> result = qnaService.findInactive()
-                .stream()
-                .map(QnaDTO::new)
-                .toList();
-
-        return ResponseEntity.ok(result);
-    }
 
     // 비활성 질문 복구
     @PostMapping("/{qnaId}/restore")
