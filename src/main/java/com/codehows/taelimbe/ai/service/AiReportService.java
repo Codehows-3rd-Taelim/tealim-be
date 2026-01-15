@@ -228,8 +228,8 @@ public class AiReportService {
         }
 
         return markdown.replaceFirst(
-                "(?m)^#+\\s*AI 산업용 청소로봇 관리 보고서.*$",
-                "# AI 산업용 청소로봇 관리 보고서 " + suffix
+                "(?m)^#+\\s*AI 청소로봇 관리 보고서.*$",
+                "# AI 청소로봇 관리 보고서 " + suffix
         );
     }
 
