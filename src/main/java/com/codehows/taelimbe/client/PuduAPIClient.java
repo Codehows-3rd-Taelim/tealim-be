@@ -51,26 +51,20 @@ public class PuduAPIClient {
         }
 
         String xDate = getGMTTime();
-        System.out.println("x-date: " + xDate);
 
         // 서버가 기대하는 HMAC 문자열 그대로 사용
         String stringToSign = String.format("x-date: %s\n%s\n%s\n%s\n%s\n%s",
                 xDate, httpMethod, acceptHeader, contentType, contentMD5, pathAndParams);
 
-        System.out.println("stringToSign:");
-        System.out.println(stringToSign);
-
         // HMAC 생성
         byte[] hmacStr = HmacSHA1Encrypt(stringToSign, apiAppSecret);
         String signature = Base64.getEncoder().encodeToString(hmacStr);
-        System.out.println("Signature: " + signature);
 
         // Authorization header 생성 (공백 제거)
         String authHeader = String.format(
                 "hmac id=\"%s\", algorithm=\"hmac-sha1\", headers=\"x-date\", signature=\"%s\"",
                 apiAppKey.trim(), signature.trim()
         );
-        System.out.println("Authorization: " + authHeader);
 
         // HTTP 요청
         CloseableHttpClient httpClient = HttpClients.createDefault();
@@ -83,10 +77,6 @@ public class PuduAPIClient {
         CloseableHttpResponse response = httpClient.execute(httpGet);
         int statusCode = response.getStatusLine().getStatusCode();
         String responseBody = EntityUtils.toString(response.getEntity());
-
-        System.out.println("Response Status: " + statusCode);
-        System.out.println("Response Body: " + responseBody);
-        System.out.println("====== 완료 ======\n");
 
         httpClient.close();
 

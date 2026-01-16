@@ -71,7 +71,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
         join r.store s
         where s.storeId = :storeId
           and pr.startTime >= :start
-          and pr.endTime <= :end
+          and pr.startTime < :end
     """)
     List<PuduReport> findByStoreIdAndPeriod(
             @Param("storeId") Long storeId,

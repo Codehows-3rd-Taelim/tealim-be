@@ -19,8 +19,8 @@ public class EmbedFile {
     private Long id;
 
     /** 사용자가 업로드한 원본 파일명 */
-    @Column(nullable = false)
-    private String originalName;   // CC1 사용법 가이드.pdf
+    @Column(nullable = false, unique = true)
+    private String originalName;
 
     /** 서버에 저장된 파일명 (UUID 기반) */
     @Column(nullable = false)

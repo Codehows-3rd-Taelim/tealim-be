@@ -4,12 +4,9 @@ import com.codehows.taelimbe.ai.agent.ReportAgent;
 import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
-import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.ai.repository.AiReportRepository;
 import com.codehows.taelimbe.ai.repository.RawReportProjection;
-import com.codehows.taelimbe.notification.constant.NotificationType;
-import com.codehows.taelimbe.notification.service.NotificationService;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.repository.UserRepository;
 import com.codehows.taelimbe.user.security.UserPrincipal;
@@ -37,7 +34,6 @@ public class AiReportService {
     private final ReportAgent reportAgent;
     private final AiReportRepository aiReportRepository;
     private final UserRepository userRepository;
-    private final NotificationService notificationService;
 
 
     // 1. 보고서 생성 시작
@@ -94,7 +90,7 @@ public class AiReportService {
                     "fail",
                     Map.of("message", "보고서 요청 내용이 비어 있습니다.")
             );
-            notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "보고서 요청 내용이 비어 있습니다.");
+
             return;
         }
         try {
@@ -128,11 +124,7 @@ public class AiReportService {
                                     Map.of("message", failMessage)
                             );
 
-                            notificationService.notify(
-                                    user.userId(),
-                                    NotificationType.AI_REPORT_FAILED,
-                                    "AI가 보고서를 생성할 수 없어요. 입력을 다시 확인해 주세요."
-                            );
+
                             return;
                         }
 
@@ -160,7 +152,7 @@ public class AiReportService {
                                 AiReportDTO.from(saved)
                         );
 
-                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_SUCCESS, "AI 보고서 생성이 완료되었습니다");
+
                     })
                     .onError(e -> {
                         log.error("AI Report Error", e);
@@ -174,8 +166,7 @@ public class AiReportService {
                                 )
                         );
 
-                        // 실패 알림
-                        notificationService.notify(user.userId(), NotificationType.AI_REPORT_FAILED, "AI 보고서 생성에 실패했어요. 잠시 후 다시 시도해 주세요.");
+
 
                     })
                     .start();
@@ -228,8 +219,8 @@ public class AiReportService {
         }
 
         return markdown.replaceFirst(
-                "(?m)^#+\\s*AI 산업용 청소로봇 관리 보고서.*$",
-                "# AI 산업용 청소로봇 관리 보고서 " + suffix
+                "(?m)^#+\\s*AI 청소로봇 관리 보고서.*$",
+                "# AI 청소로봇 관리 보고서 " + suffix
         );
     }
 

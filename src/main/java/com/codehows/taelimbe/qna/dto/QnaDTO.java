@@ -1,44 +1,47 @@
-package com.codehows.taelimbe.ai.dto;
+package com.codehows.taelimbe.qna.dto;
 
 import com.codehows.taelimbe.ai.constant.QnaStatus;
-import com.codehows.taelimbe.ai.entity.Qna;
+import com.codehows.taelimbe.qna.entity.Qna;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.Setter;
-import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 
-@Setter
-@RequiredArgsConstructor
 @Getter
+@Setter
 public class QnaDTO {
 
     private Long id;
 
-    // Question
+    private String title;
     private String questionText;
 
-    // Answer
     private String appliedAnswer;
+    private String displayAnswer;
     private String editingAnswer;
 
-    // States
     private QnaStatus status;
     private boolean resolved;
 
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private LocalDateTime deletedAt;
 
     public QnaDTO(Qna qna) {
         this.id = qna.getId();
+
+        this.title = qna.getTitle();
         this.questionText = qna.getQuestionText();
+
         this.appliedAnswer = qna.getAppliedAnswer();
+        this.displayAnswer = qna.getDisplayAnswer();
         this.editingAnswer = qna.getEditingAnswer();
+
         this.status = qna.getStatus();
         this.resolved = qna.isResolved();
+
         this.createdAt = qna.getCreatedAt();
         this.updatedAt = qna.getUpdatedAt();
+        this.deletedAt = qna.getDeletedAt();
     }
 }
