@@ -10,6 +10,7 @@ import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,16 +22,32 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class RobotService {
 
     private final PuduAPIClient puduAPIClient;
     private final RobotRepository robotRepository;
     private final StoreRepository storeRepository;
     private final RobotAsyncProcessor processor;
+    private final Executor storeRobotExecutor;
+
+    public RobotService(
+            PuduAPIClient puduAPIClient,
+            RobotRepository robotRepository,
+            StoreRepository storeRepository,
+            RobotAsyncProcessor processor,
+            @Qualifier("StoreRobotExecutor") Executor storeRobotExecutor
+    ) {
+        this.puduAPIClient = puduAPIClient;
+        this.robotRepository = robotRepository;
+        this.storeRepository = storeRepository;
+        this.processor = processor;
+        this.storeRobotExecutor = storeRobotExecutor;
+    }
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     /**
@@ -82,25 +99,26 @@ public class RobotService {
 
         List<Store> stores = storeRepository.findAll();
 
+        List<CompletableFuture<Integer>> futures = stores.stream()
+                .map(store ->
+                        CompletableFuture.supplyAsync(
+                                () -> syncRobots(
+                                        RobotSyncRequestDTO.builder()
+                                                .storeId(store.getStoreId())
+                                                .build()
+                                ),
+                                storeRobotExecutor
+                        )
+                )
+                .toList();
 
-        int newTotal = 0;
+        CompletableFuture.allOf(
+                futures.toArray(new CompletableFuture[0])
+        ).join();
 
-        for (Store store : stores) {
-
-            try {
-                int count = syncRobots(RobotSyncRequestDTO.builder()
-                        .storeId(store.getStoreId())
-                        .build());
-                newTotal += count;
-
-            } catch (Exception e) {
-
-                e.printStackTrace();
-            }
-        }
-
-
-        return newTotal;
+        return futures.stream()
+                .mapToInt(CompletableFuture::join)
+                .sum();
     }
 
     // 매장별 CC1/MT1 로봇 조회
