@@ -1,6 +1,7 @@
 package com.codehows.taelimbe.ai.dto;
 
 import com.codehows.taelimbe.ai.constant.EmbedFileStatus;
+import com.codehows.taelimbe.ai.entity.EmbedFile;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,4 +22,19 @@ public class EmbedFileDTO {
     private String embedKey;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+
+    public static EmbedFileDTO from(EmbedFile file) {
+        return EmbedFileDTO.builder()
+                .id(file.getId())
+                .originalName(file.getOriginalName())
+                .storedName(file.getStoredName())
+                .extension(file.getExtension())
+                .fileSize(file.getFileSize())
+                .status(file.getStatus())
+                .embedKey(file.getEmbedKey())
+                .createdAt(file.getCreatedAt())
+                .updatedAt(file.getUpdatedAt())
+                .build();
+    }
 }

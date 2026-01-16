@@ -17,4 +17,6 @@ public interface EmbedFileRepository extends JpaRepository<EmbedFile, Long> {
 
     List<EmbedFileDTO> findAllByOrderByCreatedAtDesc();
 
+    boolean existsByOriginalName(String originalName);
+
 }
