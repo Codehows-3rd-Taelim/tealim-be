@@ -111,7 +111,6 @@ public class StoreService {
         int limit = 100;
         boolean hasMore = true;
 
-        System.out.println("\n===== Sync All Stores =====");
 
         while (hasMore) {
 
@@ -144,7 +143,7 @@ public class StoreService {
                     // 기존 Store 조회
                     Optional<Store> existing = storeRepository.findByShopId(shopId);
 
-                    // 🔵 Industry 조회 또는 생성
+                    // Industry 조회 또는 생성
                     Industry industry = null;
                     if (industryName != null && !industryName.isEmpty()) {
                         industry = industryRepository.findByIndustryName(industryName)
@@ -188,7 +187,6 @@ public class StoreService {
             }
         }
 
-        System.out.println("New Stores Created: " + newCount + "\n");
         return newCount;
     }
 

@@ -26,11 +26,7 @@ public class QnaService {
     private final QnaRepository qnaRepository;
     private final UserService userService;
 
-    public Page<Qna> findByView(
-            QnaViewType viewType,
-            UserPrincipal user,
-            Pageable pageable
-    ) {
+    public Page<Qna> findByView(QnaViewType viewType, UserPrincipal user, Pageable pageable) {
         boolean isAdmin = user.isAdmin();
 
         return switch (viewType) {

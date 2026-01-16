@@ -40,11 +40,5 @@ public interface QnaRepository extends JpaRepository<Qna, Long> {
     // 비활성 질문 (삭제 최신순)
     Page<Qna> findByDeletedAtIsNotNullOrderByDeletedAtDesc(Pageable pageable);
 
-    
-
-    Page<Qna> findByUser_UserIdAndResolvedTrueAndStatusIsNotNullAndDeletedAtIsNullOrderByCreatedAtDesc(
-            Long userId,
-            Pageable pageable
-    );
 
 }

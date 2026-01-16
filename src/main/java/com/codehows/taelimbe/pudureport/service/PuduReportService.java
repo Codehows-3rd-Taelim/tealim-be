@@ -41,7 +41,6 @@ public class PuduReportService {
     private final PuduReportRepository puduReportRepository;
     private final StoreRepository storeRepository;
     private final RobotRepository robotRepository;
-    private final UserRepository userRepository;
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
