@@ -166,7 +166,7 @@ public class StoreService {
                     // 공통 업데이트
                     store.setShopId(shopId);
                     store.setShopName(shopName);
-                    store.setIndustry(industry);
+                    store.setIndustry(existing.map(Store::getIndustry).orElse(null));
 
                     // 저장
                     storeRepository.save(store);
