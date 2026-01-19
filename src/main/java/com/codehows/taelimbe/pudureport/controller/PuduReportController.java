@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.pudureport.controller;
 
 import com.codehows.taelimbe.pudureport.dto.*;
-import com.codehows.taelimbe.pudureport.service.PuduReportAsyncService;
+import com.codehows.taelimbe.pudureport.service.PuduReportFullHistoricalFacade;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.List;
 public class PuduReportController {
 
     private final PuduReportService puduReportService;
-    private final PuduReportAsyncService puduReportAsyncService;
+    private final PuduReportFullHistoricalFacade puduReportFullHistoricalFacade;
 
     // 단일 매장 특정 기간 보고서 조회
     @PostMapping("/sync/store/time-range")
@@ -41,13 +41,14 @@ public class PuduReportController {
         return ResponseEntity.ok(count + "개 Report 저장/업데이트 완료 (모든 매장 - 특정 기간)");
     }
 
-    // 전체 매장 최대기간(6개월) 보고서 조회
     @PostMapping("/sync/all-stores/full-historical")
     public ResponseEntity<String> syncAllStoresFullHistorical() {
-        puduReportAsyncService.syncAllStoresFullHistoricalAsync();
+
+        puduReportFullHistoricalFacade.syncAllStores6MonthAsync();
+
         return ResponseEntity.accepted().body(
                 "전체 매장 6개월 보고서 동기화 작업을 시작했습니다. " +
-                        "작업은 백그라운드에서 계속 진행되며, 완료까지 시간이 걸릴 수 있습니다."
+                        "작업은 백그라운드에서 계속 진행되며, 완료까지 8분 정도 시간이 걸릴 수 있습니다."
         );
     }
 

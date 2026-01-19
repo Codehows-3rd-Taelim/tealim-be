@@ -129,6 +129,17 @@ public class EmbeddingService {
         }, taskExecutor); // 지정된 `taskExecutor` 스레드 풀에서 실행
     }
 
+    public CompletableFuture<Void> reset() {
+        return CompletableFuture.runAsync(() -> {
+            log.info("임베딩 스토어 재설정 및 새 텍스트 임베딩 시작.");
+
+            // 1. `EmbeddingStoreManager`를 사용하여 Milvus 컬렉션을 재설정(삭제 후 재생성)합니다.
+            embeddingStoreManager.reset();
+
+
+            log.info("임베딩 스토어 재설정 및 새 텍스트 임베딩 완료.");
+        }, taskExecutor); // 지정된 `taskExecutor` 스레드 풀에서 실행
+    }
 
     /**
      * 기존 벡터 저장소의 모든 데이터를 삭제하고, 주어진 텍스트로 새로 임베딩하여 저장합니다.
