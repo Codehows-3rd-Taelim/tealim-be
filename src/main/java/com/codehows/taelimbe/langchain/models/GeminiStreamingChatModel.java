@@ -54,7 +54,7 @@ public class GeminiStreamingChatModel implements StreamingChatLanguageModel {
                 .temperature(0f)
                 .topP(0.95f)
                 .topK(40f)
-                .maxOutputTokens(2048)
+                .maxOutputTokens(4096)
                 .thinkingConfig(ThinkingConfig.builder().thinkingBudget(0))
                 .candidateCount(1)
                 .build();

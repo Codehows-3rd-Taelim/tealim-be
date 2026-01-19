@@ -123,7 +123,7 @@ public class PuduReportService {
     }
 
     // 전체 매장 최대기간(6개월) 보고서 조회
-    @Transactional
+
     public int syncAllStoresFullHistorical(){
         LocalDateTime start = LocalDate.now().minusDays(180).atStartOfDay();
         LocalDateTime end   = LocalDate.now().atTime(LocalTime.MAX);
@@ -139,6 +139,56 @@ public class PuduReportService {
                                 .build()))
                 .sum();
     }
+
+    @Transactional
+    public int syncSingleStoreByTimeRangeSyncOnly(StoreTimeRangeSyncRequestDTO req) {
+
+        Store store = storeRepository.findById(req.getStoreId())
+                .orElseThrow(() -> new IllegalArgumentException("Store not found"));
+
+        Long shopId = store.getShopId();
+
+        int offset = req.getOffset(), saved = 0;
+        List<PuduReport> buffer = new ArrayList<>();
+
+        while (true) {
+
+            List<JsonNode> list = processor.fetchList(
+                    req.getStartTime(), req.getEndTime(),
+                    shopId, req.getTimezoneOffset(), offset);
+
+            if (list.isEmpty()) break;
+
+            for (JsonNode x : list) {
+
+                PuduReport r = processor.convertSyncOnly(
+                        x.path("sn").asText(),
+                        x.path("report_id").asText(),
+                        req.getStartTime(), req.getEndTime(),
+                        req.getTimezoneOffset(), shopId
+                );
+
+                if (r != null) buffer.add(r);
+            }
+
+            if (buffer.size() >= 50) {
+                puduReportRepository.saveAll(buffer);
+                saved += buffer.size();
+                buffer.clear();
+            }
+
+            offset += 20;
+        }
+
+        if (!buffer.isEmpty()) {
+            puduReportRepository.saveAll(buffer);
+            saved += buffer.size();
+        }
+
+        return saved;
+    }
+
+
 
     // id로 보고서 가져오기
     public PuduReportDTO getReportById(Long id){

@@ -129,7 +129,7 @@ public class StoreService {
                 JsonNode list = root.path("data").path("list");
 
                 // 데이터 없으면 종료
-                if (!list.isArray() || list.size() == 0) {
+                if (!list.isArray() || list.isEmpty()) {
                     hasMore = false;
                     break;
                 }
@@ -138,38 +138,24 @@ public class StoreService {
                 for (JsonNode node : list) {
                     Long shopId = node.path("shop_id").asLong();
                     String shopName = node.path("shop_name").asText();
-                    String industryName = node.path("industry_name").asText();
 
-                    // 기존 Store 조회
                     Optional<Store> existing = storeRepository.findByShopId(shopId);
 
-                    // Industry 조회 또는 생성
-                    Industry industry = null;
-                    if (industryName != null && !industryName.isEmpty()) {
-                        industry = industryRepository.findByIndustryName(industryName)
-                                .orElseGet(() -> industryRepository.save(
-                                        Industry.builder()
-                                                .industryName(industryName)
-                                                .build()
-                                ));
-                    }
-
-                    // 신규인지 판단해서 store 객체 준비
                     Store store;
                     if (existing.isPresent()) {
-                        store = existing.get();        // 기존 store
+                        store = existing.get();     // 기존 매장
                     } else {
-                        store = new Store();           // 신규 store
-                        newCount++;                    // 신규 카운트 증가
+                        store = new Store();        // 신규 매장
+                        newCount++;
                     }
 
-                    // 공통 업데이트
+
                     store.setShopId(shopId);
                     store.setShopName(shopName);
-                    store.setIndustry(industry);
 
-                    // 저장
+
                     storeRepository.save(store);
+
 
                 }
 
