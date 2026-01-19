@@ -7,6 +7,8 @@ import io.milvus.param.collection.*;
 import io.milvus.param.dml.DeleteParam;
 import io.milvus.param.dml.InsertParam;
 import io.milvus.param.dml.QueryParam;
+import io.milvus.param.highlevel.collection.ListCollectionsParam;
+import io.milvus.param.highlevel.collection.response.ListCollectionsResponse;
 import io.milvus.param.index.CreateIndexParam;
 import io.milvus.response.QueryResultsWrapper;
 import lombok.extern.slf4j.Slf4j;
@@ -278,6 +280,49 @@ public class EmbeddingStoreManager {
         }
     }
 
+    public static List<String> getAllCollectionNames(MilvusServiceClient milvusClient) {
+
+        R<ShowCollectionsResponse> response =
+                milvusClient.showCollections(
+                        ShowCollectionsParam.newBuilder().build()
+                );
+
+        if (response.getStatus() != R.Status.Success.getCode()) {
+            throw new RuntimeException("Failed to show collections: " + response.getMessage());
+        }
+
+        return response.getData().getCollectionNamesList();
+    }
+
+    public void dropAllCollections() {
+
+        MilvusServiceClient milvusClient = new MilvusServiceClient(
+                ConnectParam.newBuilder()
+                        .withHost(milvusHost)
+                        .withPort(milvusPort)
+                        .build()
+        );
+
+        try {
+            List<String> collections = getAllCollectionNames(milvusClient);
+
+            for (String collection : collections) {
+                log.info(collection);
+                milvusClient.dropCollection(
+                        DropCollectionParam.newBuilder()
+                                .withCollectionName(collection)
+                                .build()
+                );
+            }
+
+        } finally {
+            milvusClient.close();
+        }
+    }
+
 
 }
+
+
+
 
