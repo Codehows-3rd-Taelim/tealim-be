@@ -22,7 +22,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -35,6 +34,8 @@ public class AiReportService {
     private final AiReportRepository aiReportRepository;
     private final UserRepository userRepository;
 
+    // 🔴 Tool 미호출 재시도 최대 횟수
+    private static final int MAX_RETRY = 3;
 
     // 1. 보고서 생성 시작
     public void startGenerateReport(
@@ -63,7 +64,8 @@ public class AiReportService {
                 modifiedMessage,
                 principal,
                 storeId,
-                storeName
+                storeName,
+                0
         );
     }
 
@@ -74,8 +76,17 @@ public class AiReportService {
 
     // 3. 실제 AI 보고서 생성 (비동기)
     @Async
-    public void generateAsync(String conversationId, String originalMessage, String aiMessage,
-                              UserPrincipal user, Long storeId, String storeName) {
+    public void generateAsync(
+            String conversationId,
+            String originalMessage,
+            String aiMessage,
+            UserPrincipal user,
+            Long storeId,
+            String storeName,
+            int retryCount
+    ) {
+
+        ToolArgsContextHolder.clear();
 
         ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(user.isAdmin()));
 
@@ -90,9 +101,9 @@ public class AiReportService {
                     "fail",
                     Map.of("message", "보고서 요청 내용이 비어 있습니다.")
             );
-
             return;
         }
+
         try {
             String generatedDate = LocalDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy년 MM월 dd일"));
@@ -101,11 +112,7 @@ public class AiReportService {
             StringBuilder aiResult = new StringBuilder();
 
             reportAgent.report(aiMessage, currentDate, generatedDate)
-                    .onNext(token -> {
-                        aiResult.append(token);
-//                        // 토큰 스트리밍 유지 (UI에서 안 쓰면 무시)
-//                        sseService.sendEvent(conversationId, "token", token);
-                    })
+                    .onNext(aiResult::append)
                     .onComplete(res -> {
 
                         String fullText = aiResult.toString();
@@ -123,8 +130,33 @@ public class AiReportService {
                                     "fail",
                                     Map.of("message", failMessage)
                             );
+                            return;
+                        }
 
+                        // 🔴 Tool 미호출 감지 → 자동 재호출
+                        if (!isToolCalled()) {
+                            if (retryCount < MAX_RETRY) {
+                                log.warn("⚠️ Tool not called. Retrying... ({}/{})",
+                                        retryCount + 1, MAX_RETRY);
 
+                                generateAsync(
+                                        conversationId,
+                                        originalMessage,
+                                        aiMessage,
+                                        user,
+                                        storeId,
+                                        storeName,
+                                        retryCount + 1
+                                );
+                                return;
+                            }
+
+                            // 재시도 실패
+                            sseService.sendOnceAndComplete(
+                                    conversationId,
+                                    "fail",
+                                    Map.of("message", "데이터 조회 도구가 호출되지 않았습니다.")
+                            );
                             return;
                         }
 
@@ -145,14 +177,11 @@ public class AiReportService {
                                 endDate
                         );
 
-                        // 여기서 한 번만 보내고 종료
                         sseService.sendOnceAndComplete(
                                 conversationId,
                                 "savedReport",
                                 AiReportDTO.from(saved)
                         );
-
-
                     })
                     .onError(e -> {
                         log.error("AI Report Error", e);
@@ -165,9 +194,6 @@ public class AiReportService {
                                         "detail", e.getMessage()
                                 )
                         );
-
-
-
                     })
                     .start();
 
@@ -180,9 +206,14 @@ public class AiReportService {
                     "보고서 생성 중 예외 발생"
             );
         } finally {
-            // 무조건 정리 (중요)
             ToolArgsContextHolder.clear();
         }
+    }
+
+    // 🔒 Tool 호출 여부 판단 (startDate/endDate 기준)
+    private boolean isToolCalled() {
+        return ToolArgsContextHolder.getToolArgs("startDate") != null
+                && ToolArgsContextHolder.getToolArgs("endDate") != null;
     }
 
     // 보고서 저장
@@ -224,7 +255,6 @@ public class AiReportService {
         );
     }
 
-
     // fail 판단
     private boolean isFailResponse(String text) {
         return text.contains("현재 사용 가능한 도구")
@@ -258,7 +288,6 @@ public class AiReportService {
         AiReport report = aiReportRepository.findById(reportId)
                 .orElseThrow(() -> new RuntimeException("보고서 없음"));
 
-        // 본인 보고서만 삭제 가능
         if (!report.getUser().getUserId().equals(user.userId())) {
             throw new RuntimeException("삭제 권한 없음");
         }

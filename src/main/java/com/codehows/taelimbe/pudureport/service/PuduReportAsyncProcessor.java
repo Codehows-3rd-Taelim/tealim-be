@@ -125,6 +125,49 @@ public class PuduReportAsyncProcessor {
     }
 
 
+    public PuduReport convertSyncOnly(
+            String sn, String reportIdStr,
+            LocalDateTime start, LocalDateTime end,
+            int tz, Long shopId
+    ) {
+        try {
+            Long reportId = safeLong(reportIdStr);
+            if (reportId == null || puduReportRepository.findByReportId(reportId).isPresent())
+                return null;
+
+            Robot robot = robotRepository.findBySn(sn).orElse(null);
+            if (robot == null) return null;
+
+            JsonNode data = fetchDetail(sn, reportIdStr, start, end, tz, shopId);
+            if (data == null) return null;
+
+            Map<String, String> floor = parseFloor(data);
+
+            return PuduReport.builder()
+                    .reportId(reportId)
+                    .status(data.path("status").asInt())
+                    .startTime(epochToLocalDateTime(data.path("start_time").asLong()))
+                    .endTime(epochToLocalDateTime(data.path("end_time").asLong()))
+                    .cleanTime(data.path("clean_time").asDouble() > 0
+                            ? data.path("clean_time").floatValue() : null)
+                    .taskArea(data.path("task_area").asDouble() > 0
+                            ? data.path("task_area").floatValue() : null)
+                    .cleanArea(data.path("clean_area").asDouble() > 0
+                            ? data.path("clean_area").floatValue() : null)
+                    .mode(data.path("mode").asInt())
+                    .costBattery(data.path("cost_battery").asLong())
+                    .costWater(data.path("cost_water").asLong())
+                    .mapName(floor.get("mapName"))
+                    .mapUrl(floor.get("mapUrl"))
+                    .robot(robot)
+                    .build();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
 
     // floor_list JSON 파싱
     private Map<String, String> parseFloor(JsonNode data) {
