@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.ai.service;
 
+import com.codehows.taelimbe.ai.agent.ChatAgent;
 import com.codehows.taelimbe.ai.constant.SenderType;
 import com.codehows.taelimbe.ai.dto.AiChatDTO;
 import com.codehows.taelimbe.ai.entity.AiChat;
@@ -9,15 +10,22 @@ import com.codehows.taelimbe.user.repository.UserRepository;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import reactor.core.publisher.Flux;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -26,16 +34,64 @@ import java.util.stream.Collectors;
 @Slf4j
 public class AiChatService {
 
+    private final ChatAgent chatAgent;
     private final AiChatRepository aiChatRepository;
     private final UserRepository userRepository;
-
-
-
+    private final VectorStore vectorStore; // New for RAG
+    private final SseService sseService;
 
     public String startNewChat(Authentication authentication) {
         return UUID.randomUUID().toString();
     }
 
+    @Async
+    public void process(String conversationId, String message, Long userId) {
+        // 1. 사용자 메시지 저장
+        this.saveUserMessage(conversationId, userId, message);
+
+        // 3. RAG를 위한 컨텍스트 검색
+        List<Document> similarDocuments = vectorStore.similaritySearch(message);
+        String ragContext = similarDocuments.stream()
+                .map(Document::getText)
+                .collect(Collectors.joining("\n"));
+
+        // 4. System Message 구성 (RAG 컨텍스트 포함)
+        String systemMessageContent = """
+            You are a helpful AI assistant.
+            Answer the question based on the following context and conversation history:
+            Context: %s
+            """.formatted(ragContext);
+
+        // 5. Prompt 객체 생성
+        // 기존 대화 기록, 시스템 메시지, 사용자 메시지를 포함합니다.
+        List<Message> promptMessages = new ArrayList<>();
+        promptMessages.add(new SystemMessage(systemMessageContent));
+        // Using only current message for now, history is empty and will be re-added in step 4
+        promptMessages.add(new UserMessage(message));
+
+
+        // 6. Spring AI ChatClient 스트리밍 호출
+        Flux<ChatResponse> stream = chatAgent.chat(promptMessages)
+                .stream().chatResponse();
+
+        StringBuilder aiBuilder = new StringBuilder();
+
+        stream.doOnNext(chatResponse -> { // Parameter is chatResponse
+                    String token = chatResponse.getResults().getFirst().getOutput().getText(); // Get content from the first Generation using getText()
+                    aiBuilder.append(token);
+                    sseService.sendEvent(conversationId, "message", token); // Temporarily commented out
+                })
+                .doOnComplete(() -> {
+                    String finalAnswer = aiBuilder.toString();
+                    this.saveAiMessage(conversationId, userId, finalAnswer);
+                    sseService.sendFinalAndComplete(conversationId, finalAnswer); // Temporarily commented out
+                })
+                .doOnError(e -> {
+                    log.error("AI 스트림 오류", e);
+                    sseService.completeWithError(conversationId, e); // Temporarily commented out
+                })
+                .subscribe(); // 중요: Flux를 활성화하려면 subscribe()를 호출해야 합니다.
+    }
 
     @Transactional(readOnly = true)
     public List<AiChatDTO> getChatHistory(String conversationId) {

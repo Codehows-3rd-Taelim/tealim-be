@@ -1,5 +1,6 @@
 package com.codehows.taelimbe.langchain.embaddings;
 
+import com.alibaba.fastjson2.JSONObject;
 import io.milvus.client.MilvusServiceClient;
 import io.milvus.grpc.*;
 import io.milvus.param.*;
@@ -14,8 +15,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import static io.milvus.grpc.DataType.*;
-
-import com.alibaba.fastjson.JSONObject;
 
 import java.util.*;
 import java.util.stream.Collectors;

@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.ai.controller;
 
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
-import com.codehows.taelimbe.ai.service.AgentService;
+import com.codehows.taelimbe.ai.service.AiChatService;
 import com.codehows.taelimbe.ai.service.EmbedFileService;
 import com.codehows.taelimbe.ai.service.SseService;
 import com.codehows.taelimbe.ai.service.EmbeddingService;
@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
 @Slf4j
 public class AgentController {
 
-    private final AgentService agentService;
+    private final AiChatService aiChatService;
     private final SseService sseService;
     private final EmbeddingService embeddingService;
     private final EmbedFileService embedFileService;
@@ -39,7 +39,7 @@ public class AgentController {
 
         SseEmitter emitter = sseService.createEmitter(conversationId);
 
-        agentService.process(conversationId, req.getMessage(), user.userId());
+        aiChatService.process(conversationId, req.getMessage(), user.userId());
         return emitter;
     }
 

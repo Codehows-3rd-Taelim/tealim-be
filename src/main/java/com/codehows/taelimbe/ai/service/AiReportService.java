@@ -112,8 +112,10 @@ public class AiReportService {
             StringBuilder aiResult = new StringBuilder();
 
             reportAgent.report(aiMessage, currentDate, generatedDate)
-                    .onNext(aiResult::append)
-                    .onComplete(res -> {
+                    .doOnNext((res) -> {
+                        aiResult.append(res);
+                    })
+                    .doOnComplete(() -> {
 
                         String fullText = aiResult.toString();
 
@@ -183,8 +185,8 @@ public class AiReportService {
                                 AiReportDTO.from(saved)
                         );
                     })
-                    .onError(e -> {
-                        log.error("AI Report Error", e);
+                    .doOnError(e -> {
+                        log.error("AI Report Error");
 
                         sseService.sendOnceAndComplete(
                                 conversationId,
@@ -195,7 +197,7 @@ public class AiReportService {
                                 )
                         );
                     })
-                    .start();
+                    .subscribe();
 
         } catch (Exception e) {
             log.error("AI Report Exception", e);
