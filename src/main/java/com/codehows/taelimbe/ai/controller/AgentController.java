@@ -24,7 +24,6 @@ public class AgentController {
     private final AgentService agentService;
     private final SseService sseService;
     private final EmbeddingService embeddingService;
-    private final EmbedFileService embedFileService;
 
     // SSE 연결, AI 응답 받아옴
     @PostMapping("/agent/chat")

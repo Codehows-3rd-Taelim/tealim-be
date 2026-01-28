@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 
 import static io.milvus.grpc.DataType.*;
 
-import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson2.JSONObject;
 
 import java.util.*;
 import java.util.stream.Collectors;

@@ -4,12 +4,18 @@ import com.codehows.taelimbe.ai.agent.ReportAgent;
 import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
 import com.codehows.taelimbe.ai.dto.AiReportDTO;
 import com.codehows.taelimbe.ai.dto.ChatPromptRequest;
+import com.codehows.taelimbe.ai.dto.ReportStatistics;
 import com.codehows.taelimbe.ai.entity.AiReport;
 import com.codehows.taelimbe.ai.repository.AiReportRepository;
 import com.codehows.taelimbe.ai.repository.RawReportProjection;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.repository.UserRepository;
 import com.codehows.taelimbe.user.security.UserPrincipal;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.StreamingChatModel;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import dev.langchain4j.model.chat.response.StreamingChatResponseHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
@@ -33,8 +39,11 @@ public class AiReportService {
     private final ReportAgent reportAgent;
     private final AiReportRepository aiReportRepository;
     private final UserRepository userRepository;
+    private final ReportStatisticsService reportStatisticsService;
+    private final ReportMarkdownBuilder reportMarkdownBuilder;
+    private final StreamingChatModel streamingChatModel;
 
-    // 🔴 Tool 미호출 재시도 최대 횟수
+    // Tool 미호출 재시도 최대 횟수
     private static final int MAX_RETRY = 3;
 
     // 1. 보고서 생성 시작
@@ -43,7 +52,7 @@ public class AiReportService {
             ChatPromptRequest req,
             UserPrincipal principal
     ) {
-        log.info("🚀 보고서 생성 시작 - conversationId: {}", conversationId);
+        log.info("보고서 생성 시작 - conversationId: {}", conversationId);
 
         User user = userRepository.findById(principal.userId()).orElseThrow();
 
@@ -86,7 +95,7 @@ public class AiReportService {
             int retryCount
     ) {
 
-        ToolArgsContextHolder.clear();
+        ToolArgsContextHolder.bind(conversationId);
 
         ToolArgsContextHolder.setToolArgs("isAdmin", String.valueOf(user.isAdmin()));
 
@@ -111,32 +120,16 @@ public class AiReportService {
 
             StringBuilder aiResult = new StringBuilder();
 
-            reportAgent.report(aiMessage, currentDate, generatedDate)
-                    .onNext(aiResult::append)
-                    .onComplete(res -> {
+            // Phase 1: Tool 호출 (날짜 파싱 + 데이터 조회)
+            reportAgent.report(aiMessage, currentDate, generatedDate, conversationId)
+                    .onPartialResponse(chunk -> { /* Phase 1 출력 무시 */ })
+                    .onCompleteResponse(res -> {
+                        ToolArgsContextHolder.bind(conversationId);
 
-                        String fullText = aiResult.toString();
-
-                        // FAIL 판단
-                        if (isFailResponse(fullText)) {
-                            ToolArgsContextHolder.clear();
-                            String failMessage = normalizeFailMessage(fullText);
-
-                            log.warn("AI report fail detected. conversationId={}, message={}",
-                                    conversationId, failMessage);
-
-                            sseService.sendOnceAndComplete(
-                                    conversationId,
-                                    "fail",
-                                    Map.of("message", failMessage)
-                            );
-                            return;
-                        }
-
-                        // 🔴 Tool 미호출 감지 → 자동 재호출
+                        // Tool 미호출 감지 → 자동 재호출
                         if (!isToolCalled()) {
                             if (retryCount < MAX_RETRY) {
-                                log.warn("⚠️ Tool not called. Retrying... ({}/{})",
+                                log.warn("Tool not called. Retrying... ({}/{})",
                                         retryCount + 1, MAX_RETRY);
 
                                 generateAsync(
@@ -160,31 +153,42 @@ public class AiReportService {
                             return;
                         }
 
-                        // 정상 플로우
+                        // Phase 2-3: DB 집계 쿼리로 통계 계산
                         String startDate = ToolArgsContextHolder.getToolArgs("startDate");
                         String endDate = ToolArgsContextHolder.getToolArgs("endDate");
+                        String scope = ToolArgsContextHolder.getToolArgs("scope");
+                        Long resolvedStoreId = "STORE".equals(scope)
+                                ? Long.valueOf(ToolArgsContextHolder.getToolArgs("resolvedStoreId"))
+                                : null;
 
-                        String finalReport = applyTitleScope(aiResult.toString());
+                        LocalDateTime startDt = LocalDate.parse(startDate).atStartOfDay();
+                        LocalDateTime endDt = LocalDate.parse(endDate).plusDays(1).atStartOfDay();
 
-                        ToolArgsContextHolder.clear();
+                        ReportStatistics stats = reportStatisticsService.compute(startDt, endDt, resolvedStoreId);
 
-                        AiReport saved = saveReport(
-                                user,
-                                conversationId,
-                                originalMessage,
-                                finalReport,
-                                startDate,
-                                endDate
-                        );
+                        if (stats.getTotalJobCount() == 0) {
+                            sseService.sendOnceAndComplete(
+                                    conversationId,
+                                    "fail",
+                                    Map.of("message",
+                                            String.format("%s ~ %s 기간에 작업 데이터가 없습니다.", startDate, endDate))
+                            );
+                            ToolArgsContextHolder.clear(conversationId);
+                            return;
+                        }
 
-                        sseService.sendOnceAndComplete(
-                                conversationId,
-                                "savedReport",
-                                AiReportDTO.from(saved)
-                        );
+                        // Phase 4: 마크다운 조립 (플레이스홀더 포함)
+                        String scopeSuffix = resolveScopeSuffix();
+                        String template = reportMarkdownBuilder.build(
+                                stats, generatedDate, startDate, endDate, scopeSuffix);
+
+                        // Phase 5: LLM 인사이트 생성
+                        generateInsight(conversationId, stats, template,
+                                originalMessage, user, startDate, endDate);
                     })
                     .onError(e -> {
                         log.error("AI Report Error", e);
+                        ToolArgsContextHolder.clear(conversationId);
 
                         sseService.sendOnceAndComplete(
                                 conversationId,
@@ -205,15 +209,136 @@ public class AiReportService {
                     "fail",
                     "보고서 생성 중 예외 발생"
             );
-        } finally {
-            ToolArgsContextHolder.clear();
         }
     }
 
-    // 🔒 Tool 호출 여부 판단 (startDate/endDate 기준)
+    /**
+     * Phase 5: LLM에 통계 요약을 전달하여 인사이트 + 분석/권장사항만 생성
+     */
+    private void generateInsight(String conversationId, ReportStatistics stats,
+                                  String template, String originalMessage,
+                                  UserPrincipal user, String startDate, String endDate) {
+
+        String summaryText = stats.toSummaryText();
+
+        String prompt = """
+                아래는 청소로봇 운영 통계 요약입니다. 두 가지 텍스트를 생성하세요.
+                반드시 "---SEPARATOR---" 구분자로 나누어 출력하세요.
+
+                [첫 번째] AI 운영 인사이트 요약 (2~3문장)
+                - 수치를 직접 언급하지 말고, 운영 패턴과 가능성을 서술
+                - "~일 수 있습니다", "~으로 보입니다" 등 가능성 표현 사용
+                - 작업 횟수와 청소 범위의 관계, 작업 시간과 반복 가능성, 물 사용 여부와 구역 설정, 스케줄 설정 가능성 중 선택
+
+                ---SEPARATOR---
+
+                [두 번째] 분석 및 권장사항
+                ### 작업 효율성
+                - 평균 청소 시간, 평균 청소 면적, 시간당 청소 효율에 대한 분석
+
+                ### 주의사항
+                - 취소율 10% 이상이면 원인 분석 권장
+                - 배터리 소모 평균 50% 이상이면 충전 스케줄 점검 권장
+                - 물 소비량 비정상적으로 적으면 물 공급 시스템 점검 권장
+
+                ### 개선 제안
+                - 데이터 기반 구체적 개선안
+
+                통계 요약:
+                """ + summaryText;
+
+        StringBuilder insightResult = new StringBuilder();
+
+        streamingChatModel.chat(
+                List.of(UserMessage.from(prompt)),
+                new StreamingChatResponseHandler() {
+                    @Override
+                    public void onPartialResponse(String partialResponse) {
+                        insightResult.append(partialResponse);
+                    }
+
+                    @Override
+                    public void onCompleteResponse(ChatResponse completeResponse) {
+                        ToolArgsContextHolder.bind(conversationId);
+
+                        String insightText = insightResult.toString();
+
+                        // Phase 6: 플레이스홀더 교체
+                        String insight = "";
+                        String analysis = "";
+
+                        if (insightText.contains("---SEPARATOR---")) {
+                            String[] parts = insightText.split("---SEPARATOR---", 2);
+                            insight = parts[0].trim();
+                            analysis = parts.length > 1 ? parts[1].trim() : "";
+                        } else {
+                            // 구분자 없으면 전체를 인사이트로 사용
+                            insight = insightText.trim();
+                        }
+
+                        String finalReport = template
+                                .replace(ReportMarkdownBuilder.INSIGHT_PLACEHOLDER, insight)
+                                .replace(ReportMarkdownBuilder.ANALYSIS_PLACEHOLDER, analysis);
+
+                        // 저장 + SSE 전송
+                        AiReport saved = saveReport(
+                                user, conversationId, originalMessage,
+                                finalReport, startDate, endDate);
+
+                        sseService.sendOnceAndComplete(
+                                conversationId,
+                                "savedReport",
+                                AiReportDTO.from(saved)
+                        );
+
+                        ToolArgsContextHolder.clear(conversationId);
+                    }
+
+                    @Override
+                    public void onError(Throwable error) {
+                        log.error("Insight generation error", error);
+                        ToolArgsContextHolder.bind(conversationId);
+
+                        // 인사이트 생성 실패해도 통계 보고서는 전송
+                        String finalReport = template
+                                .replace(ReportMarkdownBuilder.INSIGHT_PLACEHOLDER,
+                                        "인사이트 생성에 실패했습니다.")
+                                .replace(ReportMarkdownBuilder.ANALYSIS_PLACEHOLDER,
+                                        "분석 생성에 실패했습니다.");
+
+                        AiReport saved = saveReport(
+                                user, conversationId, originalMessage,
+                                finalReport, startDate, endDate);
+
+                        sseService.sendOnceAndComplete(
+                                conversationId,
+                                "savedReport",
+                                AiReportDTO.from(saved)
+                        );
+
+                        ToolArgsContextHolder.clear(conversationId);
+                    }
+                }
+        );
+    }
+
+    // Tool 호출 여부 판단
     private boolean isToolCalled() {
         return ToolArgsContextHolder.getToolArgs("startDate") != null
                 && ToolArgsContextHolder.getToolArgs("endDate") != null;
+    }
+
+    // scope suffix 결정
+    private String resolveScopeSuffix() {
+        String scope = ToolArgsContextHolder.getToolArgs("scope");
+        String storeName = ToolArgsContextHolder.getToolArgs("storeName");
+
+        if ("ALL".equals(scope)) {
+            return "(전매장)";
+        } else if ("STORE".equals(scope) && storeName != null) {
+            return "(" + storeName + ")";
+        }
+        return "";
     }
 
     // 보고서 저장
@@ -233,41 +358,6 @@ public class AiReportService {
                         .user(entity)
                         .build()
         );
-    }
-
-    private String applyTitleScope(String markdown) {
-
-        String scope = ToolArgsContextHolder.getToolArgs("scope");
-        String storeName = ToolArgsContextHolder.getToolArgs("storeName");
-
-        String suffix;
-        if ("ALL".equals(scope)) {
-            suffix = "(전매장)";
-        } else if ("STORE".equals(scope) && storeName != null) {
-            suffix = "(" + storeName + ")";
-        } else {
-            suffix = "";
-        }
-
-        return markdown.replaceFirst(
-                "(?m)^#+\\s*AI 청소로봇 관리 보고서.*$",
-                "# AI 청소로봇 관리 보고서 " + suffix
-        );
-    }
-
-    // fail 판단
-    private boolean isFailResponse(String text) {
-        return text.contains("현재 사용 가능한 도구")
-                || text.contains("할까요?")
-                || text.contains("대신")
-                || text.contains("도움이 필요");
-    }
-
-    private String normalizeFailMessage(String text) {
-        return text
-                .replace("\n", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
     }
 
     // 보고서 목록 조회

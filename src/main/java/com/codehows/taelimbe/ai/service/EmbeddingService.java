@@ -392,14 +392,14 @@ public class EmbeddingService {
 
             List<String> ids = new ArrayList<>();
             List<String> texts = new ArrayList<>();
-            List<com.alibaba.fastjson.JSONObject> metadatas = new ArrayList<>();
+            List<com.alibaba.fastjson2.JSONObject> metadatas = new ArrayList<>();
             List<List<Float>> vectors = new ArrayList<>();
 
             for (int i = 0; i < segments.size(); i++) {
                 ids.add(UUID.randomUUID().toString());
                 texts.add(segments.get(i).text());
 
-                com.alibaba.fastjson.JSONObject metadata = new com.alibaba.fastjson.JSONObject();
+                com.alibaba.fastjson2.JSONObject metadata = new com.alibaba.fastjson2.JSONObject();
                 metadata.put("key", key);
                 metadata.put("chunk", i + 1);
 

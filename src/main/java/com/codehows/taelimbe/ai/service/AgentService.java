@@ -28,10 +28,10 @@ public class AgentService {
 
         StringBuilder aiBuilder = new StringBuilder();
 
-        stream.onNext(token -> {
+        stream.onPartialResponse(token -> {
                     aiBuilder.append(token);
                 })
-                .onComplete(finalResponse -> {
+                .onCompleteResponse(finalResponse -> {
                     String rawAnswer = aiBuilder.toString();
 
                     aiChatService.saveAiMessage(

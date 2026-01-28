@@ -61,31 +61,37 @@ dependencies {
     // ==============================
     // LangChain4j 및 Milvus / Google GenAI
     // ==============================
-    implementation 'dev.langchain4j:langchain4j-spring-boot-starter:0.31.0'
-    implementation 'dev.langchain4j:langchain4j-milvus:0.31.0'
-    implementation 'dev.langchain4j:langchain4j:0.31.0'
+    implementation 'dev.langchain4j:langchain4j-spring-boot-starter:1.10.0-beta18'
+    implementation 'dev.langchain4j:langchain4j-milvus:1.10.0-beta18'
+    implementation 'dev.langchain4j:langchain4j-google-ai-gemini:1.10.0'
+    implementation 'dev.langchain4j:langchain4j:1.10.0'
 
     // ⭐ 핵심: MapChatMemoryProvider가 포함된 core 모듈을 명시적으로 추가
-    implementation 'dev.langchain4j:langchain4j-core:0.31.0'
-    implementation 'com.google.genai:google-genai:1.32.0'
-    implementation platform('io.grpc:grpc-bom:1.59.1') 
-    implementation 'io.grpc:grpc-api'
-    implementation 'io.grpc:grpc-core'
-    implementation 'io.grpc:grpc-protobuf'
-    implementation 'io.grpc:grpc-stub'
-    implementation 'io.grpc:grpc-services'
-    configurations.all {
-        resolutionStrategy.eachDependency { details ->
-            if (details.requested.group == 'io.grpc') {
-                details.useVersion '1.59.1'
-            }
-        }
-    }
+//    implementation 'dev.langchain4j:langchain4j-core:0.31.0'
+//    implementation 'com.google.genai:google-genai:1.32.0'
+//    implementation platform('io.grpc:grpc-bom:1.59.1')
+//    implementation 'io.grpc:grpc-api'
+//    implementation 'io.grpc:grpc-core'
+//    implementation 'io.grpc:grpc-protobuf'
+//    implementation 'io.grpc:grpc-stub'
+//    implementation 'io.grpc:grpc-services'
+//    configurations.all {
+//        resolutionStrategy.eachDependency { details ->
+//            if (details.requested.group == 'io.grpc') {
+//                details.useVersion '1.59.1'
+//            }
+//        }
+//    }
 
     // ==============================
     // Gson
     // ==============================
     implementation 'com.google.code.gson:gson'
+
+    // ==============================
+    // Fastjson (for Milvus metadata)
+    // ==============================
+    implementation 'com.alibaba.fastjson2:fastjson2:2.0.47'
 
     // ==============================
     // Lombok
@@ -96,7 +102,6 @@ dependencies {
     // ==============================
     // 테스트
     // ==============================
-    testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
@@ -107,6 +112,9 @@ dependencies {
 
     // pdf 임베딩
     implementation 'org.apache.pdfbox:pdfbox:2.0.30'
+
+    // Apache HttpClient (PuduAPIClient에서 사용)
+    implementation 'org.apache.httpcomponents:httpclient:4.5.14'
 }
 
 tasks.named('test') {

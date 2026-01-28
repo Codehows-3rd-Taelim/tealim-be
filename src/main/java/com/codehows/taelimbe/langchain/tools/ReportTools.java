@@ -1,43 +1,30 @@
 package com.codehows.taelimbe.langchain.tools;
 
 import com.codehows.taelimbe.ai.config.ToolArgsContextHolder;
-import com.codehows.taelimbe.ai.dto.ReportResult;
 import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import com.codehows.taelimbe.store.constant.DeleteStatus;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.StoreRepository;
-import com.codehows.taelimbe.user.security.SecurityUtils;
-import com.codehows.taelimbe.user.security.UserPrincipal;
-import com.google.gson.*;
 import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * AI 에이전트가 사용할 수 있는 커스텀 도구들을 정의하는 클래스입니다.
- * `@Component` 어노테이션을 통해 Spring 컨테이너에 의해 관리되는 빈으로 등록됩니다.
- * `@RequiredArgsConstructor`는 Lombok 어노테이션으로, final 필드에 대한 생성자를 자동으로 생성하여 의존성 주입을 용이하게 합니다.
- */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class ReportTools {
 
     private final StoreRepository storeRepository;
-    // CleaningDataService를 주입받아 청소 보고서 관련 비즈니스 로직을 수행합니다.
     private final PuduReportService puduReportService;
-    // LangChainConfig에서 빈으로 등록된 Gson 인스턴스를 주입받습니다.
-    private final Gson gson;
 
     @Tool("""
     (ADMIN 전용)
     관리자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
-    
+
     ⚠️ 날짜 규칙:
     - "어제" → 어제 날짜.
     - "오늘" → 오늘 날짜.
@@ -55,11 +42,11 @@ public class ReportTools {
           - "25년 12월부터 26년 1월" →
             startDate = 2025-12-01
             endDate   = 2026-01-31
-    
+
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
     storeId가 null이면 전매장 데이터를 조회합니다.
     """)
-    public ReportResult getReport(String startDate, String endDate) {
+    public String getReport(String startDate, String endDate) {
 
         boolean isAdmin = Boolean.parseBoolean(
                 ToolArgsContextHolder.getToolArgs("isAdmin")
@@ -76,21 +63,23 @@ public class ReportTools {
 
         log.info("[AI TOOL CALL] getReport({}, {})", startDate, endDate);
 
+        // 건수만 확인 (실제 집계는 AiReportService에서 DB 쿼리로 처리)
         List<PuduReportDTO> reportData = puduReportService.getReport(startDate, endDate);
+        int count = reportData != null ? reportData.size() : 0;
 
-        if (reportData == null || reportData.isEmpty()) {
+        if (count == 0) {
             log.warn("[AI TOOL CALL] 결과 없음: {} ~ {}", startDate, endDate);
         }
 
-        return new ReportResult(gson.toJson(reportData), startDate, endDate);
+        return "조회 완료: " + count + "건";
     }
 
     @Tool("""
     매장 단위 청소 로봇 보고서 데이터를 조회합니다.
-    
+
     - USER: fixedStoreId만 허용.
     - ADMIN: resolveStore 결과 storeId 사용.
-    
+
     ⚠️ 날짜 규칙:
     - "어제" → 어제 날짜.
     - "오늘" → 오늘 날짜.
@@ -108,11 +97,11 @@ public class ReportTools {
           - "25년 12월부터 26년 1월" →
             startDate = 2025-12-01
             endDate   = 2026-01-31
-    
+
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
     storeId가 null이면 전매장 데이터를 조회합니다.
     """)
-    public ReportResult getStoreReport(
+    public String getStoreReport(
             String startDate,
             String endDate,
             Long storeId
@@ -120,14 +109,15 @@ public class ReportTools {
         ToolArgsContextHolder.setToolArgs("startDate", startDate);
         ToolArgsContextHolder.setToolArgs("endDate", endDate);
 
-        UserPrincipal principal = SecurityUtils.getPrincipal();
+        boolean isAdmin = Boolean.parseBoolean(
+                ToolArgsContextHolder.getToolArgs("isAdmin")
+        );
 
         Long resolvedStoreId;
 
-        if (principal.isAdmin()) {
+        if (isAdmin) {
             resolvedStoreId = storeId;
         } else {
-            // USER는 무조건 본인 매장
             resolvedStoreId = Long.valueOf(
                     ToolArgsContextHolder.getToolArgs("fixedStoreId")
             );
@@ -137,16 +127,14 @@ public class ReportTools {
 
         ToolArgsContextHolder.setToolArgs("scope", "STORE");
         ToolArgsContextHolder.setToolArgs("storeName", store.getShopName());
+        ToolArgsContextHolder.setToolArgs("resolvedStoreId", String.valueOf(resolvedStoreId));
 
+        // 건수만 확인 (실제 집계는 AiReportService에서 DB 쿼리로 처리)
         List<PuduReportDTO> reports =
-                puduReportService.getReportByStoreId(
-                        resolvedStoreId,
-                        startDate,
-                        endDate
+                puduReportService.getReportByStoreId(resolvedStoreId, startDate, endDate);
+        int count = reports != null ? reports.size() : 0;
 
-                );
-
-        return new ReportResult(gson.toJson(reports), startDate, endDate);
+        return "조회 완료: " + count + "건";
     }
 
     @Tool("""
@@ -174,21 +162,19 @@ public class ReportTools {
             }
         }
 
-        // 임계값: 30이면 웬만한 의미 일치 다 잡힘
-        if (bestScore < 30) return null; // 의미 있는 후보 없음
+        if (bestScore < 30) return null;
 
-        // 후보 다수일 경우 CC1 포함 우선
         List<Store> candidates = stores.stream()
                 .filter(s -> similarityScore(shopNameCandidate, s.getShopName()) >= 30)
                 .toList();
 
         for (Store s : candidates) {
             if (s.getShopName().contains("CC1")) {
-                return s.getStoreId(); // CC1 포함 매장 우선 반환
+                return s.getStoreId();
             }
         }
 
-        return best.getStoreId(); // CC1 없는 경우 최고점 반환
+        return best.getStoreId();
     }
 
     private int similarityScore(String input, String target) {
@@ -199,11 +185,9 @@ public class ReportTools {
 
         int score = 0;
 
-        // 완전 포함
         if (b.contains(a)) score += 100;
         if (a.contains(b)) score += 80;
 
-        // 토큰 단위 비교
         for (String token : a.split(" ")) {
             if (token.length() < 2) continue;
             if (b.contains(token)) score += 20;
@@ -215,7 +199,7 @@ public class ReportTools {
     private String normalize(String s) {
         return s
                 .toLowerCase()
-                .replaceAll("(주식회사|병원|공장|센터)", "") // 접미어 제거
+                .replaceAll("(주식회사|병원|공장|센터)", "")
                 .replaceAll("\\s+", "");
     }
 }

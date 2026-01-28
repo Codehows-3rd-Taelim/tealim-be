@@ -1,15 +1,11 @@
 package com.codehows.taelimbe.langchain;
 
 import dev.langchain4j.service.*;
-import dev.langchain4j.service.spring.AiService;
 
 /**
  * LangChain4j의 AI 서비스를 정의하는 인터페이스입니다.
- * 이 인터페이스를 통해 AI 모델과 상호작용하며, 대화 기록 관리, 시스템 메시지 설정, 스트리밍 응답 등을 처리합니다.
- *
- * `@AiService` 어노테이션을 통해 LangChain4j가 런타임에 이 인터페이스의 구현체를 자동으로 생성합니다.
+ * AgentConfig에서 AiServices.builder()를 통해 수동으로 빈을 생성합니다.
  */
-@AiService
 public interface Agent {
 
     /**
