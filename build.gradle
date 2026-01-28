@@ -72,11 +72,6 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
     // ==============================
-    // Gson
-    // ==============================
-    implementation 'com.google.code.gson:gson'
-
-    // ==============================
     // Lombok
     // ==============================
     compileOnly 'org.projectlombok:lombok'
@@ -89,12 +84,8 @@ dependencies {
     testImplementation 'org.springframework.security:spring-security-test'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 
-    // csv 임베딩
-    implementation 'org.apache.commons:commons-csv:1.10.0'
-    implementation 'commons-io:commons-io:2.16.1'
-
-    // pdf 임베딩
-    implementation 'org.apache.pdfbox:pdfbox:2.0.30'
+    // Spring AI ETL 파이프라인 - Tika Document Reader (PDF, CSV, Word 등 다양한 문서 지원)
+    implementation 'org.springframework.ai:spring-ai-tika-document-reader'
 
     // Apache HttpClient (PuduAPIClient에서 사용)
     implementation 'org.apache.httpcomponents:httpclient:4.5.14'

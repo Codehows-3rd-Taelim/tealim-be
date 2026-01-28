@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.qna.entity;
 
-import com.codehows.taelimbe.ai.constant.QnaStatus;
+import com.codehows.taelimbe.qna.constant.QnaStatus;
 import com.codehows.taelimbe.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;

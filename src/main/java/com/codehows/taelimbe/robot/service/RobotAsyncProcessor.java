@@ -1,10 +1,9 @@
 package com.codehows.taelimbe.robot.service;
 
-import com.codehows.taelimbe.client.PuduAPIClient;
+import com.codehows.taelimbe.pudu.PuduAPIClient;
 import com.codehows.taelimbe.robot.dto.RobotDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;

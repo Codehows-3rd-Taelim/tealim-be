@@ -157,7 +157,7 @@ public class RobotController {
 ```java
 package com.codehows.taelimbe.service;
 
-import com.codehows.taelimbe.client.PuduAPIClient;
+import com.codehows.taelimbe.pudu.PuduAPIClient;
 import com.codehows.taelimbe.robot.dto.RobotDTO;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.store.entity.Store;

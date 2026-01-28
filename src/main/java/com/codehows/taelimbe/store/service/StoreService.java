@@ -1,7 +1,7 @@
 package com.codehows.taelimbe.store.service;
 
 import com.codehows.taelimbe.store.dto.StoreDTO;
-import com.codehows.taelimbe.client.PuduAPIClient;
+import com.codehows.taelimbe.pudu.PuduAPIClient;
 import com.codehows.taelimbe.store.entity.Industry;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.IndustryRepository;
