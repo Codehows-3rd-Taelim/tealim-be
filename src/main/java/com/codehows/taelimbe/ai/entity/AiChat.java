@@ -27,7 +27,7 @@ public class AiChat {
     @Column(name = "sender_type", nullable = false)
     private SenderType senderType;
 
-    @Column(name = "raw_message", columnDefinition = "LONGTEXT", nullable = false)
+    @Column(name = "raw_message", columnDefinition = "TEXT", nullable = false)
     private String rawMessage;
 
     @Column(name = "created_at", nullable = false, updatable = false)

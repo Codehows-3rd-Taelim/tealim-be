@@ -35,7 +35,7 @@ public class AiReport {
     @Column(name = "raw_message")
     private String rawMessage;
 
-    @Column(name = "raw_report", columnDefinition = "LONGTEXT")
+    @Column(name = "raw_report", columnDefinition = "TEXT")
     private String rawReport;
 
     @ManyToOne

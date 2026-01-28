@@ -7,7 +7,6 @@ import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.ActiveProfiles;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -16,10 +15,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * 통합 테스트: 실제 MySQL DB를 사용하여
+ * 통합 테스트: 실제 PostgreSQL DB를 사용하여
  * 기존 Java 순회 방식 vs DB 집계 쿼리 방식 성능 비교.
  *
- * 실행 조건: MySQL이 실행 중이고, pudu_report 테이블에 데이터가 존재해야 합니다.
+ * 실행 조건: PostgreSQL이 실행 중이고, pudu_report 테이블에 데이터가 존재해야 합니다.
  */
 @SpringBootTest
 class ReportStatisticsIntegrationTest {
@@ -91,39 +90,39 @@ class ReportStatisticsIntegrationTest {
 
         assertEquals(oldStats.getTotalJobCount(), newStats.getTotalJobCount(),
                 "총 작업 횟수 불일치");
-        System.out.printf("총 작업 횟수: Old=%d, New=%d ✓%n",
+        System.out.printf("총 작업 횟수: Old=%d, New=%d%n",
                 oldStats.getTotalJobCount(), newStats.getTotalJobCount());
 
         assertEquals(oldStats.getTotalCleanArea(), newStats.getTotalCleanArea(), 1.0,
                 "총 청소 면적 불일치");
-        System.out.printf("총 청소 면적: Old=%.1f, New=%.1f ✓%n",
+        System.out.printf("총 청소 면적: Old=%.1f, New=%.1f%n",
                 oldStats.getTotalCleanArea(), newStats.getTotalCleanArea());
 
         assertEquals(oldStats.getTotalCleanTimeSeconds(), newStats.getTotalCleanTimeSeconds(),
                 "총 작업 시간 불일치");
-        System.out.printf("총 작업 시간(초): Old=%d, New=%d ✓%n",
+        System.out.printf("총 작업 시간(초): Old=%d, New=%d%n",
                 oldStats.getTotalCleanTimeSeconds(), newStats.getTotalCleanTimeSeconds());
 
         assertEquals(oldStats.getAvgBatteryPercent(), newStats.getAvgBatteryPercent(), 0.5,
                 "평균 배터리 소모 불일치");
-        System.out.printf("평균 배터리: Old=%.1f%%, New=%.1f%% ✓%n",
+        System.out.printf("평균 배터리: Old=%.1f%%, New=%.1f%%%n",
                 oldStats.getAvgBatteryPercent(), newStats.getAvgBatteryPercent());
 
         assertEquals(oldStats.getTotalWaterMl(), newStats.getTotalWaterMl(),
                 "총 물 소비량 불일치");
-        System.out.printf("총 물 소비량(ml): Old=%d, New=%d ✓%n",
+        System.out.printf("총 물 소비량(ml): Old=%d, New=%d%n",
                 oldStats.getTotalWaterMl(), newStats.getTotalWaterMl());
 
         // 로봇 수 일치
         assertEquals(oldStats.getRobotStats().size(), newStats.getRobotStats().size(),
                 "로봇 수 불일치");
-        System.out.printf("로봇 수: Old=%d, New=%d ✓%n",
+        System.out.printf("로봇 수: Old=%d, New=%d%n",
                 oldStats.getRobotStats().size(), newStats.getRobotStats().size());
 
         // 구역 수 일치
         assertEquals(oldStats.getZoneStats().size(), newStats.getZoneStats().size(),
                 "구역 수 불일치");
-        System.out.printf("구역 수: Old=%d, New=%d ✓%n",
+        System.out.printf("구역 수: Old=%d, New=%d%n",
                 oldStats.getZoneStats().size(), newStats.getZoneStats().size());
 
         System.out.println();

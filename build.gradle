@@ -1,7 +1,7 @@
 plugins {
     id 'java'
-    id 'org.springframework.boot' version '3.2.5'
-    id 'io.spring.dependency-management' version '1.1.5'
+    id 'org.springframework.boot' version '3.4.2'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.codehows'
@@ -16,6 +16,7 @@ java {
 
 repositories {
     mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
 }
 
 configurations {
@@ -24,21 +25,33 @@ configurations {
     }
 }
 
+dependencyManagement {
+    imports {
+        mavenBom 'org.springframework.ai:spring-ai-bom:1.1.1'
+    }
+}
+
 dependencies {
     // ==============================
     // Spring Boot 스타터
     // ==============================
     implementation 'org.springframework.boot:spring-boot-starter-web'         // Web MVC
-//    implementation 'org.springframework.boot:spring-boot-starter-webflux'     // WebFlux
     implementation 'org.springframework.boot:spring-boot-starter-data-jpa'    // JPA
-//    implementation 'org.springframework.boot:spring-boot-starter-jdbc'        // JDBC
     implementation 'org.springframework.boot:spring-boot-starter-security'    // Spring Security
     implementation 'org.springframework.boot:spring-boot-starter-validation'  // Bean Validation
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'     // WebFlux (Reactor for Spring AI streaming)
 
     // ==============================
-    // MySQL Connector
+    // PostgreSQL
     // ==============================
-    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'org.postgresql:postgresql'
+
+    // ==============================
+    // Spring AI - Google GenAI (Gemini) + pgvector
+    // ==============================
+    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai'
+    implementation 'org.springframework.ai:spring-ai-starter-model-google-genai-embedding'
+    implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
 
     // ==============================
     // QueryDSL
@@ -59,39 +72,9 @@ dependencies {
     runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
 
     // ==============================
-    // LangChain4j 및 Milvus / Google GenAI
-    // ==============================
-    implementation 'dev.langchain4j:langchain4j-spring-boot-starter:1.10.0-beta18'
-    implementation 'dev.langchain4j:langchain4j-milvus:1.10.0-beta18'
-    implementation 'dev.langchain4j:langchain4j-google-ai-gemini:1.10.0'
-    implementation 'dev.langchain4j:langchain4j:1.10.0'
-
-    // ⭐ 핵심: MapChatMemoryProvider가 포함된 core 모듈을 명시적으로 추가
-//    implementation 'dev.langchain4j:langchain4j-core:0.31.0'
-//    implementation 'com.google.genai:google-genai:1.32.0'
-//    implementation platform('io.grpc:grpc-bom:1.59.1')
-//    implementation 'io.grpc:grpc-api'
-//    implementation 'io.grpc:grpc-core'
-//    implementation 'io.grpc:grpc-protobuf'
-//    implementation 'io.grpc:grpc-stub'
-//    implementation 'io.grpc:grpc-services'
-//    configurations.all {
-//        resolutionStrategy.eachDependency { details ->
-//            if (details.requested.group == 'io.grpc') {
-//                details.useVersion '1.59.1'
-//            }
-//        }
-//    }
-
-    // ==============================
     // Gson
     // ==============================
     implementation 'com.google.code.gson:gson'
-
-    // ==============================
-    // Fastjson (for Milvus metadata)
-    // ==============================
-    implementation 'com.alibaba.fastjson2:fastjson2:2.0.47'
 
     // ==============================
     // Lombok

@@ -6,9 +6,10 @@ import com.codehows.taelimbe.pudureport.service.PuduReportService;
 import com.codehows.taelimbe.store.constant.DeleteStatus;
 import com.codehows.taelimbe.store.entity.Store;
 import com.codehows.taelimbe.store.repository.StoreRepository;
-import dev.langchain4j.agent.tool.Tool;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -21,33 +22,28 @@ public class ReportTools {
     private final StoreRepository storeRepository;
     private final PuduReportService puduReportService;
 
-    @Tool("""
+    @Tool(description = """
     (ADMIN 전용)
     관리자가 요청한 기간에 해당하는 청소 로봇 운영 데이터를 조회합니다.
 
-    ⚠️ 날짜 규칙:
+    날짜 규칙:
     - "어제" → 어제 날짜.
     - "오늘" → 오늘 날짜.
     - "지난주" → 지난주 월~일.
     - "저번주" → 지난주 월~일.
     - "이번주" → 이번주 월~일.
     - "이번달" → 이번 달 1일~말일.
-    - 연도가 없는 경우:
-        - "n월" → **올해 n월** 데이터 조회 (예: "12월" → 2025-12-01 ~ 2025-12-31)
-    - 연도 + 월이 있는 경우:
-        - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
+    - 연도가 없는 경우: "n월" → 올해 n월 데이터 조회
+    - 연도 + 월이 있는 경우: "YYYY년 n월" → 해당 연도 n월 데이터 조회
     - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
-    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위(startDate, endDate)로 변환하세요.
-        - 예:
-          - "25년 12월부터 26년 1월" →
-            startDate = 2025-12-01
-            endDate   = 2026-01-31
-
+    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위로 변환.
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
     storeId가 null이면 전매장 데이터를 조회합니다.
     """)
-    public String getReport(String startDate, String endDate) {
-
+    public String getReport(
+            @ToolParam(description = "조회 시작일 (YYYY-MM-DD)") String startDate,
+            @ToolParam(description = "조회 종료일 (YYYY-MM-DD)") String endDate
+    ) {
         boolean isAdmin = Boolean.parseBoolean(
                 ToolArgsContextHolder.getToolArgs("isAdmin")
         );
@@ -63,7 +59,6 @@ public class ReportTools {
 
         log.info("[AI TOOL CALL] getReport({}, {})", startDate, endDate);
 
-        // 건수만 확인 (실제 집계는 AiReportService에서 DB 쿼리로 처리)
         List<PuduReportDTO> reportData = puduReportService.getReport(startDate, endDate);
         int count = reportData != null ? reportData.size() : 0;
 
@@ -74,37 +69,30 @@ public class ReportTools {
         return "조회 완료: " + count + "건";
     }
 
-    @Tool("""
+    @Tool(description = """
     매장 단위 청소 로봇 보고서 데이터를 조회합니다.
 
     - USER: fixedStoreId만 허용.
     - ADMIN: resolveStore 결과 storeId 사용.
 
-    ⚠️ 날짜 규칙:
+    날짜 규칙:
     - "어제" → 어제 날짜.
     - "오늘" → 오늘 날짜.
     - "지난주" → 지난주 월~일.
     - "저번주" → 지난주 월~일.
     - "이번주" → 이번주 월~일.
     - "이번달" → 이번 달 1일~말일.
-    - 연도가 없는 경우:
-        - "n월" → **올해 n월** 데이터 조회 (예: "12월" → 2025-12-01 ~ 2025-12-31)
-    - 연도 + 월이 있는 경우:
-        - "YYYY년 n월" → 해당 연도 n월 데이터 조회 (예: "2024년 10월" → 2024-10-01 ~ 2024-10-31)
+    - 연도가 없는 경우: "n월" → 올해 n월 데이터 조회
+    - 연도 + 월이 있는 경우: "YYYY년 n월" → 해당 연도 n월 데이터 조회
     - "최근 7일" → 오늘 기준 7일 전 ~ 오늘.
-    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위(startDate, endDate)로 변환하세요.
-        - 예:
-          - "25년 12월부터 26년 1월" →
-            startDate = 2025-12-01
-            endDate   = 2026-01-31
-
+    - 기간이 두 개 이상의 연도에 걸쳐 있더라도 반드시 하나의 연속된 날짜 범위로 변환.
     날짜는 반드시 YYYY-MM-DD 형식으로 전달해야 합니다.
     storeId가 null이면 전매장 데이터를 조회합니다.
     """)
     public String getStoreReport(
-            String startDate,
-            String endDate,
-            Long storeId
+            @ToolParam(description = "조회 시작일 (YYYY-MM-DD)") String startDate,
+            @ToolParam(description = "조회 종료일 (YYYY-MM-DD)") String endDate,
+            @ToolParam(description = "매장 ID (null이면 전매장)") Long storeId
     ) {
         ToolArgsContextHolder.setToolArgs("startDate", startDate);
         ToolArgsContextHolder.setToolArgs("endDate", endDate);
@@ -129,7 +117,6 @@ public class ReportTools {
         ToolArgsContextHolder.setToolArgs("storeName", store.getShopName());
         ToolArgsContextHolder.setToolArgs("resolvedStoreId", String.valueOf(resolvedStoreId));
 
-        // 건수만 확인 (실제 집계는 AiReportService에서 DB 쿼리로 처리)
         List<PuduReportDTO> reports =
                 puduReportService.getReportByStoreId(resolvedStoreId, startDate, endDate);
         int count = reports != null ? reports.size() : 0;
@@ -137,14 +124,15 @@ public class ReportTools {
         return "조회 완료: " + count + "건";
     }
 
-    @Tool("""
+    @Tool(description = """
     사용자 입력에서 추출한 매장명 후보를
     현재 등록된 매장 목록과 비교하여
     가장 유사한 매장의 storeId를 반환합니다.
     판단 불가 시 null 반환.
     """)
-    public Long resolveStore(String shopNameCandidate) {
-
+    public Long resolveStore(
+            @ToolParam(description = "매장명 후보") String shopNameCandidate
+    ) {
         if (shopNameCandidate == null || shopNameCandidate.isBlank()) {
             return null;
         }

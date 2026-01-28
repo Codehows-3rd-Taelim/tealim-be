@@ -53,7 +53,7 @@ public class QnaEmbedService {
 
             if (!deleted) {
                 throw new IllegalStateException(
-                        "Milvus delete failed. Abort embed delete. qnaId=" + qnaId
+                        "Vector store delete failed. Abort embed delete. qnaId=" + qnaId
                 );
             }
 
