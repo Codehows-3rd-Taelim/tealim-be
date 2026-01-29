@@ -1,10 +1,9 @@
 package com.codehows.taelimbe.ai.service;
 
-import com.codehows.taelimbe.ai.report.dto.ReportStatistics;
-import com.codehows.taelimbe.ai.report.service.ReportStatisticsService;
-import com.codehows.taelimbe.pudu.report.dto.PuduReportDTO;
-import com.codehows.taelimbe.pudu.report.entity.PuduReport;
-import com.codehows.taelimbe.pudu.report.repository.PuduReportRepository;
+import com.codehows.taelimbe.ai.dto.ReportStatistics;
+import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
+import com.codehows.taelimbe.pudureport.entity.PuduReport;
+import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,17 +1,21 @@
 package com.codehows.taelimbe.qna.controller;
 
+import com.codehows.taelimbe.ai.constant.QnaStatus;
 import com.codehows.taelimbe.qna.constant.QnaViewType;
 import com.codehows.taelimbe.qna.dto.QnaRequest;
 import com.codehows.taelimbe.qna.dto.QnaDTO;
 import com.codehows.taelimbe.qna.dto.UpdateAnswerRequest;
+import com.codehows.taelimbe.ai.service.QnaEmbedService;
 import com.codehows.taelimbe.qna.service.QnaService;
-import com.codehows.taelimbe.auth.utils.UserPrincipal;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor

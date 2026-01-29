@@ -1,8 +1,7 @@
 package com.codehows.taelimbe.ai.service;
 
-import com.codehows.taelimbe.ai.report.dto.ReportStatistics;
-import com.codehows.taelimbe.ai.report.service.ReportStatisticsService;
-import com.codehows.taelimbe.pudu.report.dto.PuduReportDTO;
+import com.codehows.taelimbe.ai.dto.ReportStatistics;
+import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

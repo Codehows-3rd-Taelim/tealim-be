@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.qna.dto;
 
-import com.codehows.taelimbe.qna.constant.QnaStatus;
+import com.codehows.taelimbe.ai.constant.QnaStatus;
 import com.codehows.taelimbe.qna.entity.Qna;
 import lombok.Getter;
 import lombok.Setter;

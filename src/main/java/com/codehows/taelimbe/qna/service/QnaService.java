@@ -1,18 +1,23 @@
 package com.codehows.taelimbe.qna.service;
 
 
-import com.codehows.taelimbe.qna.constant.QnaStatus;
+import com.codehows.taelimbe.ai.constant.QnaStatus;
 import com.codehows.taelimbe.qna.constant.QnaViewType;
 import com.codehows.taelimbe.qna.entity.Qna;
+import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.qna.repository.QnaRepository;
+import com.codehows.taelimbe.ai.service.EmbeddingService;
+import com.codehows.taelimbe.ai.service.QnaEmbeddingFailService;
 import com.codehows.taelimbe.user.entity.User;
-import com.codehows.taelimbe.auth.utils.UserPrincipal;
+import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.codehows.taelimbe.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor

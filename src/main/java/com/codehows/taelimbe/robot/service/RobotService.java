@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.robot.service;
 
-import com.codehows.taelimbe.pudu.PuduAPIClient;
+import com.codehows.taelimbe.client.PuduAPIClient;
 import com.codehows.taelimbe.robot.dto.RobotSyncRequestDTO;
 import com.codehows.taelimbe.robot.dto.RobotDTO;
 import com.codehows.taelimbe.robot.entity.Robot;
@@ -9,12 +9,16 @@ import com.codehows.taelimbe.robot.repository.RobotRepository;
 import com.codehows.taelimbe.store.repository.StoreRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
