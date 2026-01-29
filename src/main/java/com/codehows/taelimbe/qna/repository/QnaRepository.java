@@ -1,6 +1,5 @@
 package com.codehows.taelimbe.qna.repository;
 
-import com.codehows.taelimbe.ai.constant.QnaStatus;
 import com.codehows.taelimbe.qna.entity.Qna;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.domain.Page;

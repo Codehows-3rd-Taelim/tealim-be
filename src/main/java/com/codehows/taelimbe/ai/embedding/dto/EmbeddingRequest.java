@@ -1,0 +1,15 @@
+package com.codehows.taelimbe.ai.embedding.dto;
+
+import lombok.Data;
+
+/**
+ * 임베딩 생성을 위한 요청 데이터 전송 객체(DTO)입니다.
+ * 임베딩을 생성할 텍스트 데이터를 캡슐화합니다.
+ */
+@Data
+public class EmbeddingRequest {
+    /**
+     * 임베딩을 생성할 원본 텍스트입니다.
+     */
+    private String text;
+}

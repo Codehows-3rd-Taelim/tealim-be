@@ -1,11 +1,9 @@
 package com.codehows.taelimbe.qna.controller;
 
-import com.codehows.taelimbe.ai.constant.QnaStatus;
 import com.codehows.taelimbe.qna.constant.QnaViewType;
 import com.codehows.taelimbe.qna.dto.QnaRequest;
 import com.codehows.taelimbe.qna.dto.QnaDTO;
 import com.codehows.taelimbe.qna.dto.UpdateAnswerRequest;
-import com.codehows.taelimbe.ai.service.QnaEmbedService;
 import com.codehows.taelimbe.qna.service.QnaService;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;

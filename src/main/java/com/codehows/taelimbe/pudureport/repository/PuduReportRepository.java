@@ -1,6 +1,6 @@
 package com.codehows.taelimbe.pudureport.repository;
 
-import com.codehows.taelimbe.ai.dto.*;
+import com.codehows.taelimbe.ai.report.dto.*;
 import com.codehows.taelimbe.pudureport.dto.PuduReportDTO;
 import com.codehows.taelimbe.pudureport.entity.PuduReport;
 import org.springframework.data.domain.Page;
@@ -83,7 +83,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
     // ===== 집계 쿼리 (전매장) =====
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.OverallSummaryDTO(
+        SELECT new com.codehows.taelimbe.ai.report.dto.OverallSummaryDTO(
             COUNT(pr), COALESCE(SUM(pr.cleanTime),0), COALESCE(SUM(pr.cleanArea),0),
             COALESCE(AVG(pr.costBattery),0), COALESCE(SUM(pr.costWater),0))
         FROM PuduReport pr
@@ -92,7 +92,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
     OverallSummaryDTO findOverallSummary(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.StatusCountDTO(pr.status, COUNT(pr))
+        SELECT new com.codehows.taelimbe.ai.report.dto.StatusCountDTO(pr.status, COUNT(pr))
         FROM PuduReport pr
         WHERE pr.startTime >= :start AND pr.startTime < :end
         GROUP BY pr.status
@@ -100,7 +100,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
     List<StatusCountDTO> findStatusCounts(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.RobotStatsDTO(
+        SELECT new com.codehows.taelimbe.ai.report.dto.RobotStatsDTO(
             r.nickname, COUNT(pr), COALESCE(SUM(pr.cleanArea),0),
             COALESCE(AVG(pr.costBattery),0), COALESCE(SUM(pr.costWater),0),
             SUM(CASE WHEN pr.status = 4 THEN 1 ELSE 0 END))
@@ -111,7 +111,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
     List<RobotStatsDTO> findRobotStats(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.ZoneStatsDTO(
+        SELECT new com.codehows.taelimbe.ai.report.dto.ZoneStatsDTO(
             pr.mapName, COUNT(pr), COALESCE(SUM(pr.cleanArea),0),
             COALESCE(AVG(pr.cleanTime),0))
         FROM PuduReport pr
@@ -121,7 +121,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
     List<ZoneStatsDTO> findZoneStats(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.RemarkDTO(pr.startTime, pr.remark)
+        SELECT new com.codehows.taelimbe.ai.report.dto.RemarkDTO(pr.startTime, pr.remark)
         FROM PuduReport pr
         WHERE pr.startTime >= :start AND pr.startTime < :end
           AND pr.remark IS NOT NULL AND pr.remark <> '' AND pr.remark <> 'null'
@@ -131,7 +131,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
     // ===== 집계 쿼리 (매장별) =====
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.OverallSummaryDTO(
+        SELECT new com.codehows.taelimbe.ai.report.dto.OverallSummaryDTO(
             COUNT(pr), COALESCE(SUM(pr.cleanTime),0), COALESCE(SUM(pr.cleanArea),0),
             COALESCE(AVG(pr.costBattery),0), COALESCE(SUM(pr.costWater),0))
         FROM PuduReport pr JOIN pr.robot r JOIN r.store s
@@ -141,7 +141,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
                                        @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.StatusCountDTO(pr.status, COUNT(pr))
+        SELECT new com.codehows.taelimbe.ai.report.dto.StatusCountDTO(pr.status, COUNT(pr))
         FROM PuduReport pr JOIN pr.robot r JOIN r.store s
         WHERE s.storeId = :storeId AND pr.startTime >= :start AND pr.startTime < :end
         GROUP BY pr.status
@@ -150,7 +150,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
                                            @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.RobotStatsDTO(
+        SELECT new com.codehows.taelimbe.ai.report.dto.RobotStatsDTO(
             r.nickname, COUNT(pr), COALESCE(SUM(pr.cleanArea),0),
             COALESCE(AVG(pr.costBattery),0), COALESCE(SUM(pr.costWater),0),
             SUM(CASE WHEN pr.status = 4 THEN 1 ELSE 0 END))
@@ -162,7 +162,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
                                          @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.ZoneStatsDTO(
+        SELECT new com.codehows.taelimbe.ai.report.dto.ZoneStatsDTO(
             pr.mapName, COUNT(pr), COALESCE(SUM(pr.cleanArea),0),
             COALESCE(AVG(pr.cleanTime),0))
         FROM PuduReport pr JOIN pr.robot r JOIN r.store s
@@ -173,7 +173,7 @@ public interface PuduReportRepository extends JpaRepository<PuduReport, Long> {
                                         @Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
     @Query("""
-        SELECT new com.codehows.taelimbe.ai.dto.RemarkDTO(pr.startTime, pr.remark)
+        SELECT new com.codehows.taelimbe.ai.report.dto.RemarkDTO(pr.startTime, pr.remark)
         FROM PuduReport pr JOIN pr.robot r JOIN r.store s
         WHERE s.storeId = :storeId AND pr.startTime >= :start AND pr.startTime < :end
           AND pr.remark IS NOT NULL AND pr.remark <> '' AND pr.remark <> 'null'

@@ -1,7 +1,7 @@
   package com.codehows.taelimbe.pudureport.service;
 
 import com.codehows.taelimbe.pudureport.repository.PuduReportRepository;
-import com.codehows.taelimbe.client.PuduAPIClient;
+import com.codehows.taelimbe.pudureport.PuduAPIClient;
 import com.codehows.taelimbe.pudureport.entity.PuduReport;
 import com.codehows.taelimbe.robot.entity.Robot;
 import com.codehows.taelimbe.robot.repository.RobotRepository;

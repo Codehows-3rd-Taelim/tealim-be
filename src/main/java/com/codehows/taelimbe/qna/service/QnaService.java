@@ -1,13 +1,10 @@
 package com.codehows.taelimbe.qna.service;
 
 
-import com.codehows.taelimbe.ai.constant.QnaStatus;
+import com.codehows.taelimbe.ai.embedding.constant.QnaStatus;
 import com.codehows.taelimbe.qna.constant.QnaViewType;
 import com.codehows.taelimbe.qna.entity.Qna;
-import com.codehows.taelimbe.ai.repository.EmbedRepository;
 import com.codehows.taelimbe.qna.repository.QnaRepository;
-import com.codehows.taelimbe.ai.service.EmbeddingService;
-import com.codehows.taelimbe.ai.service.QnaEmbeddingFailService;
 import com.codehows.taelimbe.user.entity.User;
 import com.codehows.taelimbe.user.security.UserPrincipal;
 import com.codehows.taelimbe.user.service.UserService;
